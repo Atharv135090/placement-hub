@@ -33,6 +33,7 @@ export default function StudentProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [followStatus, setFollowStatus] = useState(null);
+  const [incomingFollowStatus, setIncomingFollowStatus] = useState(null);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -57,8 +58,9 @@ export default function StudentProfile() {
       const { data } = await getStudentProfile(studentId);
       setProfile(data);
       if (!isOwnProfile) {
-        unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, (status) => {
+        unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, ({ status, incomingStatus }) => {
           setFollowStatus(status);
+          setIncomingFollowStatus(incomingStatus);
         });
         const { data: bd } = await isBlocked(user.uid, studentId);
         setBlocked(bd || false);
@@ -94,6 +96,9 @@ export default function StudentProfile() {
       } else if (followStatus === "pending") {
         await cancelFollowRequest(user.uid, studentId);
         setFollowStatus(null);
+      } else if (incomingFollowStatus === "pending") {
+        await acceptFollowRequest(studentId, user.uid);
+        setIncomingFollowStatus("accepted");
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
         if (error === "blocked") {
@@ -120,6 +125,25 @@ export default function StudentProfile() {
     } finally {
       setFollowLoading(false);
     }
+  }
+
+  async function handleRejectRequest() {
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      await rejectFollowRequest(studentId, user.uid);
+      setIncomingFollowStatus(null);
+    } finally {
+      setFollowLoading(false);
+    }
+  }
+
+  function getFollowLabel() {
+    if (followLoading) return "Loading...";
+    if (followStatus === "accepted") return "Following";
+    if (followStatus === "pending") return "Requested";
+    if (incomingFollowStatus === "pending") return "Accept Request";
+    return "Follow";
   }
 
   async function handleAcceptRequest(fromId) {
@@ -217,13 +241,6 @@ export default function StudentProfile() {
     return false;
   }, [isOwnProfile, blocked, profile?.profileVisibility, followStatus]);
 
-  function getFollowLabel() {
-    if (followLoading) return "Loading...";
-    if (followStatus === "accepted") return "Following";
-    if (followStatus === "pending") return "Requested";
-    return "Follow";
-  }
-
   if (loading) {
     return (
       <div className="sp-page animate-fade-in">
@@ -283,12 +300,21 @@ export default function StudentProfile() {
         {!isOwnProfile && (
           <div className="sp-hero-actions">
             <button
-              className={`btn ${followStatus === "accepted" ? "btn-ghost" : followStatus === "pending" ? "btn-ghost" : "btn-primary"}`}
+              className={`btn ${followStatus === "accepted" ? "btn-ghost" : incomingFollowStatus === "pending" ? "btn-primary" : "btn-primary"}`}
               onClick={handleFollow}
               disabled={blocked || followLoading}
             >
               {getFollowLabel()}
             </button>
+            {incomingFollowStatus === "pending" && (
+              <button
+                className="btn btn-ghost"
+                onClick={handleRejectRequest}
+                disabled={blocked || followLoading}
+              >
+                Reject
+              </button>
+            )}
             {canChat && (
               <button className="btn btn-primary" onClick={handleStartChat}>
                 Message

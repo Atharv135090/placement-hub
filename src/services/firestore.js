@@ -811,6 +811,9 @@ export function subscribeToNotifications(userId, callback) {
       })
       .slice(0, 50);
     callback(notifications);
+  }, (error) => {
+    console.error("subscribeToNotifications error:", error);
+    callback([]);
   });
 }
 

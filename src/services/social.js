@@ -237,44 +237,121 @@ export function subscribeToPendingFollowRequests(userId, callback) {
     where("toUserId", "==", userId),
     where("status", "==", "pending")
   );
-  return onSnapshot(q, async (snapshot) => {
+  return onSnapshot(q, (snapshot) => {
     const followDocs = mapDocs(snapshot);
-    const profiles = await Promise.all(
-      followDocs.map(async (f) => {
-        const userSnap = await getDoc(doc(db, "users", f.fromUserId));
-        return userSnap.exists() ? { id: userSnap.id, ...userSnap.data(), followFrom: f.fromUserId } : null;
+    const fromIds = followDocs.map((f) => f.fromUserId);
+    if (fromIds.length === 0) {
+      callback([]);
+      return;
+    }
+    Promise.all(
+      fromIds.map(async (fromId) => {
+        const userSnap = await getDoc(doc(db, "users", fromId));
+        return userSnap.exists() ? { id: userSnap.id, ...userSnap.data(), followFrom: fromId } : null;
       })
-    );
-    callback(profiles.filter(Boolean));
+    ).then((profiles) => callback(profiles.filter(Boolean)));
+  }, (error) => {
+    console.error("subscribeToPendingFollowRequests error:", error);
+    callback([]);
   });
 }
 
 export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
-  const docId = `${fromUserId}_${toUserId}`;
-  return onSnapshot(doc(db, "follows", docId), (docSnap) => {
-    if (!docSnap.exists()) {
-      callback(null);
+  const docIdOut = `${fromUserId}_${toUserId}`;
+  const docIdIn = `${toUserId}_${fromUserId}`;
+
+  const statuses = { outgoing: null, incoming: null };
+
+  function emit() {
+    if (statuses.outgoing === null && statuses.incoming === null) {
+      callback({ status: null, incomingStatus: null });
     } else {
-      callback(docSnap.data().status);
+      callback({ status: statuses.outgoing, incomingStatus: statuses.incoming });
     }
+  }
+
+  const unsubOut = onSnapshot(doc(db, "follows", docIdOut), (docSnap) => {
+    statuses.outgoing = docSnap.exists() ? docSnap.data().status : null;
+    emit();
+  }, (error) => {
+    console.error("subscribeToFollowStatus outgoing error:", error);
+    statuses.outgoing = null;
+    emit();
   });
+
+  const unsubIn = onSnapshot(doc(db, "follows", docIdIn), (docSnap) => {
+    statuses.incoming = docSnap.exists() ? docSnap.data().status : null;
+    emit();
+  }, (error) => {
+    console.error("subscribeToFollowStatus incoming error:", error);
+    statuses.incoming = null;
+    emit();
+  });
+
+  return () => {
+    unsubOut();
+    unsubIn();
+  };
 }
 
 export function subscribeToAllFollowStatuses(userId, callback) {
-  const q = query(
+  if (!userId) return () => {};
+
+  const qOutgoing = query(
     collection(db, "follows"),
     where("fromUserId", "==", userId)
   );
-  return onSnapshot(q, async (snapshot) => {
-    const statuses = {};
+  const qIncoming = query(
+    collection(db, "follows"),
+    where("toUserId", "==", userId)
+  );
+
+  const statuses = {};
+  let outgoingLoaded = false;
+  let incomingLoaded = false;
+
+  function emit() {
+    if (outgoingLoaded && incomingLoaded) {
+      callback({ ...statuses });
+    }
+  }
+
+  const unsubOut = onSnapshot(qOutgoing, (snapshot) => {
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status) {
         statuses[data.toUserId] = data.status;
       }
     }
-    callback(statuses);
+    outgoingLoaded = true;
+    emit();
+  }, (error) => {
+    console.error("subscribeToAllFollowStatuses outgoing error:", error);
+    outgoingLoaded = true;
+    emit();
   });
+
+  const unsubIn = onSnapshot(qIncoming, (snapshot) => {
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.status === "accepted") {
+        statuses[data.fromUserId] = "accepted";
+      } else if (data.status === "pending" && !statuses[data.fromUserId]) {
+        statuses[data.fromUserId] = "incoming_pending";
+      }
+    }
+    incomingLoaded = true;
+    emit();
+  }, (error) => {
+    console.error("subscribeToAllFollowStatuses incoming error:", error);
+    incomingLoaded = true;
+    emit();
+  });
+
+  return () => {
+    unsubOut();
+    unsubIn();
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -478,31 +555,47 @@ export function subscribeToMessages(conversationId, callback) {
   );
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error("subscribeToMessages error:", error);
+    callback([]);
   });
 }
 
 export function subscribeToConversations(userId, callback) {
   const q = query(collection(db, "conversations"), where("participants", "array-contains", userId));
-  return onSnapshot(q, async (snapshot) => {
+  return onSnapshot(q, (snapshot) => {
     const convs = mapDocs(snapshot);
-    const enriched = await Promise.all(
-      convs.map(async (c) => {
-        const otherId = c.participants.find((p) => p !== userId);
+    const otherIds = [...new Set(convs.map((c) => c.participants.find((p) => p !== userId)))];
+    if (otherIds.length === 0) {
+      callback([]);
+      return;
+    }
+    Promise.all(
+      otherIds.map(async (otherId) => {
         const otherSnap = await getDoc(doc(db, "users", otherId));
-        const otherProfile = otherSnap.exists() ? otherSnap.data() : {};
+        return otherSnap.exists() ? { id: otherId, ...otherSnap.data() } : { id: otherId };
+      })
+    ).then((profiles) => {
+      const profileMap = {};
+      profiles.forEach((p) => { profileMap[p.id] = p; });
+      const enriched = convs.map((c) => {
+        const otherId = c.participants.find((p) => p !== userId);
         return {
           ...c,
-          otherUser: { id: otherId, ...otherProfile },
+          otherUser: profileMap[otherId] || { id: otherId },
           unreadCount: c.participants[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
         };
-      })
-    );
-    enriched.sort((a, b) => {
-      const aTime = a.lastMessageAt?.toMillis?.() || 0;
-      const bTime = b.lastMessageAt?.toMillis?.() || 0;
-      return bTime - aTime;
+      });
+      enriched.sort((a, b) => {
+        const aTime = a.lastMessageAt?.toMillis?.() || 0;
+        const bTime = b.lastMessageAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+      callback(enriched);
     });
-    callback(enriched);
+  }, (error) => {
+    console.error("subscribeToConversations error:", error);
+    callback([]);
   });
 }
 
