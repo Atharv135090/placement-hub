@@ -23,7 +23,7 @@ const MOTIVATIONAL_QUOTES = [
 ];
 
 export default function Settings() {
-  const { user, profile } = useAuth();
+  const { user, profile, setProfile } = useAuth();
   const { themeMode, setThemeMode } = useTheme();
   const { stats } = usePlacementData();
   const navigate = useNavigate();
@@ -232,7 +232,7 @@ export default function Settings() {
     try {
       const result = await uploadProfilePicture(user.uid, file);
       if (!result.error) {
-        window.location.reload();
+        setProfile((prev) => ({ ...prev, photoUrl: result.data.photoUrl }));
       }
     } finally {
       setUploadingPhoto(false);
@@ -241,10 +241,9 @@ export default function Settings() {
 
   async function handleRestoreDefaultPhoto() {
     if (!user?.uid) return;
-    // If Google account has photoURL, restore Google photo; otherwise set null to use deterministic car fallback
     const defaultPhoto = user?.photoURL || null;
     await updateUserProfile(user.uid, { photoUrl: defaultPhoto });
-    window.location.reload();
+    setProfile((prev) => ({ ...prev, photoUrl: defaultPhoto }));
   }
 
   function handleResumeFileSelect(e) {

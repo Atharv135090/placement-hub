@@ -26,3 +26,12 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Secrets
+*-service-account.json
+serviceAccountKey.json
+credentials.json
+secrets.json
+*.pem
+*.key
+functions/.runtimeconfig.json

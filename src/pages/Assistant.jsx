@@ -140,17 +140,11 @@ const QUICK_PROMPTS = [
       </svg>
     ),
     label: "Tell me about a company",
-    prompt: "Tell me about eQ Technologic and what to prepare for their selection process.",
+    prompt: "Tell me about the companies visiting for placements and what to prepare.",
   },
 ];
 
-const INITIAL_RECENT_CHATS = [
-  { id: 1, title: "Resume review tips", time: "2d ago", prompt: "What are the best resume review tips for tech placements?" },
-  { id: 2, title: "Binary search explained", time: "3d ago", prompt: "Explain binary search and common edge cases." },
-  { id: 3, title: "Google SDE interview...", time: "3d ago", prompt: "What are the common interview questions for Google SDE?" },
-  { id: 4, title: "Project ideas for resume", time: "5d ago", prompt: "Suggest high-impact project ideas for my tech resume." },
-  { id: 5, title: "How to prepare for placements?", time: "1w ago", prompt: "How should I structure my preparation for placement season?" },
-];
+const INITIAL_RECENT_CHATS = [];
 
 function renderMarkdown(text) {
   if (!text) return text;

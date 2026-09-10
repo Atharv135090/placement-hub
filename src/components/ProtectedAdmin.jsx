@@ -3,7 +3,12 @@ import { useAdmin } from "../hooks/useAdmin";
 
 export default function ProtectedAdmin({ children, ownerOnly = false }) {
   const { isAdmin, isOwner, loading } = useAdmin();
-  const isPasswordVerified = typeof window !== "undefined" && sessionStorage.getItem("admin_authenticated") === "true";
+  const isPasswordVerified = typeof window !== "undefined" && (
+    sessionStorage.getItem("admin_authenticated") === "true" ||
+    localStorage.getItem("admin_authenticated") === "true" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  );
 
   if (loading) {
     return (
@@ -13,7 +18,7 @@ export default function ProtectedAdmin({ children, ownerOnly = false }) {
     );
   }
 
-  // Allow access if verified via password 5090 OR user is Firestore admin
+  // Allow access if verified via password 5090 OR user is Firestore admin OR local dev
   if (!isAdmin && !isPasswordVerified) {
     return <Navigate to="/admin/unauthorized" replace />;
   }

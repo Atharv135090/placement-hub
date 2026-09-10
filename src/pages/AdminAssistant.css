@@ -273,9 +273,65 @@
   cursor: not-allowed;
 }
 
+/* Light Theme Overrides */
+[data-theme="light"] .admin-asst-panel {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .admin-asst-header {
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+[data-theme="light"] .admin-asst-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-asst-action-btn {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+[data-theme="light"] .admin-asst-action-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-asst-msg--assistant .admin-asst-msg-text {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-asst-msg-icon {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+[data-theme="light"] .admin-asst-composer {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .admin-asst-input {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .admin-asst-confirm-card {
+  background: #f8fafc;
+  border-color: #fecdd3;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .admin-asst-panel {
     width: 100vw;
   }
 }
+

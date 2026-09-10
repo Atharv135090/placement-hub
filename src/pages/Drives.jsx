@@ -1,62 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
+import { getJobs } from "../services/firestore";
 import CompanyLogo from "../components/CompanyLogo";
 import "./Drives.css";
-
-const DEFAULT_DRIVES = [
-  {
-    id: "tcs-ninja-2026",
-    companyName: "TCS",
-    role: "Ninja & Digital Developer",
-    employmentType: "Full-Time",
-    location: "On Campus",
-    ctc: "3.36 - 7 LPA",
-    deadline: "2026-08-15T23:59:59",
-    workMode: "On Campus",
-  },
-  {
-    id: "google-step-2026",
-    companyName: "Google",
-    role: "Software Engineering Intern",
-    employmentType: "Internship",
-    location: "Remote / Hybrid",
-    ctc: "15 - 25 LPA",
-    deadline: "2026-08-20T23:59:59",
-    workMode: "Remote",
-  },
-  {
-    id: "microsoft-sde-2026",
-    companyName: "Microsoft",
-    role: "SDE Full-Time & Intern",
-    employmentType: "Full-Time",
-    location: "Hybrid",
-    ctc: "18 - 32 LPA",
-    deadline: "2026-08-25T23:59:59",
-    workMode: "Hybrid",
-  },
-  {
-    id: "amazon-sde-2026",
-    companyName: "Amazon",
-    role: "SDE I Graduate Trainee",
-    employmentType: "Full-Time",
-    location: "On Campus",
-    ctc: "20 - 45 LPA",
-    deadline: "2026-08-30T23:59:59",
-    workMode: "On Campus",
-  },
-  {
-    id: "eq-technologic-2026",
-    companyName: "eQ Technologic",
-    role: "Associate Software Engineer",
-    employmentType: "Full-Time",
-    location: "On Campus",
-    ctc: "12 - 16 LPA",
-    deadline: "2026-09-10T23:59:59",
-    workMode: "On Campus",
-  },
-];
 
 function daysUntil(dateStr) {
   if (!dateStr) return null;
@@ -72,22 +20,29 @@ function formatDate(dateStr) {
 export default function Drives() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { drives: firestoreJobs, companies, applications, applyToDrive, toggleSaveItem, isSaved, loading } = usePlacementData();
+  const { companies, applications, applyToDrive, toggleSaveItem, isSaved, loading } = usePlacementData();
+  const [firestoreJobs, setFirestoreJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("all"); // 'all', 'upcoming', 'ongoing', 'past'
+  const [activeTab, setActiveTab] = useState("all");
 
-  // Merge default drives with any from firestore
-  const allDrives = useMemo(() => {
-    if (!firestoreJobs || firestoreJobs.length === 0) {
-      return DEFAULT_DRIVES;
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await getJobs();
+      if (!cancelled) {
+        setFirestoreJobs(data || []);
+        setJobsLoading(false);
+      }
     }
-    const existingIds = new Set(firestoreJobs.map((j) => j.id));
-    const defaultsToAdd = DEFAULT_DRIVES.filter((d) => !existingIds.has(d.id));
-    return [...firestoreJobs, ...defaultsToAdd];
-  }, [firestoreJobs]);
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const allDrives = useMemo(() => firestoreJobs || [], [firestoreJobs]);
 
   const appliedMap = useMemo(() => {
     const map = {};

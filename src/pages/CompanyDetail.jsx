@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { usePlacementData } from "../contexts/PlacementDataContext";
 import {
   getCompany,
-  getAllApplications,
+  getJobsByCompany,
   getAttachmentsByCompany,
   uploadJobAttachment,
   deleteAttachment,
@@ -22,9 +23,9 @@ function formatFileSize(bytes) {
 }
 
 function timeAgo(dateVal) {
-  if (!dateVal) return "4 months ago";
+  if (!dateVal) return "";
   const d = dateVal?.seconds ? new Date(dateVal.seconds * 1000) : new Date(dateVal);
-  if (isNaN(d.getTime())) return "4 months ago";
+  if (isNaN(d.getTime())) return "";
   const now = new Date();
   const diff = Math.floor((now - d) / 1000);
   if (diff < 60) return "just now";
@@ -35,36 +36,30 @@ function timeAgo(dateVal) {
   return `${months} ${months === 1 ? "month" : "months"} ago`;
 }
 
+// PRD §38: NEVER invent data. Use only what exists in the database.
 function formatCompanyName(raw) {
-  if (!raw) return "eQ Technologic";
+  if (!raw) return "Not Specified";
   let clean = String(raw).replace(/^[\.\s\-–—]*company\s*name:\s*/i, "").trim();
   if (clean.toLowerCase().includes("industry:")) {
     clean = clean.split(/industry:/i)[0].trim();
   }
-  if (clean.toLowerCase() === "eq technologic") return "eQ Technologic";
   if (clean && clean === clean.toLowerCase()) {
     clean = clean.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   }
-  return clean || "eQ Technologic";
+  return clean || "Not Specified";
 }
 
 function formatIndustry(c) {
-  if (!c) return "IT / Computers - Software";
+  if (!c) return "Not Specified";
   if (c.industry && !c.industry.startsWith(".") && !c.industry.toLowerCase().includes("leave blank")) {
     return c.industry;
   }
-  if (c.name && c.name.toLowerCase().includes("industry:")) {
-    const match = c.name.match(/industry:\s*([^org]+?)(?:organisation|website|description|location|$)/i);
-    if (match && match[1]) {
-      const ind = match[1].replace(/[\/]/g, " / ").replace(/\s+/g, " ").trim();
-      return ind.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    }
-  }
-  return "IT / Computers - Software";
+  return "Not Specified";
 }
 
 function formatBannerSubtitle(c) {
   const ind = formatIndustry(c);
+  if (ind === "Not Specified") return ind;
   if (ind.toLowerCase().includes("computers") || ind.toLowerCase().includes("software")) {
     return "Technology · Software";
   }
@@ -72,85 +67,53 @@ function formatBannerSubtitle(c) {
 }
 
 function formatLocation(c) {
-  if (!c) return "Not specified";
+  if (!c) return "Not Specified";
   if (c.location && !c.location.startsWith(".") && !c.location.toLowerCase().includes("leave blank")) {
     return c.location;
   }
-  if (c.name && c.name.toLowerCase().includes("location:")) {
-    const match = c.name.match(/location:\s*([^org]+?)(?:use|industry|website|description|$)/i);
-    if (match && match[1]) {
-      const loc = match[1].trim();
-      if (loc.toLowerCase().includes("leave blank") || loc.toLowerCase().includes("not available")) {
-        return "Not specified";
-      }
-      return loc;
-    }
-  }
-  return "Not specified";
+  return "Not Specified";
 }
 
 function formatOrgSize(c) {
-  if (!c) return "2,001 - 10,000";
+  if (!c) return "Not Specified";
   if (c.organisationSize && !c.organisationSize.startsWith(".") && !c.organisationSize.toLowerCase().includes("leave blank")) {
     return c.organisationSize;
   }
-  if (c.name && c.name.toLowerCase().includes("organisation size:")) {
-    const match = c.name.match(/organisation\s*size:\s*([^web]+?)(?:website|description|location|$)/i);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-  }
-  return "2,001 - 10,000";
+  return "Not Specified";
 }
 
 function formatWebsite(c) {
-  if (!c) return "https://www.eqtechnologic.com";
+  if (!c) return "";
   if (c.website && !c.website.startsWith(".")) {
     return c.website.startsWith("http") ? c.website : `https://${c.website}`;
   }
-  if (c.name && c.name.toLowerCase().includes("website:")) {
-    const match = c.name.match(/website:\s*(https?:\/\/[^\s]+)/i);
-    if (match && match[1]) {
-      return match[1].trim().replace(/\/$/, "");
-    }
-  }
-  return "https://www.eqtechnologic.com";
+  return "";
 }
 
 function formatDescription(c) {
-  if (!c) return "eQ Technologic inc. is a software company providing technology and software solutions. We focus on building innovative and scalable products to solve real-world problems. Our team works on modern technologies and delivers high-quality solutions for our clients.";
-  if (c.description && !c.description.startsWith(".") && c.description.length > 40) {
-    return c.description.replace(/^eq technologic/i, "eQ Technologic");
+  if (!c) return "";
+  if (c.description && !c.description.startsWith(".") && c.description.length > 5) {
+    return c.description;
   }
-  if (c.name && c.name.toLowerCase().includes("description:")) {
-    const match = c.name.match(/description:\s*([^]+?)(?:location:|use the company logo|$)/i);
-    if (match && match[1]) {
-      let desc = match[1].trim();
-      desc = desc.replace(/^eq technologic/i, "eQ Technologic");
-      if (!desc.endsWith(".")) desc += ".";
-      if (!desc.includes("focus on building")) {
-        desc += " We focus on building innovative and scalable products to solve real-world problems. Our team works on modern technologies and delivers high-quality solutions for our clients.";
-      }
-      return desc;
-    }
-  }
-  return "eQ Technologic inc. is a software company providing technology and software solutions. We focus on building innovative and scalable products to solve real-world problems. Our team works on modern technologies and delivers high-quality solutions for our clients.";
+  return "";
 }
 
 export default function CompanyDetail() {
   const { companyId } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { applications, applyToDrive } = usePlacementData();
   const fileInputRef = useRef(null);
 
   const isAdmin = profile?.role === "admin" || profile?.role === "owner";
 
   const [company, setCompany] = useState(null);
+  const [drives, setDrives] = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [stats, setStats] = useState({ applications: 0, interviews: 0, offers: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [applying, setApplying] = useState(false);
 
   // Modals
   const [uploadModal, setUploadModal] = useState(false);
@@ -194,26 +157,39 @@ export default function CompanyDetail() {
     }
     setCompany(data);
 
-    const [attRes, appsRes] = await Promise.all([
+    const [drivesRes, attRes] = await Promise.all([
+      getJobsByCompany(companyId),
       getAttachmentsByCompany(companyId),
-      getAllApplications(),
     ]);
+    setDrives(drivesRes.data || []);
     setAttachments(attRes.data || []);
-
-    const apps = (appsRes.data || []).filter(
-      (a) => a.companyId === companyId || a.companyName === data.name
-    );
-    setStats({
-      applications: apps.length,
-      interviews: apps.filter((a) => a.status === "interview").length,
-      offers: apps.filter((a) => a.status === "offer" || a.status === "selected").length,
-    });
     setLoading(false);
   }, [companyId]);
 
   useEffect(() => {
     loadCompany();
   }, [loadCompany]);
+
+  // Compute which jobs the current user has applied to
+  const appliedJobIds = new Set(
+    applications
+      .filter((a) => a.userId === user?.uid && (a.companyId === companyId || a.companyName === company?.name))
+      .map((a) => a.jobId)
+  );
+
+  // Compute company stats from context applications
+  const companyApps = applications.filter(
+    (a) => a.companyId === companyId || a.companyName === company?.name
+  );
+  const stats = {
+    applications: companyApps.length,
+    interviews: companyApps.filter((a) => a.status === "interview").length,
+    offers: companyApps.filter((a) => a.status === "offer" || a.status === "selected").length,
+  };
+
+  // Find the first active drive for this company
+  const activeDrive = drives.find((d) => d.isActive !== false) || drives[0];
+  const hasAppliedToDrive = activeDrive ? appliedJobIds.has(activeDrive.id) : false;
 
   function scrollToSection(id, tabName) {
     setActiveTab(tabName);
@@ -326,11 +302,15 @@ export default function CompanyDetail() {
     setEditBusy(false);
   }
 
-  function handleApply() {
-    setApplySuccess(true);
-    setTimeout(() => {
-      setApplySuccess(false);
-    }, 4000);
+  async function handleApply() {
+    if (!activeDrive || hasAppliedToDrive || applying) return;
+    setApplying(true);
+    const { error } = await applyToDrive(activeDrive.id, company.name, activeDrive.title);
+    if (!error) {
+      setApplySuccess(true);
+      setTimeout(() => setApplySuccess(false), 4000);
+    }
+    setApplying(false);
   }
 
   if (loading) {
@@ -796,7 +776,7 @@ export default function CompanyDetail() {
             )}
           </div>
 
-          {/* 4. Eligibility Criteria */}
+          {/* 4. Eligibility Criteria — PRD §10: from drive data only */}
           <div id="sec-eligibility" className="cd-card cd-eligibility-card">
             <div className="cd-card-header">
               <div className="cd-header-icon-box">
@@ -806,24 +786,36 @@ export default function CompanyDetail() {
               </div>
               <h2 className="cd-card-title">Eligibility Criteria</h2>
             </div>
-            <ul className="cd-criteria-list">
-              <li>
-                <span className="cd-bullet-dot" />
-                <span>Minimum 60% throughout academics without any backlogs</span>
-              </li>
-              <li>
-                <span className="cd-bullet-dot" />
-                <span>Must belong to your current 2027 graduating batch, other students are not eligible</span>
-              </li>
-              <li>
-                <span className="cd-bullet-dot" />
-                <span>Willingness to relocate to Pune without relocation assistance</span>
-              </li>
-              <li>
-                <span className="cd-bullet-dot" />
-                <span>Flexibility to prioritize and participate in eQ's selection process during the drive dates</span>
-              </li>
-            </ul>
+            {(() => {
+              const activeDrive = drives.find(d => d.isActive) || drives[0];
+              const eligCriteria = activeDrive?.eligibilityCriteria || activeDrive?.eligibility;
+              const eligCourses = activeDrive?.eligibleCourses;
+              const hasData = (eligCriteria && eligCriteria !== "Not Specified") || (Array.isArray(eligCourses) && eligCourses.length > 0);
+              if (!hasData) {
+                return (
+                  <div className="cd-empty-box">
+                    <p className="cd-empty-title">No eligibility criteria available.</p>
+                    <p className="cd-empty-subtitle">Eligibility details will appear here once a drive is created for this company.</p>
+                  </div>
+                );
+              }
+              return (
+                <ul className="cd-criteria-list">
+                  {Array.isArray(eligCourses) && eligCourses.length > 0 && eligCourses.map((course, i) => (
+                    <li key={`course-${i}`}>
+                      <span className="cd-bullet-dot" />
+                      <span>{course}</span>
+                    </li>
+                  ))}
+                  {eligCriteria && eligCriteria !== "Not Specified" && (
+                    <li>
+                      <span className="cd-bullet-dot" />
+                      <span>{eligCriteria}</span>
+                    </li>
+                  )}
+                </ul>
+              );
+            })()}
           </div>
 
           {/* 5. Attachments */}
@@ -884,13 +876,22 @@ export default function CompanyDetail() {
         <div className="cd-side-column">
           {/* Apply & Website Action Buttons */}
           <div className="cd-action-buttons-card">
-            <button className="cd-btn-apply-primary" onClick={handleApply}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-              Apply Now
-            </button>
+            {hasAppliedToDrive ? (
+              <button className="cd-btn-apply-primary cd-btn-applied" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Applied
+              </button>
+            ) : (
+              <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying || !activeDrive}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+                {applying ? "Applying..." : "Apply Now"}
+              </button>
+            )}
             {applySuccess && (
               <div className="cd-apply-feedback">
                 ✓ Application submitted successfully!
@@ -906,7 +907,7 @@ export default function CompanyDetail() {
             </a>
           </div>
 
-          {/* Registration Schedule */}
+          {/* Registration Schedule — PRD §9: from drive data only */}
           <div className="cd-card cd-side-card">
             <div className="cd-card-header">
               <div className="cd-header-icon-box">
@@ -919,16 +920,35 @@ export default function CompanyDetail() {
               </div>
               <h3 className="cd-side-card-title">Registration Schedule</h3>
             </div>
-            <div className="cd-schedule-list">
-              <div className="cd-schedule-item">
-                <span className="cd-schedule-label">Opens</span>
-                <span className="cd-schedule-value">10:00 AM, 20-May-2026</span>
-              </div>
-              <div className="cd-schedule-item">
-                <span className="cd-schedule-label">Closes</span>
-                <span className="cd-schedule-value">09:00 AM, 21-May-2026</span>
-              </div>
-            </div>
+            {(() => {
+              const activeDrive = drives.find(d => d.isActive) || drives[0];
+              const opens = activeDrive?.registrationOpensAt;
+              const closes = activeDrive?.registrationClosesAt || activeDrive?.deadline;
+              const hasData = (opens && opens !== "Not Specified") || (closes && closes !== "Not Specified");
+              if (!hasData) {
+                return (
+                  <div className="cd-empty-box" style={{ padding: "12px" }}>
+                    <p className="cd-empty-title" style={{ fontSize: "13px" }}>No schedule available.</p>
+                  </div>
+                );
+              }
+              return (
+                <div className="cd-schedule-list">
+                  {opens && opens !== "Not Specified" && (
+                    <div className="cd-schedule-item">
+                      <span className="cd-schedule-label">Opens</span>
+                      <span className="cd-schedule-value">{opens}</span>
+                    </div>
+                  )}
+                  {closes && closes !== "Not Specified" && (
+                    <div className="cd-schedule-item">
+                      <span className="cd-schedule-label">Closes</span>
+                      <span className="cd-schedule-value">{closes}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Company Details */}

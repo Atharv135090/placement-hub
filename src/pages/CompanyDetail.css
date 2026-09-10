@@ -638,6 +638,17 @@
   box-shadow: 0 6px 18px rgba(225, 29, 72, 0.38);
 }
 
+.cd-btn-applied {
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.28);
+  cursor: default;
+}
+
+.cd-btn-applied:hover {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.28);
+}
+
 .cd-apply-feedback {
   background: #dcfce7;
   color: #15803d;

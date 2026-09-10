@@ -174,7 +174,7 @@ export default function AppShell() {
                 to={item.to}
                 end={item.to === "/"}
                 className={({ isActive }) =>
-                  `sidebar-link ${isActive ? "sidebar-link--active" : ""}`
+                  `sidebar-link ${isActive || (item.to === "/students" && location.pathname.startsWith("/chat")) ? "sidebar-link--active" : ""}`
                 }
                 title={item.label}
               >

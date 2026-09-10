@@ -73,7 +73,6 @@ const ADMIN_NAV = [
   { to: "/admin/users",     icon: UsersIcon,     label: "Users" },
   { to: "/admin/reports",   icon: ReportsIcon,   label: "Reports" },
   { to: "/admin/companies", icon: CompaniesIcon, label: "Companies" },
-  { to: "/admin/drives",    icon: DrivesIcon,    label: "Drives" },
 ];
 
 export default function AdminLayout() {

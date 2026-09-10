@@ -156,13 +156,15 @@ export function PlacementDataProvider({ children }) {
   }
 
   async function addNewCompany(data) {
+    // PRD §17: Database data only used for duplicate check, not to fill missing fields
     const existing = companies.find(c => c.name.toLowerCase() === data.name.toLowerCase());
     if (existing) return { error: "exists", data: existing };
+    // PRD §13: Fresh transaction object — only explicitly supplied values
     const newComp = {
       name: data.name,
       normalizedName: data.name.toLowerCase().replace(/[^a-z0-9]/g, ""),
-      industry: data.industry || "IT / Software",
-      location: data.location || "India",
+      industry: data.industry || "",
+      location: data.location || "",
       website: data.website || "",
       contactEmail: data.contactEmail || "",
       organisationSize: data.organisationSize || "",

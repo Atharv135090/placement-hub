@@ -98,37 +98,22 @@ export default function Home() {
 
   function formatIndustry(c) {
     if (c.industry && !c.industry.startsWith(".")) return c.industry;
-    if (c.name && c.name.toLowerCase().includes("industry:")) {
-      const match = c.name.match(/industry:\s*([^org]+?)(?:organisation|website|$)/i);
-      if (match && match[1]) {
-        const ind = match[1].replace(/[\/]/g, " & ").trim();
-        return ind.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-      }
-    }
-    return "Technology";
+    return "";
   }
 
   function formatOrgSize(c) {
     if (c.organisationSize && !c.organisationSize.startsWith(".")) return c.organisationSize;
-    if (c.name && c.name.toLowerCase().includes("organisation size:")) {
-      const match = c.name.match(/organisation\s*size:\s*([^web]+?)(?:website|$)/i);
-      if (match && match[1]) return match[1].trim();
-    }
-    return "10,000+";
+    return "";
   }
 
   function formatWebsite(c) {
     if (c.website && !c.website.startsWith(".")) return c.website;
-    if (c.name && c.name.toLowerCase().includes("website:")) {
-      const match = c.name.match(/website:\s*(https?:\/\/[^\s]+)/i);
-      if (match && match[1]) return match[1].trim();
-    }
     return null;
   }
 
   function formatDescription(c) {
     if (c.description && !c.description.startsWith(".")) return c.description;
-    return "Global organization focusing on engineering, software systems, cloud, and innovation.";
+    return "";
   }
 
   function truncate(str, max = 60) {
@@ -350,7 +335,7 @@ export default function Home() {
                   const compIndustry = formatIndustry(c);
                   const compSize = formatOrgSize(c);
                   const compWebsite = formatWebsite(c);
-                  const compLocation = c.location && !c.location.startsWith(".") ? c.location : "Bengaluru, India";
+                  const compLocation = c.location && !c.location.startsWith(".") ? c.location : "";
                   const compDesc = formatDescription(c);
 
                   return (

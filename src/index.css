@@ -15,6 +15,13 @@
   --glass-border:       rgba(255, 255, 255, 0.08);
   --glass-border-light: rgba(255, 255, 255, 0.04);
   --glass-border-hover: rgba(239, 68, 68, 0.35);
+  --glass-blur:         16px;
+  --glass-blur-heavy:   28px;
+
+  /* Premium Red Glass Accent */
+  --red-glass:          rgba(239, 68, 68, 0.06);
+  --red-glass-border:   rgba(239, 68, 68, 0.18);
+  --red-glass-glow:     rgba(239, 68, 68, 0.12);
 
   /* Primary Accent — Refined Red */
   --accent:             #ef4444;
@@ -71,6 +78,13 @@
   --glass-border:       rgba(0, 0, 0, 0.08);
   --glass-border-light: rgba(0, 0, 0, 0.04);
   --glass-border-hover: rgba(225, 29, 72, 0.35);
+  --glass-blur:         16px;
+  --glass-blur-heavy:   28px;
+
+  /* Premium Red Glass Accent */
+  --red-glass:          rgba(225, 29, 72, 0.04);
+  --red-glass-border:   rgba(225, 29, 72, 0.15);
+  --red-glass-glow:     rgba(225, 29, 72, 0.08);
 
   /* Primary Accent — Refined Red */
   --accent:             #e11d48;
@@ -205,7 +219,25 @@ input, select, textarea { font-family: inherit; }
   background: var(--bg-card-hover);
   border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md), 0 0 20px var(--accent-subtle);
+  box-shadow: var(--shadow-md), 0 0 20px var(--red-glass-glow);
+}
+
+/* ─── RED GLASS ACCENT CARD ────────────────────────────── */
+.glass-card-accent {
+  position: relative;
+}
+.glass-card-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--red-glass) 0%, transparent 60%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.glass-card-accent:hover::before {
+  opacity: 1;
 }
 
 /* ─── STATUS BADGES ──────────────────────────────────── */

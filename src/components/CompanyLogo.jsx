@@ -12,7 +12,9 @@ const KNOWN_BRANDS = [
   { match: (n) => n.includes("google"), bg: "#ffffff", label: "G", color: "#4285F4", weight: 800, border: "#e2e8f0" },
   { match: (n) => n.includes("microsoft"), bg: "#181d2a", label: "M", color: "#00a4ef", weight: 800 },
   { match: (n) => n.includes("amazon"), bg: "#000000", label: "a", color: "#ff9900", weight: 900 },
-  { match: (n) => n.includes("eq") || n.includes("technologic"), bg: "#7c3aed", label: "eQ", color: "#fff", weight: 900 },
+  { match: (n) => n.includes("nvidia"), bg: "#ffffff", label: "nvidia", color: "#76b900", weight: 900, customSvg: "nvidia", border: "#e2e8f0" },
+  { match: (n) => n.includes("noovosoft"), bg: "#11141d", label: ":T", color: "#ffffff", weight: 900 },
+  { match: (n) => n.includes("eq") || n.includes("technologic"), bg: "#11141d", label: ":T", color: "#f43f5e", weight: 900 },
   { match: (n) => n.includes("intel"), bg: "#0068b5", label: "intel", color: "#fff", weight: 800 },
 ];
 
@@ -82,6 +84,37 @@ export default function CompanyLogo({ name = "", logoUrl, size = 46, className =
 
   const brand = KNOWN_BRANDS.find((b) => b.match(normalized));
   if (brand) {
+    if (brand.customSvg === "nvidia") {
+      return (
+        <div
+          className={`company-brand-logo ${className}`}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: 12,
+            background: "#ffffff",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            border: "1px solid #e2e8f0",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+            padding: 3,
+          }}
+          title={name}
+        >
+          <svg width={size * 0.7} height={size * 0.45} viewBox="0 0 100 70" fill="none">
+            <path d="M45 10C28 10 15 22 15 37C15 50 26 60 41 60C45 60 49 59 52 57C48 54 45 49 45 43C45 35 52 28 60 28C63 28 66 29 68 31C67 19 57 10 45 10Z" fill="#76B900" />
+            <path d="M44 20C33 20 25 28 25 38C25 46 32 52 41 52C44 52 47 51 49 49C46 47 44 43 44 38C44 33 48 29 53 29C54 29 56 29 57 30C55 24 50 20 44 20Z" fill="#ffffff" />
+            <path d="M43 28C38 28 34 32 34 37C34 41 37 44 42 44C43 44 45 43 46 42C44 41 43 39 43 37C43 34 45 32 47 32C48 32 49 32 50 33C49 30 46 28 43 28Z" fill="#76B900" />
+          </svg>
+          <span style={{ fontSize: size * 0.18, fontWeight: 900, color: "#111827", letterSpacing: "-0.04em", marginTop: -2, fontFamily: "system-ui, sans-serif" }}>
+            nVIDIA
+          </span>
+        </div>
+      );
+    }
     return (
       <div
         className={`company-brand-logo ${className}`}
@@ -99,7 +132,7 @@ export default function CompanyLogo({ name = "", logoUrl, size = 46, className =
         }}
         title={name}
       >
-        <span style={{ color: brand.color, fontWeight: brand.weight, fontSize: size * 0.4, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>
+        <span style={{ color: brand.color, fontWeight: brand.weight, fontSize: size * 0.44, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>
           {brand.label}
         </span>
       </div>

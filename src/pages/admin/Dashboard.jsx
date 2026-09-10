@@ -56,7 +56,6 @@ export default function AdminDashboard() {
     }
 
     const companiesToday = companies.filter((c) => isToday(c.createdAt)).length;
-    const drivesToday = drives.filter((d) => isToday(d.createdAt)).length;
     const appsToday = applications.filter((a) => isToday(a.createdAt)).length;
     const offers = applications.filter(
       (a) => a.status === "offer" || a.status === "selected"
@@ -66,8 +65,6 @@ export default function AdminDashboard() {
     return {
       companiesCount: companies.length,
       companiesToday,
-      drivesCount: drives.length,
-      drivesToday,
       applicationsCount: applications.length,
       appsToday,
       offersCount: offers.length,
@@ -281,39 +278,7 @@ export default function AdminDashboard() {
           </svg>
         </div>
 
-        {/* Card 2: Drives */}
-        <div
-          className="adm-kpi-card glass-panel"
-          onClick={() => navigate("/admin/drives")}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="adm-kpi-top">
-            <div className="adm-kpi-icon-wrap kpi-purple">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-              </svg>
-            </div>
-            <div className="adm-kpi-label-row">
-              <span className="adm-kpi-title">Drives</span>
-              <span className="adm-kpi-chevron">›</span>
-            </div>
-          </div>
-          <div className="adm-kpi-value">{stats.drivesCount}</div>
-          <div className="adm-kpi-delta-row">
-            <span className="adm-delta-pill">
-              <span className="adm-delta-arrow">↑</span> +{stats.drivesToday} today
-            </span>
-          </div>
-
-          {/* Decorative subtle bottom wave */}
-          <svg className="adm-kpi-wave wave-purple" viewBox="0 0 120 40" preserveAspectRatio="none">
-            <path d="M0 32 C 40 38, 70 12, 120 22 L 120 40 L 0 40 Z" />
-          </svg>
-        </div>
-
-        {/* Card 3: Applications */}
+        {/* Card 2: Applications */}
         <div
           className="adm-kpi-card glass-panel"
           onClick={() => navigate("/admin/applications")}
@@ -588,26 +553,7 @@ export default function AdminDashboard() {
               <span className="adm-qa-label">Add Company</span>
             </div>
 
-            {/* 3. Create Drive */}
-            <div
-              className="adm-qa-card glass-panel"
-              onClick={() => navigate("/admin/drives")}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="adm-qa-top">
-                <div className="adm-qa-icon qa-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                  </svg>
-                </div>
-                <span className="adm-qa-chevron">›</span>
-              </div>
-              <span className="adm-qa-label">Create Drive</span>
-            </div>
-
-            {/* 4. View Reports */}
+            {/* 3. View Reports */}
             <div
               className="adm-qa-card glass-panel"
               onClick={() => navigate("/admin/reports")}
@@ -697,9 +643,9 @@ export default function AdminDashboard() {
                 const job = jobMap[app.jobId] || {};
                 const comp = companyMap[job.companyId || app.companyId] || {};
                 const userObj = userMap[app.userId] || {};
-                const companyName = comp.name || job.companyName || app.companyName || "DELL";
-                const roleTitle = job.title || app.jobTitle || "Software Developer Intern";
-                const initial = companyName.charAt(0).toUpperCase() || "D";
+                const companyName = comp.name || job.companyName || app.companyName || "Company";
+                const roleTitle = job.title || app.jobTitle || "Role";
+                const initial = companyName.charAt(0).toUpperCase() || "?";
 
                 return (
                   <div key={app.id} className="adm-feed-item">

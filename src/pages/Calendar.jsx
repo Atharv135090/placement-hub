@@ -30,47 +30,7 @@ export default function Calendar() {
   const today = new Date();
 
   const calendarEvents = useMemo(() => {
-    const defaultEvents = [
-      {
-        id: "ev-tcs-test",
-        title: "TCS Ninja OA & Coding Round",
-        time: "10:00 AM - 12:30 PM",
-        day: 15,
-        month: month,
-        year: year,
-        type: "oa",
-        company: "TCS",
-        role: "Ninja & Digital Developer",
-        color: EVENT_COLORS.oa,
-        location: "TCS iON Assessment Center",
-      },
-      {
-        id: "ev-google-int",
-        title: "Google STEP Technical Round 1",
-        time: "02:30 PM - 03:30 PM",
-        day: 20,
-        month: month,
-        year: year,
-        type: "interview",
-        company: "Google",
-        role: "Software Engineering Intern",
-        color: EVENT_COLORS.interview,
-        location: "Google Meet",
-      },
-      {
-        id: "ev-msft-oa",
-        title: "Microsoft Online Assessment",
-        time: "06:00 PM - 08:00 PM",
-        day: 25,
-        month: month,
-        year: year,
-        type: "oa",
-        company: "Microsoft",
-        role: "SDE Full-Time",
-        color: EVENT_COLORS.test,
-        location: "Codility Platform",
-      },
-    ];
+    const defaultEvents = [];
 
     const dynamicEvents = [];
 
@@ -92,7 +52,7 @@ export default function Calendar() {
           company: app.companyName,
           role: app.role,
           color: EVENT_COLORS.interview,
-          location: "Google Meet / MS Teams",
+          location: "Online",
         });
       }
 

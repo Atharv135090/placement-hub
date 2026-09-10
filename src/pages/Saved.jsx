@@ -1,54 +1,26 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlacementData } from "../contexts/PlacementDataContext";
+import { getJobs } from "../services/firestore";
 import CompanyLogo from "../components/CompanyLogo";
 import "./Saved.css";
 
-const DEFAULT_DRIVES = [
-  {
-    id: "tcs-ninja-2026",
-    companyName: "TCS",
-    role: "Ninja & Digital Developer",
-    employmentType: "Full-Time",
-    location: "On Campus",
-    ctc: "3.36 - 7 LPA",
-    deadline: "2026-08-15T23:59:59",
-    workMode: "On Campus",
-  },
-  {
-    id: "google-step-2026",
-    companyName: "Google",
-    role: "Software Engineering Intern",
-    employmentType: "Internship",
-    location: "Remote / Hybrid",
-    ctc: "15 - 25 LPA",
-    deadline: "2026-08-20T23:59:59",
-    workMode: "Remote",
-  },
-  {
-    id: "microsoft-sde-2026",
-    companyName: "Microsoft",
-    role: "SDE Full-Time & Intern",
-    employmentType: "Full-Time",
-    location: "Hybrid",
-    ctc: "18 - 32 LPA",
-    deadline: "2026-08-25T23:59:59",
-    workMode: "Hybrid",
-  },
-];
-
 export default function Saved() {
   const navigate = useNavigate();
-  const { companies, drives: firestoreDrives, savedIds, toggleSaveItem } = usePlacementData();
-  const [activeTab, setActiveTab] = useState("companies"); // 'companies' or 'drives'
+  const { companies, savedIds, toggleSaveItem } = usePlacementData();
+  const [allDrives, setAllDrives] = useState([]);
+  const [activeTab, setActiveTab] = useState("companies");
   const [search, setSearch] = useState("");
 
-  const allDrives = useMemo(() => {
-    if (!firestoreDrives || firestoreDrives.length === 0) return DEFAULT_DRIVES;
-    const existingIds = new Set(firestoreDrives.map((d) => d.id));
-    const defaultsToAdd = DEFAULT_DRIVES.filter((d) => !existingIds.has(d.id));
-    return [...firestoreDrives, ...defaultsToAdd];
-  }, [firestoreDrives]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await getJobs();
+      if (!cancelled) setAllDrives(data || []);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const savedCompanies = useMemo(() => {
     return companies.filter((c) => savedIds.includes(c.id));
@@ -146,7 +118,7 @@ export default function Saved() {
                   </div>
                   <div className="saved-card-info" style={{ flex: 1, marginLeft: 12 }}>
                     <h3 className="saved-card-name" style={{ fontSize: "1rem", fontWeight: 700 }}>{item.name}</h3>
-                    <span className="saved-card-meta" style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>{item.industry || "Technology"}</span>
+                    <span className="saved-card-meta" style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>{item.industry || ""}</span>
                   </div>
                   <button
                     className="bookmark-ribbon-btn"
@@ -162,7 +134,7 @@ export default function Saved() {
                 <div className="saved-card-bottom" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   {item.location && <span className="spec-pill" style={{ fontSize: "0.72rem" }}>📍 {item.location}</span>}
                   <span className="spec-pill" style={{ color: "var(--accent)", fontWeight: 700, fontSize: "0.72rem" }}>
-                    {item.ctcRange || "10 - 24 LPA"}
+                    {item.ctcRange || ""}
                   </span>
                 </div>
               </div>

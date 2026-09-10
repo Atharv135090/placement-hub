@@ -94,48 +94,29 @@ export default function Companies() {
 
   function formatIndustry(c) {
     if (c.industry && !c.industry.startsWith(".")) return c.industry;
-    if (c.name && c.name.toLowerCase().includes("industry:")) {
-      const match = c.name.match(/industry:\s*([^org]+?)(?:organisation|website|$)/i);
-      if (match && match[1]) {
-        const ind = match[1].replace(/[\/]/g, " & ").trim();
-        return ind.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-      }
-    }
-    return "Technology";
+    return "";
   }
 
   function formatLocation(c) {
     if (c.location && !c.location.startsWith(".")) return c.location;
-    if (c.name && c.name.toLowerCase().includes("location:")) {
-      const match = c.name.match(/location:\s*([^org]+?)(?:industry|website|$)/i);
-      if (match && match[1]) return match[1].trim();
-    }
-    return "Pune, India";
+    return "";
   }
 
   function formatOrgSize(c) {
     if (c.organisationSize && !c.organisationSize.startsWith(".")) {
       return c.organisationSize.includes("employee") ? c.organisationSize : `${c.organisationSize} employees`;
     }
-    if (c.name && c.name.toLowerCase().includes("organisation size:")) {
-      const match = c.name.match(/organisation\s*size:\s*([^web]+?)(?:website|$)/i);
-      if (match && match[1]) return `${match[1].trim()} employees`;
-    }
-    return "2,001 - 10,000 employees";
+    return "";
   }
 
   function formatWebsite(c) {
     if (c.website && !c.website.startsWith(".")) return c.website;
-    if (c.name && c.name.toLowerCase().includes("website:")) {
-      const match = c.name.match(/website:\s*(https?:\/\/[^\s]+)/i);
-      if (match && match[1]) return match[1].trim();
-    }
-    return "https://www.eqtechnologic.com";
+    return "";
   }
 
   function formatDescription(c) {
     if (c.description && !c.description.startsWith(".")) return c.description;
-    return "Global software product enterprise providing data integration, enterprise analytics, and innovation solutions.";
+    return "";
   }
 
   const handleCardClick = (company) => {

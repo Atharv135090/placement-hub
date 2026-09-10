@@ -237,3 +237,273 @@ export function extractPlacementData(text = "") {
 
   return combined;
 }
+
+// ─── POD.ai STRUCTURED PARSER ──────────────────────────────────
+// PRD §3: Structural labels are NEVER data.
+// PRD §6: Missing fields = "Not Specified"
+// PRD §13: Every operation is a fresh transaction.
+// PRD §4: Field-boundary detection, NOT line-based splitting.
+
+// Structural labels that must NEVER become field values (PRD §26)
+const STRUCTURAL_LABELS = [
+  "add drive from pod",
+  "add drive",
+  "create company",
+  "from pod company",
+  "pod company",
+  "company",
+  "drive",
+  "source",
+];
+
+// All known field headers used as boundaries for extraction.
+// Order matters: longest labels first to prevent partial matches.
+const ALL_FIELD_HEADERS = [
+  // Company fields
+  { key: "organisationDescription", label: "organisation description", aliases: ["organization description", "about the organisation", "about the organization", "about organisation", "about organization", "company description", "org description"] },
+  { key: "organisationSize", label: "organisation size", aliases: ["organization size", "org size", "company size"] },
+  { key: "companyName", label: "company name", aliases: [] },
+  { key: "companyLogo", label: "company logo", aliases: ["logo url", "logo", "icon"] },
+  // Drive fields
+  { key: "eligibleCourses", label: "eligible courses", aliases: ["eligible branches", "eligible streams", "courses", "branches", "eligible degree"] },
+  { key: "eligibilityCriteria", label: "eligibility criteria", aliases: ["eligibility", "academic criteria", "criteria", "min percentage", "cgpa criteria"] },
+  { key: "registrationOpensAt", label: "registration opens", aliases: ["registration opens at", "registration open", "opens at", "start date", "registration start"] },
+  { key: "registrationClosesAt", label: "registration closes", aliases: ["registration closes at", "registration close", "closes at", "deadline", "last date", "end date"] },
+  { key: "employmentType", label: "employment type", aliases: ["type of employment", "job type"] },
+  { key: "jobTitle", label: "job title", aliases: ["role", "position", "designation", "job role"] },
+  { key: "otherBenefits", label: "other benefits", aliases: ["benefits"] },
+  { key: "attachment", label: "attachment", aliases: [] },
+  { key: "industry", label: "industry", aliases: ["domain", "sector"] },
+  { key: "location", label: "location", aliases: ["job location", "posting location", "place", "city", "workplace"] },
+  { key: "description", label: "description", aliases: ["job description", "about job"] },
+  { key: "stipend", label: "stipend", aliases: ["monthly stipend", "internship stipend"] },
+  { key: "ctc", label: "ctc", aliases: ["cost to company", "package", "salary", "annual ctc"] },
+  { key: "source", label: "source", aliases: [] },
+];
+
+// Build all label→key mappings for boundary detection
+function buildAllLabelMappings() {
+  const allLabels = [];
+  for (const entry of ALL_FIELD_HEADERS) {
+    allLabels.push({ key: entry.key, label: entry.label });
+    for (const alias of entry.aliases) {
+      allLabels.push({ key: entry.key, label: alias });
+    }
+  }
+  // Sort longest first for correct matching
+  allLabels.sort((a, b) => b.label.length - a.label.length);
+  return allLabels;
+}
+
+const ALL_LABEL_MAPPINGS = buildAllLabelMappings();
+
+// Build regex pattern for matching any field header
+const FIELD_HEADER_PATTERN = ALL_LABEL_MAPPINGS
+  .map(e => e.label.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'))
+  .join("|");
+
+/**
+ * Extract fields from text using FIELD-BOUNDARY detection.
+ * Uses the same approach as parseLabelAwareText: find all header positions,
+ * then extract values between consecutive headers.
+ * Works whether fields are on separate lines OR on the same line.
+ */
+function extractFieldsByBoundary(text, allowedKeys) {
+  if (!text || !text.trim()) return {};
+
+  const cleanText = text.replace(/\r\n/g, "\n");
+  const matches = [];
+
+  // Find all field headers in the text with their positions
+  const regex = new RegExp(`(?:^|\\n|\\s|;)(${FIELD_HEADER_PATTERN})\\s*[:=]\\s*`, "gi");
+  let match;
+  while ((match = regex.exec(cleanText)) !== null) {
+    const headerText = match[1].toLowerCase().trim();
+    const mapping = ALL_LABEL_MAPPINGS.find(e => e.label === headerText);
+    if (mapping && allowedKeys.includes(mapping.key)) {
+      // Skip leading whitespace so matchStart points to the header text, not the whitespace before it
+      const leadingWs = match[0].match(/^\s+/);
+      const matchStart = match.index + (leadingWs ? leadingWs[0].length : 0);
+      const valueStart = match.index + match[0].length;
+      // Skip if overlapping with a previously matched value
+      const isOverlapping = matches.some(
+        m => matchStart >= m.matchStart && matchStart < m.valueStart
+      );
+      if (!isOverlapping) {
+        matches.push({ key: mapping.key, matchStart, valueStart });
+      }
+    }
+  }
+
+  if (matches.length === 0) return {};
+
+  matches.sort((a, b) => a.matchStart - b.matchStart);
+
+  const result = {};
+
+  for (let i = 0; i < matches.length; i++) {
+    const curr = matches[i];
+    const nextStart = (i + 1 < matches.length) ? matches[i + 1].matchStart : cleanText.length;
+    let value = cleanText.substring(curr.valueStart, nextStart).trim();
+    // Clean trailing delimiters
+    value = value.replace(/^[;,\-\s]+|[;,\-\s]+$/g, "").trim();
+
+    if (value) {
+      if (curr.key === "eligibleCourses") {
+        const courses = value.split(/\n|,|;/)
+          .map(s => s.replace(/^[*•\-–]\s+/, "").trim())
+          .filter(s => s.length > 0 && !s.toLowerCase().startsWith("eligible courses"));
+        if (courses.length > 0) {
+          result.eligibleCourses = result.eligibleCourses ? [...result.eligibleCourses, ...courses] : courses;
+        }
+      } else if (!result[curr.key]) {
+        result[curr.key] = value;
+      }
+    }
+  }
+
+  return result;
+}
+
+// Strip structural labels that appear before the actual content
+function stripStructuralLabels(text) {
+  let result = text;
+  // Remove "ADD DRIVE FROM POD" / "ADD DRIVE" header
+  result = result.replace(/^\s*(?:ADD DRIVE FROM POD|ADD DRIVE)\s*\n?/im, "");
+  // Remove "CREATE COMPANY" header
+  result = result.replace(/^\s*CREATE COMPANY\s*\n?/im, "");
+  // Remove "FROM POD COMPANY" prefix
+  result = result.replace(/^\s*FROM POD COMPANY\s*\n?/im, "");
+  // Remove standalone structural label lines (COMPANY, DRIVE, SOURCE)
+  const lines = result.split("\n").filter(l => {
+    const trimmed = l.trim().toLowerCase();
+    return !STRUCTURAL_LABELS.includes(trimmed);
+  });
+  return lines.join("\n");
+}
+
+// ─── PUBLIC: Parse ADD DRIVE FROM POD ──────────────────────────
+export function parsePodDriveMessage(text) {
+  if (!text || !text.trim()) return null;
+
+  const trimmed = text.trim();
+
+  // Must contain "ADD DRIVE" somewhere
+  if (!/add\s+drive\b/i.test(trimmed)) return null;
+
+  // Find section boundaries (COMPANY / DRIVE / SOURCE)
+  const lines = trimmed.split("\n").map(l => l.replace(/\r/g, ""));
+  let companyStart = -1, driveStart = -1, sourceStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].trim().toLowerCase();
+    if (l === "company") companyStart = i + 1;
+    else if (l === "drive") driveStart = i + 1;
+    else if (l === "source") sourceStart = i + 1;
+  }
+
+  // PRD §4: Field-boundary detection — works even without section headers
+  const companyKeys = ["companyName", "companyLogo", "organisationDescription", "industry", "organisationSize"];
+  const driveKeys = ["jobTitle", "employmentType", "location", "ctc", "stipend", "description", "otherBenefits", "registrationOpensAt", "registrationClosesAt", "eligibleCourses", "eligibilityCriteria", "attachment"];
+  const sourceKeys = ["source"];
+
+  let companyData = {}, driveData = {}, sourceData = {};
+
+  if (driveStart !== -1) {
+    // Multiline with section headers: extract per-section, exclude boundary lines
+    const companyEnd = driveStart - 1;  // Exclude the "Drive" line itself
+    const companyText = companyStart !== -1
+      ? lines.slice(companyStart, companyEnd).join("\n")
+      : "";
+    const driveEnd = sourceStart !== -1 ? sourceStart - 1 : lines.length;
+    const driveText = lines.slice(driveStart, driveEnd).join("\n");
+    const sourceText = sourceStart !== -1
+      ? lines.slice(sourceStart).join("\n")
+      : "";
+
+    companyData = extractFieldsByBoundary(companyText, companyKeys);
+    driveData = extractFieldsByBoundary(driveText, driveKeys);
+    sourceData = extractFieldsByBoundary(sourceText, sourceKeys);
+  }
+
+  // Fallback: try field-boundary extraction on full text (handles single-line format)
+  if (!companyData.companyName && !driveData.jobTitle) {
+    const allKeys = [...companyKeys, ...driveKeys, ...sourceKeys];
+    const allData = extractFieldsByBoundary(trimmed, allKeys);
+    if (allData.companyName) companyData.companyName = allData.companyName;
+    if (allData.companyLogo) companyData.companyLogo = allData.companyLogo;
+    if (allData.organisationDescription) companyData.organisationDescription = allData.organisationDescription;
+    if (allData.industry) companyData.industry = allData.industry;
+    if (allData.organisationSize) companyData.organisationSize = allData.organisationSize;
+    if (allData.jobTitle) driveData.jobTitle = allData.jobTitle;
+    if (allData.employmentType) driveData.employmentType = allData.employmentType;
+    if (allData.location) driveData.location = allData.location;
+    if (allData.ctc) driveData.ctc = allData.ctc;
+    if (allData.stipend) driveData.stipend = allData.stipend;
+    if (allData.description) driveData.description = allData.description;
+    if (allData.otherBenefits) driveData.otherBenefits = allData.otherBenefits;
+    if (allData.registrationOpensAt) driveData.registrationOpensAt = allData.registrationOpensAt;
+    if (allData.registrationClosesAt) driveData.registrationClosesAt = allData.registrationClosesAt;
+    if (allData.eligibleCourses) driveData.eligibleCourses = allData.eligibleCourses;
+    if (allData.eligibilityCriteria) driveData.eligibilityCriteria = allData.eligibilityCriteria;
+    if (allData.attachment) driveData.attachment = allData.attachment;
+    if (allData.source) sourceData.source = allData.source;
+  }
+
+  // Validate
+  if (!companyData.companyName && !driveData.jobTitle) return null;
+
+  return { companyData, driveData, sourceData };
+}
+
+// ─── PUBLIC: Parse CREATE COMPANY structured format ─────────────
+export function parseCreateCompanyMessage(text) {
+  if (!text || !text.trim()) return null;
+
+  const trimmed = text.trim();
+
+  // Must contain "CREATE COMPANY"
+  if (!/create\s+company\b/i.test(trimmed)) return null;
+
+  // Strip structural labels
+  const cleaned = stripStructuralLabels(trimmed);
+
+  // Extract company fields using boundary detection
+  const companyKeys = ["companyName", "companyLogo", "organisationDescription", "industry", "organisationSize"];
+  const sourceKeys = ["source"];
+
+  const companyData = extractFieldsByBoundary(cleaned, companyKeys);
+  const sourceData = extractFieldsByBoundary(cleaned, sourceKeys);
+
+  // Must have at least a company name
+  if (!companyData.companyName) return null;
+
+  return { companyData, sourceData };
+}
+
+// ─── VALIDATION: Check if companyName contains field headers ────
+const COMPANY_FIELD_HEADERS = [
+  "company name", "company logo", "organisation description", "organization description",
+  "about the organisation", "about the organization", "about organisation", "about organization",
+  "company description", "org description", "organisation size", "organization size",
+  "org size", "company size", "industry", "domain", "sector",
+  "job title", "role", "position", "designation",
+  "employment type", "location", "ctc", "stipend",
+  "eligible courses", "eligibility criteria", "eligibility",
+  "registration opens", "registration closes",
+  "description", "job description", "attachment",
+  "source", "create company", "add drive", "from pod company",
+];
+
+export function validateCompanyName(name) {
+  if (!name) return false;
+  const lower = name.toLowerCase().trim();
+  for (const header of COMPANY_FIELD_HEADERS) {
+    if (lower.includes(header + ":") || lower.includes(header + " :") || lower.includes(header + "=")) {
+      return false;  // Company name contains a field header — invalid
+    }
+  }
+  return true;
+}
+
+// Keep old exports for backward compatibility
+export { parsePodDriveMessage as parseStructuredDriveBlock };
