@@ -16,9 +16,8 @@ import {
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { db, storage, functions } from "../config/firebase";
+import { db, storage } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
 
 // ─── COLLECTIONS ──────────────────────────────────────────────
 
@@ -875,25 +874,54 @@ export async function deleteAllAnnouncements() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN: USER MANAGEMENT (Cloud Functions)
+// ADMIN: USER MANAGEMENT (Firestore-based, no Cloud Functions)
 // ═══════════════════════════════════════════════════════════════
 
 export async function adminLogoutUser(userId) {
   try {
-    const fn = httpsCallable(functions, "adminLogoutUser");
-    await fn({ userId });
+    await updateDoc(doc(db, "users", userId), {
+      forceLogout: true,
+      forceLogoutAt: new Date().toISOString(),
+    });
     return { data: { success: true }, error: null };
   } catch (error) {
-    const msg = error?.details || error?.message || "Failed to log out user.";
-    console.error("adminLogoutUser error:", msg);
-    return { data: null, error: msg };
+    return handleFirestoreError(error);
   }
 }
 
 export async function adminDeleteUser(userId) {
   try {
-    const fn = httpsCallable(functions, "adminDeleteUser");
-    await fn({ userId });
+    const batch_ops = [];
+
+    batch_ops.push(updateDoc(doc(db, "users", userId), {
+      accountDeleted: true,
+      deletedAt: new Date().toISOString(),
+      displayName: "[Deleted User]",
+      email: null,
+      photoUrl: null,
+      skills: [],
+      projects: [],
+      about: "",
+      forceLogout: true,
+      forceLogoutAt: new Date().toISOString(),
+    }));
+
+    const followSnap1 = await getDocs(query(collection(db, "follows"), where("fromUserId", "==", userId)));
+    followSnap1.forEach((d) => batch_ops.push(deleteDoc(doc(db, "follows", d.id))));
+
+    const followSnap2 = await getDocs(query(collection(db, "follows"), where("toUserId", "==", userId)));
+    followSnap2.forEach((d) => batch_ops.push(deleteDoc(doc(db, "follows", d.id))));
+
+    const blockSnap1 = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", userId)));
+    blockSnap1.forEach((d) => batch_ops.push(deleteDoc(doc(db, "blocks", d.id))));
+
+    const blockSnap2 = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", userId)));
+    blockSnap2.forEach((d) => batch_ops.push(deleteDoc(doc(db, "blocks", d.id))));
+
+    const notifSnap = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", userId)));
+    notifSnap.forEach((d) => batch_ops.push(deleteDoc(doc(db, "notifications", d.id))));
+
+    await Promise.all(batch_ops);
     return { data: { success: true }, error: null };
   } catch (error) {
     return handleFirestoreError(error);

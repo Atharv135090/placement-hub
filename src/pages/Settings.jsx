@@ -5,6 +5,9 @@ import { useTheme } from "../contexts/ThemeContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import { logOut } from "../services/auth";
 import { updateUserProfile, uploadProfilePicture, uploadResume } from "../services/firestore";
+import { auth, db } from "../config/firebase";
+import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { doc, deleteDoc, getDocs, query, where, collection } from "firebase/firestore";
 import UserAvatar from "../components/UserAvatar";
 import "../components/Modal.css";
 import "./Settings.css";
@@ -79,6 +82,9 @@ export default function Settings() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showHeroMenu, setShowHeroMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Rotating Quote state
   const [quoteIndex, setQuoteIndex] = useState(() => {
@@ -303,6 +309,50 @@ export default function Settings() {
   async function handleLogout() {
     await logOut();
     navigate("/login");
+  }
+
+  async function handleSelfDelete() {
+    if (!user || deletingAccount || deleteConfirmText !== "DELETE") return;
+    setDeletingAccount(true);
+    try {
+      const uid = user.uid;
+
+      const followSnap1 = await getDocs(query(collection(db, "follows"), where("fromUserId", "==", uid)));
+      followSnap1.forEach(async (d) => await deleteDoc(doc(db, "follows", d.id)));
+
+      const followSnap2 = await getDocs(query(collection(db, "follows"), where("toUserId", "==", uid)));
+      followSnap2.forEach(async (d) => await deleteDoc(doc(db, "follows", d.id)));
+
+      const blockSnap1 = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", uid)));
+      blockSnap1.forEach(async (d) => await deleteDoc(doc(db, "blocks", d.id)));
+
+      const blockSnap2 = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", uid)));
+      blockSnap2.forEach(async (d) => await deleteDoc(doc(db, "blocks", d.id)));
+
+      const notifSnap = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", uid)));
+      notifSnap.forEach(async (d) => await deleteDoc(doc(db, "notifications", d.id)));
+
+      await deleteDoc(doc(db, "users", uid));
+
+      try {
+        await reauthenticateWithPopup(user, new GoogleAuthProvider());
+      } catch {
+        // Reauthentication might fail if popup is blocked; proceed anyway
+      }
+
+      try {
+        await deleteUser(user);
+      } catch {
+        // Auth deletion may fail on Spark plan or if reauth failed
+        // The Firestore data is already cleaned up
+      }
+
+      await logOut();
+      navigate("/login");
+    } catch (err) {
+      console.error("Self-delete error:", err);
+      setDeletingAccount(false);
+    }
   }
 
   return (
@@ -1222,12 +1272,61 @@ export default function Settings() {
               </button>
             </div>
           </div>
+
+          <div className="futuristic-card glass sec-card" style={{ marginTop: 16 }}>
+            <h3 className="card-section-title" style={{ color: "var(--rose)" }}>Danger Zone</h3>
+            <p className="card-section-subtitle">Permanent actions that cannot be undone.</p>
+
+            <div className="security-item-row">
+              <div>
+                <strong>Delete Account</strong>
+                <p>Permanently delete your Placement HUB account and all associated data.</p>
+              </div>
+              <button className="btn btn-danger" onClick={() => { setShowDeleteAccount(true); setDeleteConfirmText(""); }}>
+                Delete Account
+              </button>
+            </div>
+          </div>
+
+          {showDeleteAccount && (
+            <div className="modal-overlay" onClick={() => { if (!deletingAccount) { setShowDeleteAccount(false); setDeleteConfirmText(""); } }}>
+              <div className="modal-panel glass-heavy" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+                <div className="modal-head">
+                  <h2 className="modal-title" style={{ color: "var(--rose)" }}>Delete Account</h2>
+                  <button className="modal-close" onClick={() => { if (!deletingAccount) { setShowDeleteAccount(false); setDeleteConfirmText(""); } }}>✕</button>
+                </div>
+                <div className="modal-body">
+                  <p style={{ marginBottom: 12, color: "var(--text-primary)" }}>
+                    Are you sure you want to delete your account <strong>{user?.email}</strong>?
+                  </p>
+                  <p style={{ marginBottom: 12, color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                    This will permanently delete your profile, follows, notifications, and all associated data. This action cannot be undone.
+                  </p>
+                  <p style={{ marginBottom: 8, fontWeight: 700, color: "var(--text-primary)", fontSize: "0.85rem" }}>
+                    Type <span style={{ color: "var(--rose)" }}>DELETE</span> to confirm.
+                  </p>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder='Type "DELETE" to confirm'
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    disabled={deletingAccount}
+                    autoFocus
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button className="modal-btn modal-btn--secondary" onClick={() => { setShowDeleteAccount(false); setDeleteConfirmText(""); }} disabled={deletingAccount}>Cancel</button>
+                  <button className="modal-btn modal-btn--danger" onClick={handleSelfDelete} disabled={deletingAccount || deleteConfirmText !== "DELETE"}>
+                    {deletingAccount ? "Deleting..." : "Delete My Account"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          9. BRAND FOOTER SLOGAN
-          ═══════════════════════════════════════════════════════════ */}
       <div className="profile-footer-slogan">
         <div className="slogan-rule-left">
           <span className="slogan-crimson-dash"></span>

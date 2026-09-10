@@ -322,6 +322,121 @@
   background: var(--accent-subtle);
 }
 
+/* ─── OMNIBAR SEARCH BAR ─────────────────────────────── */
+.admin-search-wrapper {
+  flex: 1;
+  max-width: 460px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+
+[data-theme="light"] .admin-search-wrapper {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.admin-search-wrapper:focus-within {
+  border-color: rgba(225, 29, 72, 0.45);
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.08);
+  background: #ffffff;
+}
+
+.admin-search-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.admin-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+[data-theme="light"] .admin-search-input {
+  color: #0f172a;
+}
+
+.admin-search-input::placeholder {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.admin-search-kbd {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  letter-spacing: 0.02em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .admin-search-kbd {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ─── SIDEBAR WATERMARK & BRANDING ───────────────────── */
+.admin-sidebar-watermark {
+  padding: 24px 18px 12px 18px;
+  margin-top: auto;
+  position: relative;
+  background: radial-gradient(circle at 10% 90%, rgba(225, 29, 72, 0.06) 0%, transparent 70%);
+}
+
+.admin-sidebar-motto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #cbd5e1;
+  line-height: 1.4;
+  user-select: none;
+}
+
+[data-theme="light"] .admin-sidebar-motto {
+  color: #94a3b8;
+}
+
+.admin-sidebar-bottom-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  padding: 8px 4px 0 4px;
+  user-select: none;
+  border-top: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+[data-theme="dark"] .admin-sidebar-bottom-badge {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-badge-star {
+  color: #e11d48;
+  font-size: 0.72rem;
+}
+
 .admin-top-bar-right {
   display: flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { onAuthChange } from "../services/auth";
 import { getUserProfile, createUserProfile, updateUserProfile } from "../services/firestore";
 import { OWNER_EMAIL } from "../config/owner";
@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const forceLogoutHandledRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
@@ -27,7 +28,13 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const { data } = await getUserProfile(firebaseUser.uid);
         if (data) {
+          if (data.accountDeleted) {
+            await signOut(auth);
+            return;
+          }
           if (data.forceLogout) {
+            forceLogoutHandledRef.current = true;
+            await updateUserProfile(firebaseUser.uid, { forceLogout: false, forceLogoutAt: null });
             await signOut(auth);
             return;
           }
@@ -79,8 +86,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      if (snap.exists() && snap.data().forceLogout) {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      if (d.accountDeleted) {
         signOut(auth);
+      } else if (d.forceLogout && !forceLogoutHandledRef.current) {
+        forceLogoutHandledRef.current = true;
+        updateUserProfile(user.uid, { forceLogout: false, forceLogoutAt: null }).then(() => {
+          signOut(auth);
+        });
       }
     }, () => {});
     return () => unsub();

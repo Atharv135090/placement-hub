@@ -25,8 +25,6 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
-    // Check users/{uid} document for role (works without custom claims)
-    // exists() guard prevents get() from failing when the document doesn't exist yet
     function hasOwnerRole() {
       return isAuth()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -40,128 +38,92 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
     }
 
-    function isConversationParticipant(convId) {
-      return isAuth()
-        && exists(/databases/$(database)/documents/conversations/$(convId))
-        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+    // ─── USERS / STUDENT PROFILES ─────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isAuth();
+
+      allow create: if isOwnerDoc(userId);
+
+      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
+
+      // Users can delete their own account (self-deletion)
+      // Admin/owner can delete any non-owner account
+      allow delete: if isOwnerDoc(userId)
+        || ((isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole())
+            && get(/databases/$(database)/documents/users/$(userId)).data.role != 'owner');
     }
 
     // ─── COMPANIES ─────────────────────────────────────────────
 
     match /companies/{companyId} {
-      // Anyone authenticated can read companies
       allow read: if isAuth();
-
-      // Only owner/admin can create, update, delete
-      // Checks both custom claims AND users/{uid} document
       allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
     }
 
     // ─── JOBS / PLACEMENT DRIVES ──────────────────────────────
 
     match /jobs/{jobId} {
-      // Anyone authenticated can read jobs
       allow read: if isAuth();
-
-      // Only owner/admin can create, update, delete
-      // Checks both custom claims AND users/{uid} document
       allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
-    }
-
-    // ─── USERS / STUDENT PROFILES ─────────────────────────────
-
-    match /users/{userId} {
-      // Users can read any profile (needed for displaying names, etc.)
-      allow read: if isAuth();
-
-      // Users can create their own profile only
-      allow create: if isOwnerDoc(userId);
-
-      // Users can update their own profile
-      // Owner/admin can update any profile (for role management)
-      // Allow self-update for role promotion
-      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
-
-      // Only owner/admin can delete user profiles
-      allow delete: if isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
     }
 
     // ─── APPLICATIONS ─────────────────────────────────────────
 
     match /applications/{applicationId} {
-      // Students can read their own applications
-      // Owner/admin can read all applications
       allow read: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
-
-      // Students can create their own application
-      allow create: if isAuth()
-        && request.resource.data.userId == request.auth.uid;
-
-      // Students can update their own application (e.g. withdraw)
-      // Owner/admin can update any application (status changes)
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow update: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
-
-      // Students can delete their own application (withdraw)
-      // Owner/admin can delete any application
       allow delete: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
     }
 
     // ─── ANNOUNCEMENTS ────────────────────────────────────────
 
     match /announcements/{announcementId} {
-      // Anyone authenticated can read announcements
       allow read: if isAuth();
-
-      // Only owner/admin can create, update, delete
       allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
     }
 
     // ─── ATTACHMENTS ─────────────────────────────────────────
 
     match /attachments/{attachmentId} {
-      // Anyone authenticated can read attachments
       allow read: if isAuth();
-
-      // Only owner/admin can create, update, delete
       allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
     }
 
     // ─── NOTIFICATIONS ────────────────────────────────────────
 
     match /notifications/{notificationId} {
-      // Anyone authenticated can read notifications
-      allow read: if isAuth();
+      // Only the recipient can read their notifications
+      allow read: if isAuth() && request.auth.uid == resource.data.targetUserId;
 
       // Authenticated users can create notifications (for follow requests etc.)
       allow create: if isAuth();
 
-      // Users can update readBy array (mark as read)
-      // Owner/admin can update any notification
-      allow update: if isAuth();
+      // Only the recipient can update (mark as read)
+      allow update: if isAuth() && request.auth.uid == resource.data.targetUserId;
 
-      // Only owner/admin can delete notifications
-      allow delete: if isOwnerOrAdmin() || hasAdminRole();
+      // Only the recipient or admin/owner can delete
+      allow delete: if isAuth()
+        && (request.auth.uid == resource.data.targetUserId
+          || isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── FOLLOWS ──────────────────────────────────────────────
 
     match /follows/{followId} {
-      // Anyone authenticated can read follows (needed for subscriptions)
       allow read: if isAuth();
 
-      // Only the sender (fromUserId) can create a follow request
-      // Prevents impersonation: you cannot create a follow pretending to be someone else
+      // Only the sender can create a follow request
       allow create: if isAuth()
         && request.auth.uid == request.resource.data.fromUserId
         && request.resource.data.toUserId != request.auth.uid;
 
-      // Only the target (toUserId) can update (accept/reject a request)
-      // Prevents the sender from force-accepting their own request
+      // Only the target can update (accept/reject)
       allow update: if isAuth()
         && request.auth.uid == resource.data.toUserId;
 
-      // Either participant can delete (cancel, unfollow, or remove follower)
-      // Prevents third-party deletion of other users' relationships
+      // Either participant can delete (cancel, unfollow, remove)
       allow delete: if isAuth()
         && (request.auth.uid == resource.data.fromUserId
           || request.auth.uid == resource.data.toUserId);
@@ -178,19 +140,16 @@ service cloud.firestore {
     // ─── MESSAGES ─────────────────────────────────────────────
 
     match /messages/{messageId} {
-      // Only conversation participants can read messages
       allow read: if isAuth()
         && resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
 
-      // Only conversation participants can create messages
       allow create: if isAuth()
         && request.resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
 
-      // Only conversation participants can update messages (mark as read)
       allow update: if isAuth()
         && resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
@@ -200,7 +159,10 @@ service cloud.firestore {
     // ─── BLOCKS ───────────────────────────────────────────────
 
     match /blocks/{blockId} {
-      allow read: if isAuth();
+      // Both the blocker and the blocked user can read (for block status checks)
+      allow read: if isAuth()
+        && (request.auth.uid == resource.data.blockerId
+          || request.auth.uid == resource.data.blockedId);
 
       // Only the blocker can create their own block
       allow create: if isAuth()
