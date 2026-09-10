@@ -434,6 +434,16 @@
 }
 
 /* ─── RESPONSIVE ──────────────────────────────────────── */
+@media (min-width: 769px) {
+  .top-header-left {
+    display: none;
+  }
+  .top-header-center {
+    justify-content: flex-start;
+    max-width: 440px;
+  }
+}
+
 @media (max-width: 768px) {
   .top-header {
     padding: 0 12px;
@@ -446,3 +456,4 @@
   .header-user-card { padding: 4px; border-radius: var(--radius-full); }
   .header-user-menu-trigger { padding: 0 6px 0 2px; }
 }
+

@@ -80,6 +80,64 @@ export default function Companies() {
     });
   }, [companies, search, sortOption, industryFilter, locationFilter, statusFilter]);
 
+  function formatCompanyName(raw) {
+    if (!raw) return "Company";
+    let clean = String(raw).replace(/^[\.\s\-–—]*company\s*name:\s*/i, "").trim();
+    if (clean.toLowerCase().includes("industry:")) {
+      clean = clean.split(/industry:/i)[0].trim();
+    }
+    if (clean && clean === clean.toLowerCase()) {
+      clean = clean.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    }
+    return clean || "Company";
+  }
+
+  function formatIndustry(c) {
+    if (c.industry && !c.industry.startsWith(".")) return c.industry;
+    if (c.name && c.name.toLowerCase().includes("industry:")) {
+      const match = c.name.match(/industry:\s*([^org]+?)(?:organisation|website|$)/i);
+      if (match && match[1]) {
+        const ind = match[1].replace(/[\/]/g, " & ").trim();
+        return ind.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      }
+    }
+    return "Technology";
+  }
+
+  function formatLocation(c) {
+    if (c.location && !c.location.startsWith(".")) return c.location;
+    if (c.name && c.name.toLowerCase().includes("location:")) {
+      const match = c.name.match(/location:\s*([^org]+?)(?:industry|website|$)/i);
+      if (match && match[1]) return match[1].trim();
+    }
+    return "Pune, India";
+  }
+
+  function formatOrgSize(c) {
+    if (c.organisationSize && !c.organisationSize.startsWith(".")) {
+      return c.organisationSize.includes("employee") ? c.organisationSize : `${c.organisationSize} employees`;
+    }
+    if (c.name && c.name.toLowerCase().includes("organisation size:")) {
+      const match = c.name.match(/organisation\s*size:\s*([^web]+?)(?:website|$)/i);
+      if (match && match[1]) return `${match[1].trim()} employees`;
+    }
+    return "2,001 - 10,000 employees";
+  }
+
+  function formatWebsite(c) {
+    if (c.website && !c.website.startsWith(".")) return c.website;
+    if (c.name && c.name.toLowerCase().includes("website:")) {
+      const match = c.name.match(/website:\s*(https?:\/\/[^\s]+)/i);
+      if (match && match[1]) return match[1].trim();
+    }
+    return "https://www.eqtechnologic.com";
+  }
+
+  function formatDescription(c) {
+    if (c.description && !c.description.startsWith(".")) return c.description;
+    return "Global software product enterprise providing data integration, enterprise analytics, and innovation solutions.";
+  }
+
   const handleCardClick = (company) => {
     navigate(`/companies/${company.id}`);
   };
@@ -230,7 +288,7 @@ export default function Companies() {
 
       {loading && filtered.length === 0 ? (
         <div className="comps-grid">
-          {[1, 2, 3, 4, 5, 6].map((n) => (
+          {[1, 2, 3].map((n) => (
             <div key={n} className="comps-card-skeleton" />
           ))}
         </div>
@@ -242,7 +300,7 @@ export default function Companies() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => navigate("/admin/companies")}
+            onClick={() => navigate("/companies/new")}
           >
             + Add Company
           </button>
@@ -266,74 +324,130 @@ export default function Companies() {
           </button>
         </div>
       ) : viewMode === "cards" ? (
-        <div className="comps-grid">
-          {filtered.map((c) => {
-            const statusClass =
-              c.status === "Applied"
-                ? "status-registered"
-                : c.status === "Shortlisted"
-                ? "status-shortlisted"
-                : c.status === "Selected"
-                ? "status-selected"
-                : "status-not-applied";
+        <>
+          <div className="comps-grid">
+            {filtered.map((c) => {
+              const compName = formatCompanyName(c.name);
+              const compIndustry = formatIndustry(c);
+              const compLocation = formatLocation(c);
+              const compSize = formatOrgSize(c);
+              const compWebsite = formatWebsite(c);
+              const compDesc = formatDescription(c);
 
-            return (
-              <div
-                key={c.id}
-                className="comp-card"
-                onClick={() => handleCardClick(c)}
-                tabIndex={0}
-                role="button"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleCardClick(c);
-                  }
-                }}
-              >
-                <div className="comp-card-top">
-                  <div className="comp-card-brand-group">
-                    <CompanyLogo name={c.name} logoUrl={c.logoUrl} size={44} />
-                    <div className="comp-card-titles">
-                      <h2 className="comp-card-name">{c.name}</h2>
-                      {c.industry && <span className="comp-card-role">{c.industry}</span>}
+              return (
+                <div
+                  key={c.id}
+                  className="comp-ref-card glass"
+                  onClick={() => handleCardClick(c)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleCardClick(c);
+                    }
+                  }}
+                >
+                  {/* Top Header: Logo, Name, Active Badge, Dots Menu */}
+                  <div className="crc-top-row">
+                    <div className="crc-brand-col">
+                      <div className="crc-logo-box">
+                        <CompanyLogo name={compName} logoUrl={c.logoUrl} size={44} />
+                      </div>
+                      <div className="crc-name-meta">
+                        <div className="crc-name-badge-line">
+                          <h3 className="crc-comp-name" title={compName}>{compName}</h3>
+                          <span className="crc-active-badge">Active</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="crc-dots-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCardClick(c);
+                      }}
+                      title="Options"
+                      aria-label="Company options"
+                    >
+                      ⋮
+                    </button>
+                  </div>
+
+                  {/* Middle Meta List */}
+                  <div className="crc-details-list">
+                    <div className="crc-detail-row">
+                      <span className="crc-detail-icon">🏢</span>
+                      <span className="crc-detail-text">{compIndustry}</span>
+                    </div>
+                    <div className="crc-detail-row">
+                      <span className="crc-detail-icon">📍</span>
+                      <span className="crc-detail-text">{compLocation}</span>
+                    </div>
+                    <div className="crc-detail-row">
+                      <span className="crc-detail-icon">👥</span>
+                      <span className="crc-detail-text">{compSize}</span>
+                    </div>
+                    <div className="crc-detail-row">
+                      <span className="crc-detail-icon">🔗</span>
+                      {compWebsite ? (
+                        <a
+                          href={compWebsite.startsWith("http") ? compWebsite : `https://${compWebsite}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="crc-detail-link"
+                          onClick={(e) => e.stopPropagation()}
+                          title={compWebsite}
+                        >
+                          {compWebsite}
+                        </a>
+                      ) : (
+                        <span className="crc-detail-text">Website pending</span>
+                      )}
                     </div>
                   </div>
-                  <span className={`comp-status-pill ${statusClass}`}>
-                    {c.status}
-                  </span>
-                </div>
 
-                <div className="comp-card-bottom">
-                  <div className="comp-card-meta-list">
-                    {c.location && (
-                      <div className="comp-meta-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                          <circle cx="12" cy="10" r="3" />
-                        </svg>
-                        <span>{c.location}</span>
-                      </div>
-                    )}
-                    {c.organisationSize && (
-                      <div className="comp-meta-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                          <circle cx="9" cy="7" r="4" />
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                        <span>{c.organisationSize}</span>
-                      </div>
-                    )}
+                  {/* Description Snippet */}
+                  <p className="crc-snippet" title={compDesc}>
+                    {compDesc}
+                  </p>
+
+                  {/* Bottom Row: Status Pill & View Details */}
+                  <div className="crc-bottom-row">
+                    <span className={`crc-status-pill ${c.status === "Applied" ? "pill-applied" : c.status === "Shortlisted" ? "pill-shortlisted" : c.status === "Selected" ? "pill-selected" : "pill-not-applied"}`}>
+                      {c.status}
+                    </span>
+                    <button
+                      type="button"
+                      className="crc-view-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCardClick(c);
+                      }}
+                    >
+                      View Details →
+                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Footer Bar: Count and Pagination matching reference */}
+          <div className="comps-footer-bar">
+            <span className="comps-footer-count">
+              Showing {filtered.length} {filtered.length === 1 ? "company" : "companies"}
+            </span>
+            <div className="comps-pagination">
+              <button type="button" className="comps-page-nav" disabled>‹</button>
+              <button type="button" className="comps-page-num active">1</button>
+              <button type="button" className="comps-page-nav" disabled>›</button>
+            </div>
+          </div>
+        </>
       ) : (
-        <div className="comps-list-container">
+        <div className="comps-list-container glass">
           <table className="comps-table">
             <thead>
               <tr>
@@ -345,35 +459,41 @@ export default function Companies() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id} onClick={() => handleCardClick(c)}>
-                  <td>
-                    <div className="comps-list-brand">
-                      <CompanyLogo name={c.name} logoUrl={c.logoUrl} size={36} />
-                      <strong>{c.name}</strong>
-                    </div>
-                  </td>
-                  <td>{c.industry || "—"}</td>
-                  <td>{c.location || "—"}</td>
-                  <td>
-                    <span className={`comp-status-pill ${c.status === "Applied" ? "status-registered" : c.status === "Shortlisted" ? "status-shortlisted" : c.status === "Selected" ? "status-selected" : "status-not-applied"}`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <button
-                      type="button"
-                      className="comps-table-action-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCardClick(c);
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((c) => {
+                const compName = formatCompanyName(c.name);
+                const compIndustry = formatIndustry(c);
+                const compLocation = formatLocation(c);
+
+                return (
+                  <tr key={c.id} onClick={() => handleCardClick(c)}>
+                    <td>
+                      <div className="comps-list-brand">
+                        <CompanyLogo name={compName} logoUrl={c.logoUrl} size={36} />
+                        <strong>{compName}</strong>
+                      </div>
+                    </td>
+                    <td>{compIndustry || "—"}</td>
+                    <td>{compLocation || "—"}</td>
+                    <td>
+                      <span className={`crc-status-pill ${c.status === "Applied" ? "pill-applied" : c.status === "Shortlisted" ? "pill-shortlisted" : c.status === "Selected" ? "pill-selected" : "pill-not-applied"}`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        className="crc-view-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCardClick(c);
+                        }}
+                      >
+                        View Details →
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

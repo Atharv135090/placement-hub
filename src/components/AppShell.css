@@ -232,6 +232,8 @@
   min-width: 0;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
   margin-left: 240px;
   transition: margin-left var(--transition-slow);
 }
@@ -242,11 +244,12 @@
 
 .main-content {
   flex: 1;
-  padding: 24px;
+  padding: 24px 32px 64px;
   max-width: 1440px;
   width: 100%;
   margin: 0 auto;
 }
+
 
 /* ─── MOBILE BOTTOM NAVIGATION DOCK (STEP 3) ──────────── */
 .mobile-nav-dock {
