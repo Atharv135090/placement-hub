@@ -137,6 +137,47 @@ service cloud.firestore {
       allow delete: if isOwnerOrAdmin() || hasAdminRole();
     }
 
+    // ─── FOLLOWS ──────────────────────────────────────────────
+
+    match /follows/{followId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    // ─── CONVERSATIONS ────────────────────────────────────────
+
+    match /conversations/{conversationId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.participants;
+      allow create: if isAuth();
+      allow update: if isAuth() && request.auth.uid in resource.data.participants;
+    }
+
+    // ─── MESSAGES ─────────────────────────────────────────────
+
+    match /messages/{messageId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+    }
+
+    // ─── BLOCKS ───────────────────────────────────────────────
+
+    match /blocks/{blockId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    // ─── REPORTS ──────────────────────────────────────────────
+
+    match /reports/{reportId} {
+      allow read: if isOwnerOrAdmin() || hasAdminRole() || resource.data.reporterId == request.auth.uid;
+      allow create: if isAuth();
+      allow update: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
     // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────
 
     match /{document=**} {

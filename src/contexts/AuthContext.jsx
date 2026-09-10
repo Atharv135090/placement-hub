@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { onAuthChange } from "../services/auth";
 import { getUserProfile, createUserProfile, updateUserProfile } from "../services/firestore";
 import { OWNER_EMAIL } from "../config/owner";
+import { getAutoAssignedPhoto } from "../utils/avatar";
 
 const AuthContext = createContext(null);
 
@@ -30,27 +31,31 @@ export function AuthProvider({ children }) {
           } else {
             setProfile(data);
           }
-          // Force token refresh so custom claims are up-to-date
+
+          if (!data.photoUrl) {
+            const autoPhoto = getAutoAssignedPhoto(firebaseUser);
+            await updateUserProfile(firebaseUser.uid, { photoUrl: autoPhoto });
+            setProfile((prev) => prev ? { ...prev, photoUrl: autoPhoto } : prev);
+          }
+
           try {
             await firebaseUser.getIdToken(true);
           } catch {
-            // Token refresh failed — continue with document-based role
           }
         } else {
           const isOwnerEmail = typeof firebaseUser.email === "string"
             && firebaseUser.email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
+          const autoPhoto = getAutoAssignedPhoto(firebaseUser);
           const { data: newProfile } = await createUserProfile(firebaseUser.uid, {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || "",
-            photoUrl: firebaseUser.photoURL || "",
+            photoUrl: autoPhoto,
             role: isOwnerEmail ? "owner" : "student",
           });
           setProfile(newProfile ? { uid: firebaseUser.uid, ...newProfile } : null);
-          // Force token refresh so custom claims are set
           try {
             await firebaseUser.getIdToken(true);
           } catch {
-            // Token refresh failed — continue with document-based role
           }
         }
       } else {

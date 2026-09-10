@@ -11,9 +11,6 @@ const CAR_IMAGES = [
   "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=200&h=200&fit=crop&crop=center",
 ];
 
-/**
- * Deterministically hash a string (e.g. user UID or email) to a consistent number.
- */
 function hashString(str = "") {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -24,7 +21,8 @@ function hashString(str = "") {
 }
 
 /**
- * Get the consistent fallback default avatar URL for a given user.
+ * Get a deterministic car fallback image URL for a user.
+ * The same user always gets the same image.
  */
 export function getAvatarFallback(user) {
   const seed = user?.uid || user?.email || "default_user_seed";
@@ -33,12 +31,23 @@ export function getAvatarFallback(user) {
 }
 
 /**
- * Get the user's avatar URL (actual Google photo if available, otherwise deterministic fallback).
+ * Get the user's avatar URL.
+ * Priority: profile.photoUrl > user.photoURL (Google) > deterministic car fallback.
  */
 export function getAvatarUrl(user, profile) {
-  const photo = user?.photoURL || profile?.photoUrl;
-  if (photo && typeof photo === "string" && photo.trim().length > 0) {
-    return photo;
+  if (profile?.photoUrl && typeof profile.photoUrl === "string" && profile.photoUrl.trim().length > 0) {
+    return profile.photoUrl;
   }
+  if (user?.photoURL && typeof user.photoURL === "string" && user.photoURL.trim().length > 0) {
+    return user.photoURL;
+  }
+  return getAvatarFallback(user);
+}
+
+/**
+ * Get the deterministic car fallback image that should be assigned to a user.
+ * Used when auto-assigning a profile photo on first login.
+ */
+export function getAutoAssignedPhoto(user) {
   return getAvatarFallback(user);
 }
