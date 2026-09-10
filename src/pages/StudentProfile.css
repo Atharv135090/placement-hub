@@ -248,6 +248,76 @@
 
 .btn-sm { padding: 6px 12px; font-size: 0.74rem; }
 
+.sp-remove-follower-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sp-remove-follower-btn:hover {
+  background: var(--red-subtle, #fef2f2);
+  color: var(--red, #ef4444);
+}
+
+.sp-evidence-upload {
+  position: relative;
+}
+
+.sp-evidence-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sp-evidence-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.sp-evidence-label:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.sp-evidence-remove {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .sp-empty {
   padding: 48px;
   border-radius: var(--radius-xl);

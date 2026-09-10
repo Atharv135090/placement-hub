@@ -40,6 +40,12 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
     }
 
+    function isConversationParticipant(convId) {
+      return isAuth()
+        && exists(/databases/$(database)/documents/conversations/$(convId))
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+    }
+
     // ─── COMPANIES ─────────────────────────────────────────────
 
     match /companies/{companyId} {
@@ -126,8 +132,8 @@ service cloud.firestore {
       // Anyone authenticated can read notifications
       allow read: if isAuth();
 
-      // Only owner/admin can create notifications
-      allow create: if isOwnerOrAdmin() || hasAdminRole();
+      // Authenticated users can create notifications (for follow requests etc.)
+      allow create: if isAuth();
 
       // Users can update readBy array (mark as read)
       // Owner/admin can update any notification
@@ -157,9 +163,23 @@ service cloud.firestore {
     // ─── MESSAGES ─────────────────────────────────────────────
 
     match /messages/{messageId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
+      // Only conversation participants can read messages
+      allow read: if isAuth()
+        && request.resource.data.conversationId != null
+        && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
+
+      // Only conversation participants can create messages
+      allow create: if isAuth()
+        && request.resource.data.conversationId != null
+        && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
+
+      // Only conversation participants can update messages (mark as read)
+      allow update: if isAuth()
+        && resource.data.conversationId != null
+        && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
     }
 
     // ─── BLOCKS ───────────────────────────────────────────────

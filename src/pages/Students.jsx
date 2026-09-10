@@ -14,6 +14,7 @@ export default function Students() {
   const [branchFilter, setBranchFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [followStatuses, setFollowStatuses] = useState({});
+  const [followLoading, setFollowLoading] = useState({});
 
   useEffect(() => {
     async function load() {
@@ -56,27 +57,35 @@ export default function Students() {
   }, [students, search, branchFilter, yearFilter]);
 
   async function handleFollow(studentId) {
-    const status = followStatuses[studentId];
-    if (status === "accepted" || status === "pending") {
-      if (status === "accepted") {
-        await unfollowUser(user.uid, studentId);
+    if (followLoading[studentId]) return;
+    setFollowLoading((prev) => ({ ...prev, [studentId]: true }));
+    try {
+      const status = followStatuses[studentId];
+      if (status === "accepted" || status === "pending") {
+        if (status === "accepted") {
+          await unfollowUser(user.uid, studentId);
+        } else {
+          await cancelFollowRequest(user.uid, studentId);
+        }
+        setFollowStatuses((prev) => {
+          const next = { ...prev };
+          delete next[studentId];
+          return next;
+        });
       } else {
-        await cancelFollowRequest(user.uid, studentId);
+        const { data } = await sendFollowRequest(user.uid, studentId);
+        if (data) {
+          setFollowStatuses((prev) => ({ ...prev, [studentId]: data.status }));
+        }
       }
-      setFollowStatuses((prev) => {
-        const next = { ...prev };
-        delete next[studentId];
-        return next;
-      });
-    } else {
-      const { data } = await sendFollowRequest(user.uid, studentId);
-      if (data) {
-        setFollowStatuses((prev) => ({ ...prev, [studentId]: data.status }));
-      }
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [studentId]: false }));
     }
   }
 
-  function getFollowLabel(status) {
+  function getFollowLabel(studentId) {
+    if (followLoading[studentId]) return "Loading...";
+    const status = followStatuses[studentId];
     if (status === "accepted") return "Following";
     if (status === "pending") return "Requested";
     return "Follow";
@@ -176,8 +185,9 @@ export default function Students() {
                 <button
                   className={`btn student-follow-btn ${followStatuses[s.id] === "accepted" ? "btn-following" : followStatuses[s.id] === "pending" ? "btn-requested" : "btn-primary"}`}
                   onClick={() => handleFollow(s.id)}
+                  disabled={followLoading[s.id]}
                 >
-                  {getFollowLabel(followStatuses[s.id])}
+                  {getFollowLabel(s.id)}
                 </button>
                 <button
                   className="btn btn-ghost student-view-btn"

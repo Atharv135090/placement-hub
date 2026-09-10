@@ -10,6 +10,7 @@ import {
   cancelFollowRequest,
   acceptFollowRequest,
   rejectFollowRequest,
+  removeFollower,
   getFollowers,
   getFollowing,
   getPendingFollowRequests,
@@ -17,6 +18,7 @@ import {
   unblockUser,
   isBlocked,
   reportUser,
+  uploadReportEvidence,
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
@@ -38,7 +40,10 @@ export default function StudentProfile() {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
+  const [reportEvidence, setReportEvidence] = useState(null);
   const [reportSent, setReportSent] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const isOwnProfile = user?.uid === studentId;
 
@@ -69,32 +74,40 @@ export default function StudentProfile() {
   }, [studentId, user?.uid, isOwnProfile]);
 
   async function handleFollow() {
-    if (followStatus === "accepted") {
-      await unfollowUser(user.uid, studentId);
-      setFollowStatus(null);
-    } else if (followStatus === "pending") {
-      await cancelFollowRequest(user.uid, studentId);
-      setFollowStatus(null);
-    } else {
-      const { data } = await sendFollowRequest(user.uid, studentId);
-      if (data) {
-        setFollowStatus(data.status);
-        if (data.status === "accepted") {
-          createNotification({
-            title: "New Follower",
-            message: `${user.displayName || "Someone"} is now following you.`,
-            type: "follow",
-            link: `/students/${user.uid}`,
-          }).catch(() => {});
-        } else {
-          createNotification({
-            title: "Follow Request",
-            message: `${user.displayName || "Someone"} wants to follow you.`,
-            type: "follow",
-            link: `/students/${user.uid}`,
-          }).catch(() => {});
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (followStatus === "accepted") {
+        await unfollowUser(user.uid, studentId);
+        setFollowStatus(null);
+      } else if (followStatus === "pending") {
+        await cancelFollowRequest(user.uid, studentId);
+        setFollowStatus(null);
+      } else {
+        const { data, error } = await sendFollowRequest(user.uid, studentId);
+        if (error === "blocked") {
+          setBlocked(true);
+          return;
+        }
+        if (data) {
+          setFollowStatus(data.status);
+          if (data.status === "pending") {
+            createNotification({
+              title: "Follow Request",
+              message: `${user.displayName || "Someone"} wants to follow you.`,
+              type: "follow",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+            }).catch(() => {});
+          }
         }
       }
+      const { data: fols } = await getFollowers(studentId);
+      setFollowers(fols || []);
+      const { data: folg } = await getFollowing(studentId);
+      setFollowing(folg || []);
+    } finally {
+      setFollowLoading(false);
     }
   }
 
@@ -106,12 +119,21 @@ export default function StudentProfile() {
       message: `You are now connected.`,
       type: "follow",
       link: `/students/${fromId}`,
+      targetUserId: fromId,
     }).catch(() => {});
+    const { data: fols } = await getFollowers(user.uid);
+    setFollowers(fols || []);
   }
 
   async function handleRejectRequest(fromId) {
     await rejectFollowRequest(fromId, user.uid);
     setPendingRequests((prev) => prev.filter((r) => r.id !== fromId));
+  }
+
+  async function handleRemoveFollower(followerId) {
+    await removeFollower(user.uid, followerId);
+    const { data: fols } = await getFollowers(user.uid);
+    setFollowers(fols || []);
   }
 
   async function handleBlock() {
@@ -126,12 +148,30 @@ export default function StudentProfile() {
   }
 
   async function handleReport() {
-    if (!reportReason) return;
-    await reportUser(user.uid, studentId, reportReason, reportDetails);
-    setReportSent(true);
-    setShowReport(false);
-    setReportReason("");
-    setReportDetails("");
+    if (!reportReason || reportSubmitting) return;
+    setReportSubmitting(true);
+    try {
+      let evidenceUrls = [];
+      if (reportEvidence) {
+        const { data: evData, error: evError } = await uploadReportEvidence("temp", reportEvidence);
+        if (!evError && evData) {
+          evidenceUrls = [evData.fileUrl];
+        }
+      }
+      const { data } = await reportUser(user.uid, studentId, reportReason, reportDetails, evidenceUrls);
+      if (data && evidenceUrls.length > 0) {
+        const { default: { updateDoc, doc: docRef } } = await import("firebase/firestore");
+        const { db } = await import("../config/firebase");
+        await updateDoc(docRef(db, "reports", data.id), { evidenceUrls });
+      }
+      setReportSent(true);
+      setShowReport(false);
+      setReportReason("");
+      setReportDetails("");
+      setReportEvidence(null);
+    } finally {
+      setReportSubmitting(false);
+    }
   }
 
   async function handleStartChat() {
@@ -158,6 +198,7 @@ export default function StudentProfile() {
   }, [isOwnProfile, blocked, profile?.profileVisibility, followStatus]);
 
   function getFollowLabel() {
+    if (followLoading) return "Loading...";
     if (followStatus === "accepted") return "Following";
     if (followStatus === "pending") return "Requested";
     return "Follow";
@@ -224,7 +265,7 @@ export default function StudentProfile() {
             <button
               className={`btn ${followStatus === "accepted" ? "btn-ghost" : followStatus === "pending" ? "btn-ghost" : "btn-primary"}`}
               onClick={handleFollow}
-              disabled={blocked}
+              disabled={blocked || followLoading}
             >
               {getFollowLabel()}
             </button>
@@ -327,6 +368,15 @@ export default function StudentProfile() {
               <div key={f.id} className="sp-follow-item" onClick={() => navigate(`/students/${f.id}`)}>
                 <UserAvatar user={{ uid: f.id }} profile={f} style={{ width: 32, height: 32 }} />
                 <span>{f.displayName || "Student"}</span>
+                {isOwnProfile && (
+                  <button
+                    className="sp-remove-follower-btn"
+                    onClick={(e) => { e.stopPropagation(); handleRemoveFollower(f.id); }}
+                    title="Remove follower"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -349,7 +399,7 @@ export default function StudentProfile() {
         )}
       </div>
 
-      <Modal open={showReport} onClose={() => { setShowReport(false); setReportReason(""); setReportDetails(""); }} title="Report Student">
+      <Modal open={showReport} onClose={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); }} title="Report Student">
         {reportSent ? (
           <div className="sp-report-done">
             <p>Report submitted. Thank you for helping keep our community safe.</p>
@@ -372,9 +422,32 @@ export default function StudentProfile() {
               <label className="field-label">Details (optional)</label>
               <textarea className="input-field" rows="3" value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} placeholder="Provide any additional details..." />
             </div>
+            <div className="modal-field">
+              <label className="field-label">Evidence (optional)</label>
+              <div className="sp-evidence-upload">
+                <input
+                  type="file"
+                  id="report-evidence"
+                  accept="image/*,.pdf"
+                  className="sp-evidence-input"
+                  onChange={(e) => setReportEvidence(e.target.files?.[0] || null)}
+                />
+                <label htmlFor="report-evidence" className="sp-evidence-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                  {reportEvidence ? reportEvidence.name : "Attach screenshot or evidence"}
+                </label>
+                {reportEvidence && (
+                  <button className="sp-evidence-remove" onClick={() => setReportEvidence(null)}>✕</button>
+                )}
+              </div>
+            </div>
             <div className="modal-actions">
-              <button className="modal-btn modal-btn--secondary" onClick={() => { setShowReport(false); setReportReason(""); setReportDetails(""); }}>Cancel</button>
-              <button className="modal-btn modal-btn--primary" onClick={handleReport} disabled={!reportReason}>Submit Report</button>
+              <button className="modal-btn modal-btn--secondary" onClick={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); }}>Cancel</button>
+              <button className="modal-btn modal-btn--primary" onClick={handleReport} disabled={!reportReason || reportSubmitting}>
+                {reportSubmitting ? "Submitting..." : "Submit Report"}
+              </button>
             </div>
           </>
         )}

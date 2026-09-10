@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   increment,
 } from "firebase/firestore";
-import { db } from "../config/firebase";
+import { db, storage } from "../config/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 function handleSocialError(error) {
   console.error("Social operation failed:", error.message);
@@ -68,6 +69,11 @@ export async function updateStudentProfile(userId, updates) {
 
 export async function sendFollowRequest(fromUserId, toUserId) {
   try {
+    if (fromUserId === toUserId) return { data: null, error: "cannot_follow_self" };
+
+    const blocked1 = await isBlocked(fromUserId, toUserId);
+    if (blocked1.data) return { data: null, error: "blocked" };
+
     const docId = `${fromUserId}_${toUserId}`;
     const existing = await getDoc(doc(db, "follows", docId));
     if (existing.exists()) return { data: null, error: "already_exists" };
@@ -136,6 +142,23 @@ export async function unfollowUser(fromUserId, toUserId) {
 export async function cancelFollowRequest(fromUserId, toUserId) {
   try {
     const docId = `${fromUserId}_${toUserId}`;
+    await deleteDoc(doc(db, "follows", docId));
+    return { data: { id: docId }, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function removeFollower(ownerUserId, followerUserId) {
+  try {
+    const docId = `${followerUserId}_${ownerUserId}`;
+    const docSnap = await getDoc(doc(db, "follows", docId));
+    if (!docSnap.exists()) return { data: null, error: "not_found" };
+
+    if (docSnap.data().status === "accepted") {
+      await updateDoc(doc(db, "users", followerUserId), { followingCount: increment(-1) });
+      await updateDoc(doc(db, "users", ownerUserId), { followersCount: increment(-1) });
+    }
     await deleteDoc(doc(db, "follows", docId));
     return { data: { id: docId }, error: null };
   } catch (error) {
@@ -254,17 +277,30 @@ export async function isBlocked(userId1, userId2) {
   }
 }
 
-export async function reportUser(reporterId, reportedId, reason, details = "") {
+export async function reportUser(reporterId, reportedId, reason, details = "", evidenceUrls = []) {
   try {
     const docRef = await addDoc(collection(db, "reports"), {
       reporterId,
       reportedId,
       reason,
       details,
+      evidenceUrls,
       status: "pending",
       createdAt: serverTimestamp(),
     });
     return { data: { id: docRef.id }, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function uploadReportEvidence(reportId, file) {
+  try {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storageRef = ref(storage, `report-evidence/${reportId}/${Date.now()}_${safeName}`);
+    await uploadBytes(storageRef, file);
+    const fileUrl = await getDownloadURL(storageRef);
+    return { data: { fileUrl, fileName: file.name, fileType: file.type, fileSize: file.size }, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
@@ -312,6 +348,9 @@ function getConversationId(uid1, uid2) {
 
 export async function getOrCreateConversation(uid1, uid2) {
   try {
+    const blocked = await isBlocked(uid1, uid2);
+    if (blocked.data) return { data: null, error: "blocked" };
+
     const convId = getConversationId(uid1, uid2);
     const convSnap = await getDoc(doc(db, "conversations", convId));
     if (!convSnap.exists()) {

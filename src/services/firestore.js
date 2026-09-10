@@ -724,13 +724,14 @@ export async function findCompanyByName(name) {
 
 // ─── NOTIFICATIONS ──────────────────────────────────────────────
 
-export async function createNotification({ title, message, type, link }) {
+export async function createNotification({ title, message, type, link, targetUserId }) {
   try {
     const docRef = await addDoc(collection(db, NOTIFICATIONS), {
       title,
       message,
       type: type || "info",
       link: link || null,
+      targetUserId: targetUserId || null,
       readBy: [],
       createdAt: serverTimestamp(),
     });
@@ -744,7 +745,7 @@ export async function getUnreadNotifications(userId) {
   try {
     const snapshot = await getDocs(collection(db, NOTIFICATIONS));
     const notifications = mapDocs(snapshot)
-      .filter((n) => !n.readBy?.includes(userId))
+      .filter((n) => !n.readBy?.includes(userId) && (!n.targetUserId || n.targetUserId === userId))
       .sort((a, b) => {
         const aTime = a.createdAt?.toMillis?.() || 0;
         const bTime = b.createdAt?.toMillis?.() || 0;
