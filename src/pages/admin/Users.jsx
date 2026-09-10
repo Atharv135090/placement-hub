@@ -1,10 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
-import { getAllUsers, updateUserProfile, getAllApplications } from "../../services/firestore";
+import { useAuth } from "../../contexts/AuthContext";
+import {
+  getAllUsers,
+  updateUserProfile,
+  getAllApplications,
+  adminLogoutUser,
+  adminDeleteUser,
+} from "../../services/firestore";
 import Modal from "../../components/Modal";
 import UserAvatar from "../../components/UserAvatar";
 import "./Users.css";
 
 export default function AdminUsers() {
+  const { user: currentUser, profile: currentProfile } = useAuth();
   const [users, setUsers] = useState([]);
   const [allApps, setAllApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +25,13 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false);
 
   const [activityModal, setActivityModal] = useState(null);
+
+  const [logoutModal, setLogoutModal] = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const [deleteModal, setDeleteModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -70,14 +84,41 @@ export default function AdminUsers() {
     setTimeout(() => setFeedback(""), 3000);
   }
 
-  async function handleDisableUser() {
-    if (!deleteModal) return;
-    const { error: err } = await updateUserProfile(deleteModal.id, { disabled: true });
-    if (!err) {
-      setUsers((prev) => prev.map(u => u.id === deleteModal.id ? { ...u, disabled: true } : u));
-      setFeedback("User disabled.");
+  async function handleLogoutUser() {
+    if (!logoutModal || loggingOut) return;
+    setLoggingOut(true);
+    try {
+      const { error } = await adminLogoutUser(logoutModal.id);
+      if (!error) {
+        setFeedback(`${logoutModal.displayName || logoutModal.email} has been logged out.`);
+      } else {
+        setFeedback(`Logout failed: ${typeof error === "string" ? error : "Unknown error"}`);
+      }
+    } catch (err) {
+      setFeedback(`Logout failed: ${err?.message || "Network error"}`);
     }
+    setLoggingOut(false);
+    setLogoutModal(null);
+    setTimeout(() => setFeedback(""), 4000);
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteModal || deleting) return;
+    setDeleting(true);
+    try {
+      const { error } = await adminDeleteUser(deleteModal.id);
+      if (!error) {
+        setUsers((prev) => prev.filter((u) => u.id !== deleteModal.id));
+        setFeedback(`${deleteModal.displayName || deleteModal.email} has been deleted.`);
+      } else {
+        setFeedback("Failed to delete user.");
+      }
+    } catch {
+      setFeedback("Failed to delete user.");
+    }
+    setDeleting(false);
     setDeleteModal(null);
+    setDeleteConfirmText("");
     setTimeout(() => setFeedback(""), 3000);
   }
 
@@ -97,6 +138,8 @@ export default function AdminUsers() {
     admin: "au-role--admin",
     student: "au-role--student",
   };
+
+  const isSelf = (u) => currentUser?.uid === u.id;
 
   return (
     <div className="au">
@@ -218,7 +261,6 @@ export default function AdminUsers() {
                 <span className="au-cell au-cell--user">
                   <div className="au-avatar">
                     <UserAvatar user={u} profile={u} className="au-avatar-img" />
-                    {u.disabled && <div className="au-avatar-disabled-dot" />}
                   </div>
                   <div className="au-user-info">
                     <span className="au-user-name">{u.displayName || "Unnamed"}</span>
@@ -243,9 +285,16 @@ export default function AdminUsers() {
                   <button className="au-action-btn" onClick={() => openRoleModal(u)} title="Change role">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button className="au-action-btn au-action-btn--danger" onClick={() => setDeleteModal(u)} title="Disable user">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                  </button>
+                  {!isSelf(u) && (u.role || "student") !== "owner" && (
+                    <>
+                      <button className="au-action-btn au-action-btn--warn" onClick={() => setLogoutModal(u)} title="Logout user">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      </button>
+                      <button className="au-action-btn au-action-btn--danger" onClick={() => { setDeleteModal(u); setDeleteConfirmText(""); }} title="Delete account">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                      </button>
+                    </>
+                  )}
                 </span>
               </div>
             );
@@ -334,20 +383,68 @@ export default function AdminUsers() {
         })()}
       </Modal>
 
-      {/* Disable Modal */}
-      <Modal open={!!deleteModal} onClose={() => setDeleteModal(null)} title="Disable User">
+      {/* Logout User Modal */}
+      <Modal open={!!logoutModal} onClose={() => { if (!loggingOut) { setLogoutModal(null); } }} title="Logout User">
         <div className="au-modal-danger">
-          <div className="au-modal-danger-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div className="au-modal-danger-icon au-modal-danger-icon--warn">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           </div>
           <p className="au-modal-danger-text">
-            Are you sure you want to disable <strong>{deleteModal?.displayName || deleteModal?.email}</strong>?
+            Log out <strong>{logoutModal?.displayName || logoutModal?.email}</strong>?
           </p>
-          <p className="au-modal-danger-sub">They will no longer be able to sign in.</p>
+          <p className="au-modal-danger-sub">This will sign the user out of their current session.</p>
         </div>
         <div className="au-modal-actions">
-          <button className="btn btn-secondary" onClick={() => setDeleteModal(null)}>Cancel</button>
-          <button className="btn btn-danger" onClick={handleDisableUser}>Disable User</button>
+          <button className="btn btn-secondary" onClick={() => setLogoutModal(null)} disabled={loggingOut}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleLogoutUser} disabled={loggingOut}>
+            {loggingOut ? (
+              <span className="au-modal-saving">
+                <span className="au-modal-spinner" /> Logging out...
+              </span>
+            ) : "Logout User"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete Account Modal */}
+      <Modal open={!!deleteModal} onClose={() => { if (!deleting) { setDeleteModal(null); setDeleteConfirmText(""); } }} title="Delete Account">
+        <div className="au-modal-danger">
+          <div className="au-modal-danger-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </div>
+          <p className="au-modal-danger-text">
+            Delete <strong>{deleteModal?.displayName || deleteModal?.email}</strong>?
+          </p>
+          <p className="au-modal-danger-sub">
+            This action is permanent and cannot be undone. The user's Firebase Authentication account, profile data, and all associated social relationships will be permanently removed.
+          </p>
+          <p className="au-modal-danger-sub" style={{ fontWeight: 700, marginTop: 4 }}>
+            Type <span style={{ color: "var(--accent-light)" }}>DELETE</span> to confirm.
+          </p>
+          <input
+            type="text"
+            className="au-modal-input"
+            placeholder='Type "DELETE" to confirm'
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            disabled={deleting}
+            autoFocus
+            style={{ width: "100%", marginTop: 8 }}
+          />
+        </div>
+        <div className="au-modal-actions">
+          <button className="btn btn-secondary" onClick={() => { setDeleteModal(null); setDeleteConfirmText(""); }} disabled={deleting}>Cancel</button>
+          <button
+            className="btn btn-danger"
+            onClick={handleDeleteUser}
+            disabled={deleting || deleteConfirmText !== "DELETE"}
+          >
+            {deleting ? (
+              <span className="au-modal-saving">
+                <span className="au-modal-spinner" /> Deleting...
+              </span>
+            ) : "Delete Account"}
+          </button>
         </div>
       </Modal>
     </div>

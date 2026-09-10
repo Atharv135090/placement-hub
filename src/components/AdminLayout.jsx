@@ -97,6 +97,22 @@ export default function AdminLayout() {
 
   const displayName = profile?.displayName || user?.displayName || "Atharv Shinde";
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useState(null);
+
+  // Ctrl+K keyboard shortcut listener
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const inputEl = document.querySelector(".admin-search-input");
+        if (inputEl) inputEl.focus();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div className="admin-shell">
       {/* ─── SIDEBAR ─────────────────────────────────────────── */}
@@ -142,6 +158,17 @@ export default function AdminLayout() {
           })}
         </nav>
 
+        {/* Futuristic sidebar watermark section matching reference */}
+        {!collapsed && (
+          <div className="admin-sidebar-watermark">
+            <div className="admin-sidebar-motto">
+              <span>BUILD</span>
+              <span>BETTER</span>
+              <span>OPPORTUNITIES.</span>
+            </div>
+          </div>
+        )}
+
         {/* Footer with User profile & Logout */}
         <div className="admin-sidebar-foot">
           <div
@@ -159,7 +186,7 @@ export default function AdminLayout() {
               </div>
             )}
             {!collapsed && (
-              <span className="admin-user-chevron">›</span>
+              <span className="admin-user-chevron">‹›</span>
             )}
           </div>
 
@@ -171,6 +198,13 @@ export default function AdminLayout() {
             </svg>
             {!collapsed && <span>Logout</span>}
           </button>
+
+          {!collapsed && (
+            <div className="admin-sidebar-bottom-badge">
+              <span className="admin-badge-star">✦</span>
+              <span>PLACEMENT HUB ADMIN PANEL</span>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -186,6 +220,27 @@ export default function AdminLayout() {
             >
               ← Student View
             </button>
+          </div>
+
+          {/* Central Omnibar Search matching reference image */}
+          <div className="admin-search-wrapper">
+            <svg className="admin-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              className="admin-search-input"
+              placeholder="Search users, companies, drives, applications..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  navigate(`/admin/users?q=${encodeURIComponent(searchQuery.trim())}`);
+                }
+              }}
+            />
+            <span className="admin-search-kbd">Ctrl K</span>
           </div>
 
           <div className="admin-top-bar-right">

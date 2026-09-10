@@ -225,6 +225,121 @@ exports.createCompany = onCall(async (request) => {
 // NEVER hard-code the Gemini API key here.
 // Configure GEMINI_API_KEY securely in the Firebase environment.
 
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 4: adminLogoutUser
+// Revokes all refresh tokens for a target user, forcing re-auth
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminLogoutUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can log out users.");
+  }
+
+  const { userId } = request.data || {};
+  if (!userId || typeof userId !== "string") {
+    throw new HttpsError("invalid-argument", "userId is required.");
+  }
+
+  try {
+    await getAuth().revokeRefreshTokens(userId);
+    logger.info(`Revoked refresh tokens for user ${userId} by ${request.auth.uid}`);
+  } catch (error) {
+    logger.error(`Failed to revoke tokens for user ${userId}:`, error);
+    throw new HttpsError("internal", "Failed to log out user. They may not exist.");
+  }
+
+  try {
+    await db.collection("users").doc(userId).set(
+      { forceLogout: true, forceLogoutAt: new Date().toISOString() },
+      { merge: true }
+    );
+    logger.info(`Set forceLogout flag for user ${userId}`);
+  } catch (error) {
+    logger.error(`Failed to set forceLogout for user ${userId}:`, error);
+  }
+
+  return { success: true };
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 5: adminDeleteUser
+// Deletes Firebase Auth account + cleans up Firestore data
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminDeleteUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can delete users.");
+  }
+
+  const { userId } = request.data || {};
+  if (!userId || typeof userId !== "string") {
+    throw new HttpsError("invalid-argument", "userId is required.");
+  }
+
+  const targetSnap = await db.collection("users").doc(userId).get();
+  if (!targetSnap.exists) {
+    throw new HttpsError("not-found", "User not found.");
+  }
+
+  const targetRole = targetSnap.data().role || "student";
+  if (targetRole === "owner") {
+    throw new HttpsError("failed-precondition", "Cannot delete an owner account.");
+  }
+
+  try {
+    await getAuth().deleteUser(userId);
+    logger.info(`Deleted Firebase Auth account for user ${userId}`);
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      logger.warn(`User ${userId} already deleted from Auth, continuing with data cleanup.`);
+    } else {
+      logger.error(`Failed to delete Auth account for ${userId}:`, error);
+      throw new HttpsError("internal", "Failed to delete user account.");
+    }
+  }
+
+  const batch = db.batch();
+
+  batch.delete(db.collection("users").doc(userId));
+
+  const followSnap1 = await db.collection("follows").where("fromUserId", "==", userId).get();
+  followSnap1.forEach((doc) => batch.delete(doc.ref));
+
+  const followSnap2 = await db.collection("follows").where("toUserId", "==", userId).get();
+  followSnap2.forEach((doc) => batch.delete(doc.ref));
+
+  const blockSnap1 = await db.collection("blocks").where("blockerId", "==", userId).get();
+  blockSnap1.forEach((doc) => batch.delete(doc.ref));
+
+  const blockSnap2 = await db.collection("blocks").where("blockedId", "==", userId).get();
+  blockSnap2.forEach((doc) => batch.delete(doc.ref));
+
+  const notifSnap = await db.collection("notifications").where("targetUserId", "==", userId).get();
+  notifSnap.forEach((doc) => batch.delete(doc.ref));
+
+  const convSnap = await db.collection("conversations").where("participants", "array-contains", userId).get();
+  for (const convDoc of convSnap.docs) {
+    const msgSnap = await db.collection("messages").where("conversationId", "==", convDoc.id).get();
+    msgSnap.forEach((msgDoc) => batch.delete(msgDoc.ref));
+    batch.delete(convDoc.ref);
+  }
+
+  await batch.commit();
+  logger.info(`Cleaned up Firestore data for user ${userId}`);
+
+  return { success: true };
+});
+
 exports.chat = onCall(
   {
     timeoutSeconds: 60,

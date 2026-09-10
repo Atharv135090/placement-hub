@@ -240,19 +240,22 @@ export function subscribeToFollowers(userId, callback) {
     where("toUserId", "==", userId),
     where("status", "==", "accepted")
   );
-  return onSnapshot(q, async (snapshot) => {
+  let generation = 0;
+  return onSnapshot(q, (snapshot) => {
     const followDocs = mapDocs(snapshot);
+    const gen = ++generation;
     if (followDocs.length === 0) {
       callback([]);
       return;
     }
-    const profiles = await Promise.all(
+    Promise.all(
       followDocs.map(async (f) => {
         const userSnap = await getDoc(doc(db, "users", f.fromUserId));
         return userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
       })
-    );
-    callback(profiles.filter(Boolean));
+    ).then((profiles) => {
+      if (gen === generation) callback(profiles.filter(Boolean));
+    });
   }, (error) => {
     console.error("subscribeToFollowers error:", error);
     callback([]);
@@ -265,19 +268,22 @@ export function subscribeToFollowing(userId, callback) {
     where("fromUserId", "==", userId),
     where("status", "==", "accepted")
   );
-  return onSnapshot(q, async (snapshot) => {
+  let generation = 0;
+  return onSnapshot(q, (snapshot) => {
     const followDocs = mapDocs(snapshot);
+    const gen = ++generation;
     if (followDocs.length === 0) {
       callback([]);
       return;
     }
-    const profiles = await Promise.all(
+    Promise.all(
       followDocs.map(async (f) => {
         const userSnap = await getDoc(doc(db, "users", f.toUserId));
         return userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
       })
-    );
-    callback(profiles.filter(Boolean));
+    ).then((profiles) => {
+      if (gen === generation) callback(profiles.filter(Boolean));
+    });
   }, (error) => {
     console.error("subscribeToFollowing error:", error);
     callback([]);
@@ -308,9 +314,11 @@ export function subscribeToPendingFollowRequests(userId, callback) {
     where("toUserId", "==", userId),
     where("status", "==", "pending")
   );
+  let generation = 0;
   return onSnapshot(q, (snapshot) => {
     const followDocs = mapDocs(snapshot);
     const fromIds = followDocs.map((f) => f.fromUserId);
+    const gen = ++generation;
     if (fromIds.length === 0) {
       callback([]);
       return;
@@ -320,7 +328,9 @@ export function subscribeToPendingFollowRequests(userId, callback) {
         const userSnap = await getDoc(doc(db, "users", fromId));
         return userSnap.exists() ? { id: userSnap.id, ...userSnap.data(), followFrom: fromId } : null;
       })
-    ).then((profiles) => callback(profiles.filter(Boolean)));
+    ).then((profiles) => {
+      if (gen === generation) callback(profiles.filter(Boolean));
+    });
   }, (error) => {
     console.error("subscribeToPendingFollowRequests error:", error);
     callback([]);
@@ -377,21 +387,34 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     where("toUserId", "==", userId)
   );
 
-  const statuses = {};
+  const outgoingStatuses = {};
+  const incomingStatuses = {};
   let outgoingLoaded = false;
   let incomingLoaded = false;
 
   function emit() {
     if (outgoingLoaded && incomingLoaded) {
-      callback({ ...statuses });
+      const merged = {};
+      for (const [uid, status] of Object.entries(outgoingStatuses)) {
+        merged[uid] = status;
+      }
+      for (const [uid, status] of Object.entries(incomingStatuses)) {
+        if (!merged[uid]) {
+          merged[uid] = status;
+        }
+      }
+      callback(merged);
     }
   }
 
   const unsubOut = onSnapshot(qOutgoing, (snapshot) => {
+    for (const key of Object.keys(outgoingStatuses)) {
+      delete outgoingStatuses[key];
+    }
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status) {
-        statuses[data.toUserId] = data.status;
+        outgoingStatuses[data.toUserId] = data.status;
       }
     }
     outgoingLoaded = true;
@@ -403,12 +426,15 @@ export function subscribeToAllFollowStatuses(userId, callback) {
   });
 
   const unsubIn = onSnapshot(qIncoming, (snapshot) => {
+    for (const key of Object.keys(incomingStatuses)) {
+      delete incomingStatuses[key];
+    }
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status === "accepted") {
-        statuses[data.fromUserId] = "accepted";
-      } else if (data.status === "pending" && !statuses[data.fromUserId]) {
-        statuses[data.fromUserId] = "incoming_pending";
+        incomingStatuses[data.fromUserId] = "accepted";
+      } else if (data.status === "pending") {
+        incomingStatuses[data.fromUserId] = "incoming_pending";
       }
     }
     incomingLoaded = true;
@@ -634,9 +660,11 @@ export function subscribeToMessages(conversationId, callback) {
 
 export function subscribeToConversations(userId, callback) {
   const q = query(collection(db, "conversations"), where("participants", "array-contains", userId));
+  let generation = 0;
   return onSnapshot(q, (snapshot) => {
     const convs = mapDocs(snapshot);
     const otherIds = [...new Set(convs.map((c) => c.participants.find((p) => p !== userId)))];
+    const gen = ++generation;
     if (otherIds.length === 0) {
       callback([]);
       return;
@@ -647,6 +675,7 @@ export function subscribeToConversations(userId, callback) {
         return otherSnap.exists() ? { id: otherId, ...otherSnap.data() } : { id: otherId };
       })
     ).then((profiles) => {
+      if (gen !== generation) return;
       const profileMap = {};
       profiles.forEach((p) => { profileMap[p.id] = p; });
       const enriched = convs.map((c) => {

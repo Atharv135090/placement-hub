@@ -3,6 +3,10 @@ import { onAuthChange } from "../services/auth";
 import { getUserProfile, createUserProfile, updateUserProfile } from "../services/firestore";
 import { OWNER_EMAIL } from "../config/owner";
 import { getAutoAssignedPhoto } from "../utils/avatar";
+import { db } from "../config/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../config/firebase";
 
 const AuthContext = createContext(null);
 
@@ -23,6 +27,10 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const { data } = await getUserProfile(firebaseUser.uid);
         if (data) {
+          if (data.forceLogout) {
+            await signOut(auth);
+            return;
+          }
           const isOwnerEmail = typeof firebaseUser.email === "string"
             && firebaseUser.email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
           if (isOwnerEmail && data.role !== "owner") {
@@ -67,6 +75,16 @@ export function AuthProvider({ children }) {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      if (snap.exists() && snap.data().forceLogout) {
+        signOut(auth);
+      }
+    }, () => {});
+    return () => unsub();
+  }, [user?.uid]);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, setProfile }}>

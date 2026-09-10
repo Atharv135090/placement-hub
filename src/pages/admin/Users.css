@@ -438,17 +438,6 @@
   letter-spacing: 0.02em;
 }
 
-.au-avatar-disabled-dot {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--rose);
-  border: 2px solid var(--bg-surface);
-}
-
 .au-user-info {
   display: flex;
   flex-direction: column;
@@ -572,6 +561,13 @@
   border-color: rgba(239, 68, 68, 0.2);
   color: var(--rose);
   box-shadow: 0 4px 16px rgba(239, 68, 68, 0.15);
+}
+
+.au-action-btn--warn:hover {
+  background: var(--amber-subtle);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: var(--amber);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
 }
 
 /* ─── ACTIVITY MODAL ────────────────────────────────────── */
@@ -796,7 +792,7 @@
   animation: spin 0.6s linear infinite;
 }
 
-/* ─── DISABLE MODAL ─────────────────────────────────────── */
+/* ─── DISABLE MODAL (reuse as danger modal) ─────────────── */
 .au-modal-danger {
   display: flex;
   flex-direction: column;
@@ -819,6 +815,12 @@
   animation: auPulseGlow 2s ease-in-out infinite;
 }
 
+.au-modal-danger-icon--warn {
+  background: var(--amber-subtle);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: var(--amber);
+}
+
 .au-modal-danger-text {
   font-size: 0.92rem;
   color: var(--text-primary);
@@ -832,6 +834,28 @@
 .au-modal-danger-sub {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.au-modal-input {
+  padding: 10px 14px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.au-modal-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.au-modal-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* ─── RESPONSIVE ────────────────────────────────────────── */

@@ -11,6 +11,7 @@ import {
   subscribeToAllFollowStatuses,
   blockUser,
 } from "../services/social";
+import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
 import "./Students.css";
 
@@ -142,14 +143,47 @@ export default function Students() {
         await cancelFollowRequest(user.uid, studentId);
       } else if (status === "incoming_pending") {
         await acceptFollowRequest(studentId, user.uid);
+        createNotification({
+          title: "Follow Request Accepted",
+          message: `You are now connected.`,
+          type: "follow",
+          link: `/students/${studentId}`,
+          targetUserId: studentId,
+        }).catch(() => {});
       } else {
-        const { data } = await sendFollowRequest(user.uid, studentId);
+        const { data, error } = await sendFollowRequest(user.uid, studentId);
+        if (error === "blocked") {
+          setToastMsg("Cannot follow this student. They may have blocked you.");
+          setTimeout(() => setToastMsg(""), 3000);
+          return;
+        }
+        if (error === "already_exists") {
+          setToastMsg("Follow request already exists.");
+          setTimeout(() => setToastMsg(""), 3000);
+          return;
+        }
+        if (error === "cannot_follow_self") {
+          setToastMsg("You cannot follow yourself.");
+          setTimeout(() => setToastMsg(""), 3000);
+          return;
+        }
         if (data) {
           setFollowStatuses((prev) => ({ ...prev, [studentId]: data.status }));
+          if (data.status === "pending") {
+            createNotification({
+              title: "Follow Request",
+              message: `${user.displayName || "Someone"} wants to follow you.`,
+              type: "follow",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+            }).catch(() => {});
+          }
         }
       }
     } catch (err) {
       console.error("Follow error:", err);
+      setToastMsg("Something went wrong. Please try again.");
+      setTimeout(() => setToastMsg(""), 3000);
     } finally {
       setFollowLoading((prev) => ({ ...prev, [studentId]: false }));
     }
@@ -605,9 +639,7 @@ export default function Students() {
                     onClick={() => handleFollow(s.id)}
                     disabled={followLoading[s.id]}
                   >
-                    {followLoading[s.id] ? (
-                      <span>Loading...</span>
-                    ) : isFollowing ? (
+                    {isFollowing ? (
                       <>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
                           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />

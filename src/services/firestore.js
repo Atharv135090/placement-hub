@@ -16,8 +16,9 @@ import {
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { db, storage } from "../config/firebase";
+import { db, storage, functions } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 
 // ─── COLLECTIONS ──────────────────────────────────────────────
 
@@ -868,6 +869,32 @@ export async function deleteAllAnnouncements() {
       await deleteDoc(doc(db, ANNOUNCEMENTS, d.id));
     }
     return { data: { deleted: count }, error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN: USER MANAGEMENT (Cloud Functions)
+// ═══════════════════════════════════════════════════════════════
+
+export async function adminLogoutUser(userId) {
+  try {
+    const fn = httpsCallable(functions, "adminLogoutUser");
+    await fn({ userId });
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    const msg = error?.details || error?.message || "Failed to log out user.";
+    console.error("adminLogoutUser error:", msg);
+    return { data: null, error: msg };
+  }
+}
+
+export async function adminDeleteUser(userId) {
+  try {
+    const fn = httpsCallable(functions, "adminDeleteUser");
+    await fn({ userId });
+    return { data: { success: true }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
   }

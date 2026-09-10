@@ -140,7 +140,6 @@ export default function StudentProfile() {
   }
 
   function getFollowLabel() {
-    if (followLoading) return "Loading...";
     if (followStatus === "accepted") return "Following";
     if (followStatus === "pending") return "Requested";
     if (incomingFollowStatus === "pending") return "Accept Request";

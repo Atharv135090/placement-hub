@@ -78,12 +78,12 @@ service cloud.firestore {
       allow create: if isOwnerDoc(userId);
 
       // Users can update their own profile
-      // Owner can update any profile (for role management)
+      // Owner/admin can update any profile (for role management)
       // Allow self-update for role promotion
-      allow update: if isOwnerDoc(userId) || isOwner() || hasOwnerRole();
+      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
 
-      // Only owner can delete user profiles
-      allow delete: if isOwner() || hasOwnerRole();
+      // Only owner/admin can delete user profiles
+      allow delete: if isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
     }
 
     // ─── APPLICATIONS ─────────────────────────────────────────
@@ -146,10 +146,25 @@ service cloud.firestore {
     // ─── FOLLOWS ──────────────────────────────────────────────
 
     match /follows/{followId} {
+      // Anyone authenticated can read follows (needed for subscriptions)
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAuth();
+
+      // Only the sender (fromUserId) can create a follow request
+      // Prevents impersonation: you cannot create a follow pretending to be someone else
+      allow create: if isAuth()
+        && request.auth.uid == request.resource.data.fromUserId
+        && request.resource.data.toUserId != request.auth.uid;
+
+      // Only the target (toUserId) can update (accept/reject a request)
+      // Prevents the sender from force-accepting their own request
+      allow update: if isAuth()
+        && request.auth.uid == resource.data.toUserId;
+
+      // Either participant can delete (cancel, unfollow, or remove follower)
+      // Prevents third-party deletion of other users' relationships
+      allow delete: if isAuth()
+        && (request.auth.uid == resource.data.fromUserId
+          || request.auth.uid == resource.data.toUserId);
     }
 
     // ─── CONVERSATIONS ────────────────────────────────────────
@@ -186,8 +201,14 @@ service cloud.firestore {
 
     match /blocks/{blockId} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow delete: if isAuth();
+
+      // Only the blocker can create their own block
+      allow create: if isAuth()
+        && request.auth.uid == request.resource.data.blockerId;
+
+      // Only the blocker can delete their own block (unblock)
+      allow delete: if isAuth()
+        && request.auth.uid == resource.data.blockerId;
     }
 
     // ─── REPORTS ──────────────────────────────────────────────

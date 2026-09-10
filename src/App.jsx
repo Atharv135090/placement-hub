@@ -20,7 +20,7 @@ const Assistant = lazy(() => import("./pages/Assistant"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Attention = lazy(() => import("./pages/Attention"));
-const Students = lazy(() => import("./pages/Students"));
+const StudentsGate = lazy(() => import("./components/StudentsGate"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const Chat = lazy(() => import("./pages/Chat"));
 
@@ -85,7 +85,7 @@ export default function App() {
               <Route path="/analytics" element={<Analytics />} />
 
               {/* 06. Students */}
-              <Route path="/students" element={<Students />} />
+              <Route path="/students" element={<StudentsGate />} />
               <Route path="/students/:studentId" element={<StudentProfile />} />
 
               {/* 07. Chat */}
