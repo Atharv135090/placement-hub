@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { getUnreadNotifications, markNotificationRead, markAllNotificationsRead } from "../services/firestore";
+import { subscribeToNotifications, markNotificationRead, markAllNotificationsRead } from "../services/firestore";
 import { logOut } from "../services/auth";
 import { useLongPress } from "../contexts/PrivateControlContext";
 import PlacementLogo from "./PlacementLogo";
@@ -24,13 +24,8 @@ export default function TopHeader() {
 
   useEffect(() => {
     if (!user) return;
-    async function fetchNotifs() {
-      const { data } = await getUnreadNotifications(user.uid);
-      setNotifications(data || []);
-    }
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 30000);
-    return () => clearInterval(interval);
+    const unsub = subscribeToNotifications(user.uid, setNotifications);
+    return () => unsub?.();
   }, [user]);
 
   useEffect(() => {

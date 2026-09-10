@@ -31,6 +31,7 @@ const AdminAnnouncements = lazy(() => import("./pages/admin/Announcements"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const AdminAssistant = lazy(() => import("./pages/AdminAssistant"));
 const WebsiteAnalytics = lazy(() => import("./pages/admin/WebsiteAnalytics"));
+const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const Unauthorized = lazy(() => import("./pages/admin/Unauthorized"));
 
 function PageSpinner() {
@@ -108,6 +109,7 @@ export default function App() {
               <Route path="applications" element={<AdminApplications />} />
               <Route path="announcements" element={<AdminAnnouncements />} />
               <Route path="users" element={<ProtectedAdmin ownerOnly><AdminUsers /></ProtectedAdmin>} />
+              <Route path="reports" element={<AdminReports />} />
               <Route path="unauthorized" element={<Unauthorized />} />
               <Route path="drives" element={<Navigate to="/admin/companies" replace />} />
             </Route>

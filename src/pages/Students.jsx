@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { getAllStudents, getFollowStatus, sendFollowRequest, unfollowUser, cancelFollowRequest } from "../services/social";
+import { getAllStudents, sendFollowRequest, unfollowUser, cancelFollowRequest, subscribeToAllFollowStatuses } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import "./Students.css";
 
@@ -17,22 +17,23 @@ export default function Students() {
   const [followLoading, setFollowLoading] = useState({});
 
   useEffect(() => {
+    let unsubFollowStatuses = null;
+
     async function load() {
       const { data } = await getAllStudents();
       const list = (data || []).filter((s) => s.id !== user?.uid);
       setStudents(list);
 
-      const statuses = {};
-      await Promise.all(
-        list.map(async (s) => {
-          const { data } = await getFollowStatus(user?.uid, s.id);
-          if (data) statuses[s.id] = data.status;
-        })
-      );
-      setFollowStatuses(statuses);
+      unsubFollowStatuses = subscribeToAllFollowStatuses(user?.uid, (statuses) => {
+        setFollowStatuses(statuses);
+      });
       setLoading(false);
     }
     load();
+
+    return () => {
+      unsubFollowStatuses?.();
+    };
   }, [user?.uid]);
 
   const branches = useMemo(() => {

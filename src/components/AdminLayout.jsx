@@ -60,11 +60,18 @@ const DrivesIcon = () => (
   </svg>
 );
 
+const ReportsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
 const ADMIN_NAV = [
   { to: "/admin",           icon: DashboardIcon, label: "Dashboard",         end: true },
   { to: "/admin/chatbot",   icon: ChatbotIcon,   label: "Admin Assistant" },
   { to: "/admin/analytics", icon: AnalyticsIcon, label: "Website Analytics" },
   { to: "/admin/users",     icon: UsersIcon,     label: "Users" },
+  { to: "/admin/reports",   icon: ReportsIcon,   label: "Reports" },
   { to: "/admin/companies", icon: CompaniesIcon, label: "Companies" },
   { to: "/admin/drives",    icon: DrivesIcon,    label: "Drives" },
 ];

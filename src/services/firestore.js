@@ -14,6 +14,7 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import { db, storage } from "../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -795,6 +796,22 @@ export async function markAllNotificationsRead(userId) {
   } catch (error) {
     return handleFirestoreError(error);
   }
+}
+
+export function subscribeToNotifications(userId, callback) {
+  const q = query(collection(db, NOTIFICATIONS));
+  return onSnapshot(q, (snapshot) => {
+    const notifications = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n) => !n.readBy?.includes(userId) && (!n.targetUserId || n.targetUserId === userId))
+      .sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      })
+      .slice(0, 50);
+    callback(notifications);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════

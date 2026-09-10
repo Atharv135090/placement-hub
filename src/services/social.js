@@ -231,6 +231,52 @@ export async function getPendingFollowRequests(userId) {
   }
 }
 
+export function subscribeToPendingFollowRequests(userId, callback) {
+  const q = query(
+    collection(db, "follows"),
+    where("toUserId", "==", userId),
+    where("status", "==", "pending")
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const followDocs = mapDocs(snapshot);
+    const profiles = await Promise.all(
+      followDocs.map(async (f) => {
+        const userSnap = await getDoc(doc(db, "users", f.fromUserId));
+        return userSnap.exists() ? { id: userSnap.id, ...userSnap.data(), followFrom: f.fromUserId } : null;
+      })
+    );
+    callback(profiles.filter(Boolean));
+  });
+}
+
+export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
+  const docId = `${fromUserId}_${toUserId}`;
+  return onSnapshot(doc(db, "follows", docId), (docSnap) => {
+    if (!docSnap.exists()) {
+      callback(null);
+    } else {
+      callback(docSnap.data().status);
+    }
+  });
+}
+
+export function subscribeToAllFollowStatuses(userId, callback) {
+  const q = query(
+    collection(db, "follows"),
+    where("fromUserId", "==", userId)
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const statuses = {};
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.status) {
+        statuses[data.toUserId] = data.status;
+      }
+    }
+    callback(statuses);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BLOCK / REPORT
 // ═══════════════════════════════════════════════════════════════

@@ -4,7 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import {
   getStudentProfile,
-  getFollowStatus,
   sendFollowRequest,
   unfollowUser,
   cancelFollowRequest,
@@ -13,12 +12,13 @@ import {
   removeFollower,
   getFollowers,
   getFollowing,
-  getPendingFollowRequests,
   blockUser,
   unblockUser,
   isBlocked,
   reportUser,
   uploadReportEvidence,
+  subscribeToPendingFollowRequests,
+  subscribeToFollowStatus,
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
@@ -41,6 +41,7 @@ export default function StudentProfile() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [reportEvidence, setReportEvidence] = useState(null);
+  const [reportChatEvidence, setReportChatEvidence] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -48,13 +49,17 @@ export default function StudentProfile() {
   const isOwnProfile = user?.uid === studentId;
 
   useEffect(() => {
+    let unsubFollowStatus = null;
+    let unsubPendingRequests = null;
+
     async function load() {
       setLoading(true);
       const { data } = await getStudentProfile(studentId);
       setProfile(data);
       if (!isOwnProfile) {
-        const { data: fs } = await getFollowStatus(user.uid, studentId);
-        setFollowStatus(fs?.status || null);
+        unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, (status) => {
+          setFollowStatus(status);
+        });
         const { data: bd } = await isBlocked(user.uid, studentId);
         setBlocked(bd || false);
         const { data: bd2 } = await isBlocked(studentId, user.uid);
@@ -65,12 +70,18 @@ export default function StudentProfile() {
       const { data: folg } = await getFollowing(studentId);
       setFollowing(folg || []);
       if (isOwnProfile) {
-        const { data: pending } = await getPendingFollowRequests(user.uid);
-        setPendingRequests(pending || []);
+        unsubPendingRequests = subscribeToPendingFollowRequests(user.uid, (requests) => {
+          setPendingRequests(requests);
+        });
       }
       setLoading(false);
     }
     load();
+
+    return () => {
+      unsubFollowStatus?.();
+      unsubPendingRequests?.();
+    };
   }, [studentId, user?.uid, isOwnProfile]);
 
   async function handleFollow() {
@@ -158,6 +169,14 @@ export default function StudentProfile() {
           evidenceUrls = [evData.fileUrl];
         }
       }
+      if (reportChatEvidence.trim()) {
+        const chatBlob = new Blob([reportChatEvidence], { type: "text/plain" });
+        const chatFile = new File([chatBlob], "chat-evidence.txt", { type: "text/plain" });
+        const { data: chatEvData, error: chatEvError } = await uploadReportEvidence("temp", chatFile);
+        if (!chatEvError && chatEvData) {
+          evidenceUrls = [...evidenceUrls, chatEvData.fileUrl];
+        }
+      }
       const { data } = await reportUser(user.uid, studentId, reportReason, reportDetails, evidenceUrls);
       if (data && evidenceUrls.length > 0) {
         const { default: { updateDoc, doc: docRef } } = await import("firebase/firestore");
@@ -169,6 +188,7 @@ export default function StudentProfile() {
       setReportReason("");
       setReportDetails("");
       setReportEvidence(null);
+      setReportChatEvidence("");
     } finally {
       setReportSubmitting(false);
     }
@@ -399,7 +419,7 @@ export default function StudentProfile() {
         )}
       </div>
 
-      <Modal open={showReport} onClose={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); }} title="Report Student">
+      <Modal open={showReport} onClose={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); setReportChatEvidence(""); }} title="Report Student">
         {reportSent ? (
           <div className="sp-report-done">
             <p>Report submitted. Thank you for helping keep our community safe.</p>
@@ -443,8 +463,18 @@ export default function StudentProfile() {
                 )}
               </div>
             </div>
+            <div className="modal-field">
+              <label className="field-label">Chat Evidence (optional)</label>
+              <textarea
+                className="input-field"
+                rows="3"
+                value={reportChatEvidence}
+                onChange={(e) => setReportChatEvidence(e.target.value)}
+                placeholder="Paste relevant chat messages or conversation text here..."
+              />
+            </div>
             <div className="modal-actions">
-              <button className="modal-btn modal-btn--secondary" onClick={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); }}>Cancel</button>
+              <button className="modal-btn modal-btn--secondary" onClick={() => { setShowReport(false); setReportReason(""); setReportDetails(""); setReportEvidence(null); setReportChatEvidence(""); }}>Cancel</button>
               <button className="modal-btn modal-btn--primary" onClick={handleReport} disabled={!reportReason || reportSubmitting}>
                 {reportSubmitting ? "Submitting..." : "Submit Report"}
               </button>
