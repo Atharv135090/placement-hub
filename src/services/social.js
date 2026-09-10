@@ -10,11 +10,9 @@ import {
   query,
   where,
   orderBy,
-  limit,
   onSnapshot,
   serverTimestamp,
   increment,
-  arrayUnion,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 
@@ -373,7 +371,6 @@ export async function sendMessage(conversationId, senderId, encryptedText) {
     const convSnap = await getDoc(doc(db, "conversations", conversationId));
     if (convSnap.exists()) {
       const conv = convSnap.data();
-      const senderIdx = conv.participants[0] === senderId ? 1 : 2;
       const unreadField = conv.participants[0] === senderId ? "unread2" : "unread1";
       await updateDoc(doc(db, "conversations", conversationId), {
         lastMessage: encryptedText,

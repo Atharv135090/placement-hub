@@ -146,6 +146,17 @@
   justify-content: space-around;
 }
 
+.photo-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.photo-actions-row .btn-sm {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+}
+
 .uss-item {
   display: flex;
   flex-direction: column;

@@ -5,6 +5,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import { logOut } from "../services/auth";
 import { updateUserProfile, uploadProfilePicture, uploadResume } from "../services/firestore";
+import { getAutoAssignedPhoto } from "../utils/avatar";
 import UserAvatar from "../components/UserAvatar";
 import "../components/Modal.css";
 import "./Settings.css";
@@ -39,9 +40,14 @@ export default function Settings() {
       setActiveTab("profile");
     }
   }, [routerLocation.pathname, routerLocation.search]);
+
   const [name, setName] = useState("");
   const [branch, setBranch] = useState("");
   const [location, setLocation] = useState("");
+  const [college, setCollege] = useState("");
+  const [about, setAbout] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
+  const [placementStatus, setPlacementStatus] = useState("");
   const [skills, setSkills] = useState([]);
   const [newSkillInput, setNewSkillInput] = useState("");
   const [showAddSkill, setShowAddSkill] = useState(false);
@@ -56,12 +62,18 @@ export default function Settings() {
   const resumeFileInputRef = useRef(null);
   const profileFileInputRef = useRef(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profileVisibility, setProfileVisibility] = useState("public");
 
   useEffect(() => {
     if (profile) {
       setName(profile.displayName || user?.displayName || "");
       setBranch(profile.branch || "");
       setLocation(profile.location || "");
+      setCollege(profile.college || "");
+      setAbout(profile.about || "");
+      setGraduationYear(profile.graduationYear || "");
+      setPlacementStatus(profile.placementStatus || "");
+      setProfileVisibility(profile.profileVisibility || "public");
       if (profile.skills && Array.isArray(profile.skills)) {
         setSkills(profile.skills);
       }
@@ -73,7 +85,6 @@ export default function Settings() {
       }
     } else {
       setName(user?.displayName || "");
-      setBranch("");
     }
   }, [profile, user]);
 
@@ -85,7 +96,12 @@ export default function Settings() {
         displayName: name,
         branch,
         location,
+        college,
+        about,
+        graduationYear,
+        placementStatus,
         skills,
+        profileVisibility,
       });
     }
     setSaving(false);
@@ -128,6 +144,13 @@ export default function Settings() {
     if (!result.error) {
       window.location.reload();
     }
+  }
+
+  async function handleRemoveProfilePicture() {
+    if (!user?.uid) return;
+    const fallbackPhoto = getAutoAssignedPhoto(user);
+    await updateUserProfile(user.uid, { photoUrl: fallbackPhoto });
+    window.location.reload();
   }
 
   function handleResumeFileSelect(e) {
@@ -182,7 +205,6 @@ export default function Settings() {
 
   return (
     <div className="settings-page animate-fade-in">
-      {/* 1. Header */}
       <div className="settings-header">
         <div className="settings-header-left">
           <div className="settings-icon-badge">⚙️</div>
@@ -192,7 +214,6 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Tab Toggle: My Profile, Preferences, Security */}
         <div className="settings-tabs glass">
           <button
             className={`settings-tab-btn ${activeTab === "profile" ? "active" : ""}`}
@@ -221,10 +242,8 @@ export default function Settings() {
         </div>
       )}
 
-      {/* 2. My Profile Tab */}
       {activeTab === "profile" && (
         <div className="profile-tab-content">
-          {/* Main User Card */}
           <div className="user-overview-card glass">
             <div className="user-overview-head">
               <div
@@ -252,7 +271,15 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Placement Quick Counts */}
+            <div className="photo-actions-row">
+              <button className="btn btn-secondary btn-sm" onClick={() => profileFileInputRef.current?.click()}>
+                Change Photo
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={handleRemoveProfilePicture}>
+                Restore Default
+              </button>
+            </div>
+
             <div className="user-stats-strip glass">
               <div className="uss-item">
                 <strong>{stats.total}</strong>
@@ -276,49 +303,53 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Edit Form */}
           <form className="profile-form-card glass" onSubmit={handleSaveProfile}>
             <h3 className="section-heading">Personal Details</h3>
             <div className="form-grid-2">
               <div className="field-group">
                 <label>Full Name</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
+                <input type="text" className="input-field" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
-
               <div className="field-group">
                 <label>Branch / Degree</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                />
+                <input type="text" className="input-field" value={branch} onChange={(e) => setBranch(e.target.value)} />
               </div>
-
+              <div className="field-group">
+                <label>College / University</label>
+                <input type="text" className="input-field" value={college} onChange={(e) => setCollege(e.target.value)} placeholder="e.g. MIT College of Engineering" />
+              </div>
               <div className="field-group">
                 <label>Location</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
+                <input type="text" className="input-field" value={location} onChange={(e) => setLocation(e.target.value)} />
               </div>
-
+              <div className="field-group">
+                <label>Graduation Year</label>
+                <input type="text" className="input-field" value={graduationYear} onChange={(e) => setGraduationYear(e.target.value)} placeholder="e.g. 2026" />
+              </div>
+              <div className="field-group">
+                <label>Placement Status</label>
+                <select className="input-field" value={placementStatus} onChange={(e) => setPlacementStatus(e.target.value)}>
+                  <option value="">Not set</option>
+                  <option value="seeking">Seeking Placement</option>
+                  <option value="placed">Placed</option>
+                  <option value="preparing">Preparing</option>
+                </select>
+              </div>
               <div className="field-group">
                 <label>Email Address</label>
-                <input
-                  type="email"
-                  className="input-field"
-                  value={user?.email || ""}
-                  disabled
-                />
+                <input type="email" className="input-field" value={user?.email || ""} disabled />
               </div>
+              <div className="field-group">
+                <label>Profile Visibility</label>
+                <select className="input-field" value={profileVisibility} onChange={(e) => setProfileVisibility(e.target.value)}>
+                  <option value="public">Public - Anyone can view your profile</option>
+                  <option value="private">Private - Require follow approval</option>
+                </select>
+              </div>
+            </div>
+            <div className="field-group" style={{ gridColumn: "1 / -1" }}>
+              <label>About</label>
+              <textarea className="input-field" rows="3" value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Tell other students about yourself..." />
             </div>
 
             <button type="submit" className="btn btn-primary save-btn" disabled={saving}>
@@ -326,53 +357,27 @@ export default function Settings() {
             </button>
           </form>
 
-          {/* Skills Section */}
           <div className="skills-card glass">
             <h3 className="section-heading">Skills & Expertise</h3>
             <div className="skills-cloud">
               {skills.map((skill) => (
                 <span key={skill} className="skill-tag glass">
                   <span>{skill}</span>
-                  <button
-                    type="button"
-                    className="skill-remove-btn"
-                    onClick={() => handleRemoveSkill(skill)}
-                  >
-                    ×
-                  </button>
+                  <button type="button" className="skill-remove-btn" onClick={() => handleRemoveSkill(skill)}>×</button>
                 </span>
               ))}
-
               {!showAddSkill ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary add-skill-btn"
-                  onClick={() => setShowAddSkill(true)}
-                >
-                  + Add Skill
-                </button>
+                <button type="button" className="btn btn-secondary add-skill-btn" onClick={() => setShowAddSkill(true)}>+ Add Skill</button>
               ) : (
                 <div className="add-skill-inline">
-                  <input
-                    type="text"
-                    className="input-field skill-inline-input"
-                    placeholder="e.g. Python"
-                    value={newSkillInput}
-                    onChange={(e) => setNewSkillInput(e.target.value)}
-                    autoFocus
-                  />
-                  <button type="button" className="btn btn-primary" onClick={handleAddSkill}>
-                    Add
-                  </button>
-                  <button type="button" className="btn btn-ghost" onClick={() => setShowAddSkill(false)}>
-                    ✕
-                  </button>
+                  <input type="text" className="input-field skill-inline-input" placeholder="e.g. Python" value={newSkillInput} onChange={(e) => setNewSkillInput(e.target.value)} autoFocus />
+                  <button type="button" className="btn btn-primary" onClick={handleAddSkill}>Add</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setShowAddSkill(false)}>✕</button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Resume Section */}
           <div className="resume-card glass">
             <h3 className="section-heading">Resume / CV</h3>
             <div className="resume-file-box glass-card">
@@ -383,29 +388,17 @@ export default function Settings() {
                   <span className="file-size">{resumeFileName ? "PDF • Updated recently" : "Upload your resume in PDF format"}</span>
                 </div>
               </div>
-
               <div className="resume-actions">
                 {resumeViewUrl && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleViewResume}
-                  >
-                    View
-                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={handleViewResume}>View</button>
                 )}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setShowResumeModal(true)}
-                >
+                <button type="button" className="btn btn-primary" onClick={() => setShowResumeModal(true)}>
                   {resumeFileName ? "Update" : "Upload Resume"}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Resume Upload Modal */}
           {showResumeModal && (
             <div className="modal-overlay" onClick={() => { setShowResumeModal(false); setResumeFile(null); setResumeUploadSuccess(false); }}>
               <div className="modal-panel glass-heavy" onClick={(e) => e.stopPropagation()}>
@@ -429,18 +422,8 @@ export default function Settings() {
                           <span className="file-size">PDF</span>
                         </div>
                       </div>
-
-                      <div
-                        className="resume-drop-zone"
-                        onClick={() => resumeFileInputRef.current?.click()}
-                      >
-                        <input
-                          ref={resumeFileInputRef}
-                          type="file"
-                          accept=".pdf"
-                          onChange={handleResumeFileSelect}
-                          style={{ display: "none" }}
-                        />
+                      <div className="resume-drop-zone" onClick={() => resumeFileInputRef.current?.click()}>
+                        <input ref={resumeFileInputRef} type="file" accept=".pdf" onChange={handleResumeFileSelect} style={{ display: "none" }} />
                         {resumeFile ? (
                           <div className="resume-selected-file">
                             <span className="pdf-icon">📄</span>
@@ -457,12 +440,9 @@ export default function Settings() {
                           </div>
                         )}
                       </div>
-
                       <div className="modal-actions">
                         <button className="btn btn-secondary" onClick={() => { setShowResumeModal(false); setResumeFile(null); }}>Cancel</button>
-                        <button className="btn btn-primary" onClick={handleResumeUpload} disabled={!resumeFile}>
-                          Replace Resume
-                        </button>
+                        <button className="btn btn-primary" onClick={handleResumeUpload} disabled={!resumeFile}>Replace Resume</button>
                       </div>
                     </>
                   )}
@@ -471,7 +451,6 @@ export default function Settings() {
             </div>
           )}
 
-          {/* Resume Viewer Modal */}
           {showResumeViewer && resumeViewUrl && (
             <div className="modal-overlay" onClick={() => setShowResumeViewer(false)}>
               <div className="modal-panel modal-panel--wide glass-heavy" onClick={(e) => e.stopPropagation()}>
@@ -480,18 +459,10 @@ export default function Settings() {
                   <button className="modal-close" onClick={() => setShowResumeViewer(false)}>✕</button>
                 </div>
                 <div className="modal-body resume-viewer-body">
-                  <iframe
-                    src={resumeViewUrl}
-                    title="Resume Preview"
-                    className="resume-iframe"
-                  />
+                  <iframe src={resumeViewUrl} title="Resume Preview" className="resume-iframe" />
                   <div className="modal-actions">
-                    <a href={resumeViewUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" download={resumeFileName}>
-                      Download
-                    </a>
-                    <button className="btn btn-primary" onClick={() => { setShowResumeViewer(false); setShowResumeModal(true); }}>
-                      Update
-                    </button>
+                    <a href={resumeViewUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" download={resumeFileName}>Download</a>
+                    <button className="btn btn-primary" onClick={() => { setShowResumeViewer(false); setShowResumeModal(true); }}>Update</button>
                   </div>
                 </div>
               </div>
@@ -500,35 +471,23 @@ export default function Settings() {
         </div>
       )}
 
-      {/* 3. Preferences Tab */}
       {activeTab === "preferences" && (
         <div className="preferences-tab-content">
           <div className="pref-card glass">
             <h3 className="section-heading">Theme & Appearance</h3>
             <p className="pref-desc">Choose between sleek dark mode or crisp light mode.</p>
             <div className="theme-toggle-row">
-              <button
-                className={`theme-choice-btn ${themeMode === "dark" ? "active" : ""}`}
-                onClick={() => setThemeMode("dark")}
-              >
+              <button className={`theme-choice-btn ${themeMode === "dark" ? "active" : ""}`} onClick={() => setThemeMode("dark")}>
                 <span className="theme-icon">🌙</span>
                 <strong>Dark Mode</strong>
                 <span>Obsidian & Red Neon</span>
               </button>
-
-              <button
-                className={`theme-choice-btn ${themeMode === "light" ? "active" : ""}`}
-                onClick={() => setThemeMode("light")}
-              >
+              <button className={`theme-choice-btn ${themeMode === "light" ? "active" : ""}`} onClick={() => setThemeMode("light")}>
                 <span className="theme-icon">☀️</span>
                 <strong>Light Mode</strong>
                 <span>Frosted White & Crimson</span>
               </button>
-
-              <button
-                className={`theme-choice-btn ${themeMode === "system" ? "active" : ""}`}
-                onClick={() => setThemeMode("system")}
-              >
+              <button className={`theme-choice-btn ${themeMode === "system" ? "active" : ""}`} onClick={() => setThemeMode("system")}>
                 <span className="theme-icon">💻</span>
                 <strong>System</strong>
                 <span>Auto detect OS mode</span>
@@ -538,16 +497,13 @@ export default function Settings() {
         </div>
       )}
 
-      {/* 4. Security Tab */}
       {activeTab === "security" && (
         <div className="security-tab-content">
           <div className="security-card glass">
             <h3 className="section-heading">Account Session</h3>
             <p className="pref-desc">Signed in as {user?.email || "student"}.</p>
             <div className="sec-actions-row">
-              <button className="btn btn-secondary" onClick={handleLogout}>
-                Sign Out
-              </button>
+              <button className="btn btn-secondary" onClick={handleLogout}>Sign Out</button>
             </div>
           </div>
         </div>

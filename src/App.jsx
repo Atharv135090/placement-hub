@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { AssistantProvider } from "./contexts/AssistantContext";
 import { PlacementDataProvider } from "./contexts/PlacementDataContext";
+import { ChatProvider } from "./contexts/ChatContext";
 import AppShell from "./components/AppShell";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedAdmin from "./components/ProtectedAdmin";
@@ -19,6 +20,9 @@ const Assistant = lazy(() => import("./pages/Assistant"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Attention = lazy(() => import("./pages/Attention"));
+const Students = lazy(() => import("./pages/Students"));
+const StudentProfile = lazy(() => import("./pages/StudentProfile"));
+const Chat = lazy(() => import("./pages/Chat"));
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
@@ -58,57 +62,66 @@ export default function App() {
   return (
     <AssistantProvider>
       <PlacementDataProvider>
-        <Suspense fallback={<PageSpinner />}>
-          <Routes>
-          <Route element={<AppShell />}>
-            {/* 01. Dashboard */}
-            <Route path="/" element={<Home />} />
+        <ChatProvider>
+          <Suspense fallback={<PageSpinner />}>
+            <Routes>
+            <Route element={<AppShell />}>
+              {/* 01. Dashboard */}
+              <Route path="/" element={<Home />} />
 
-            {/* 02. Companies */}
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/companies/:companyId" element={<CompanyDetail />} />
-            <Route path="/companies/new" element={<AddCompany />} />
+              {/* 02. Companies */}
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/companies/:companyId" element={<CompanyDetail />} />
+              <Route path="/companies/new" element={<AddCompany />} />
 
-            {/* 03. Applications */}
-            <Route path="/applications" element={<Applications />} />
+              {/* 03. Applications */}
+              <Route path="/applications" element={<Applications />} />
 
-            {/* 04. Placement Assistant */}
-            <Route path="/assistant" element={<Assistant />} />
+              {/* 04. Placement Assistant */}
+              <Route path="/assistant" element={<Assistant />} />
 
-            {/* 05. Analytics */}
-            <Route path="/analytics" element={<Analytics />} />
+              {/* 05. Analytics */}
+              <Route path="/analytics" element={<Analytics />} />
 
-            {/* 06. Profile & Settings */}
-            <Route path="/profile" element={<Settings />} />
-            <Route path="/settings" element={<Settings />} />
+              {/* 06. Students */}
+              <Route path="/students" element={<Students />} />
+              <Route path="/students/:studentId" element={<StudentProfile />} />
 
-            {/* Ancillary routes */}
-            <Route path="/attention" element={<Attention />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-          </Route>
+              {/* 07. Chat */}
+              <Route path="/chat" element={<Chat />} />
 
-          {/* Admin protected routes */}
-          <Route path="/admin" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="chatbot" element={<AdminAssistant />} />
-            <Route path="analytics" element={<WebsiteAnalytics />} />
-            <Route path="companies" element={<AdminCompanies />} />
-            <Route path="applications" element={<AdminApplications />} />
-            <Route path="announcements" element={<AdminAnnouncements />} />
-            <Route path="users" element={<ProtectedAdmin ownerOnly><AdminUsers /></ProtectedAdmin>} />
-            <Route path="unauthorized" element={<Unauthorized />} />
-            <Route path="drives" element={<Navigate to="/admin/companies" replace />} />
-          </Route>
+              {/* 08. Profile & Settings */}
+              <Route path="/profile" element={<Settings />} />
+              <Route path="/settings" element={<Settings />} />
 
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/drives" element={<Navigate to="/companies" replace />} />
-          <Route path="/timeline" element={<Navigate to="/companies" replace />} />
-          <Route path="/saved" element={<Navigate to="/companies" replace />} />
-          <Route path="/calendar" element={<Navigate to="/applications" replace />} />
-          <Route path="/resources" element={<Navigate to="/companies" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+              {/* Ancillary routes */}
+              <Route path="/attention" element={<Attention />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+            </Route>
+
+            {/* Admin protected routes */}
+            <Route path="/admin" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="chatbot" element={<AdminAssistant />} />
+              <Route path="analytics" element={<WebsiteAnalytics />} />
+              <Route path="companies" element={<AdminCompanies />} />
+              <Route path="applications" element={<AdminApplications />} />
+              <Route path="announcements" element={<AdminAnnouncements />} />
+              <Route path="users" element={<ProtectedAdmin ownerOnly><AdminUsers /></ProtectedAdmin>} />
+              <Route path="unauthorized" element={<Unauthorized />} />
+              <Route path="drives" element={<Navigate to="/admin/companies" replace />} />
+            </Route>
+
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/drives" element={<Navigate to="/companies" replace />} />
+            <Route path="/timeline" element={<Navigate to="/companies" replace />} />
+            <Route path="/saved" element={<Navigate to="/companies" replace />} />
+            <Route path="/calendar" element={<Navigate to="/applications" replace />} />
+            <Route path="/resources" element={<Navigate to="/companies" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+        </ChatProvider>
       </PlacementDataProvider>
     </AssistantProvider>
   );

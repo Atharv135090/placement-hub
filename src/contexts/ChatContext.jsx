@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "./AuthContext";
 import {
-  getConversations,
   subscribeToConversations,
   getOrCreateConversation,
   sendMessage,
@@ -40,7 +39,7 @@ export function ChatProvider({ children }) {
   }, [uid]);
 
   useEffect(() => {
-    if (!activeConversation || !uid) {
+    if (!activeConversation?.id || !uid) {
       setMessages([]);
       return;
     }
