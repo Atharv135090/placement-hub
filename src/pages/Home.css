@@ -1,0 +1,503 @@
+.home-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 0. Announcements Banner */
+.dash-announcements {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-announcement {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.dash-announcement--high {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%);
+}
+
+.dash-ann-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dash-ann-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-ann-content strong {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dash-ann-content p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 1. Hero Welcome Banner */
+.dash-hero-banner {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  position: relative;
+  min-height: 140px;
+  border: 1px solid var(--border);
+}
+
+.hero-left-col {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--hero-bg);
+}
+
+.hero-heading {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.hero-tagline {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.hero-car-card {
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  min-height: 130px;
+}
+
+.hero-car-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-car-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-surface) 0%, rgba(239, 68, 68, 0.25) 50%, rgba(7, 8, 11, 0.6) 100%);
+}
+
+[data-theme="light"] .hero-car-overlay {
+  background: linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.2) 60%, rgba(225, 29, 72, 0.15) 100%);
+}
+
+.hero-car-quote {
+  position: absolute;
+  bottom: 16px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: #ffffff;
+  font-size: 0.76rem;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.hero-car-quote strong {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent-light);
+}
+
+/* 2. Four Stat Cards Grid */
+.dash-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.dash-stat-card {
+  padding: 18px 20px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.dash-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-border);
+  box-shadow: 0 8px 24px var(--accent-subtle);
+}
+
+.stat-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-red {
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-light);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.stat-value {
+  font-size: 1.9rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* 3. Main Split */
+.dash-main-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.dash-col-left, .dash-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* Progress Gauge Card */
+.progress-gauge-card {
+  padding: 22px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gauge-split {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.gauge-radial-wrap {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.radial-svg {
+  transform: rotate(-90deg);
+}
+
+.radial-center-text {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rc-num {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.rc-denom {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.gauge-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.g-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+
+.g-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-applied { background: var(--blue); }
+.dot-shortlisted { background: var(--amber); }
+.dot-interview { background: var(--accent); }
+.dot-offer { background: var(--emerald); }
+.dot-rejected { background: var(--rose); }
+
+.g-name {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.g-count {
+  color: var(--text-primary);
+}
+
+/* Recent Activity Card */
+.recent-activity-card {
+  padding: 22px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.recent-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: background var(--transition);
+}
+
+.activity-item:hover {
+  background: var(--bg-hover);
+}
+
+.activity-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.activity-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-info strong {
+  font-size: 0.84rem;
+  color: var(--text-primary);
+}
+
+.activity-info span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Upcoming Drives Card */
+.upcoming-drives-card {
+  padding: 22px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sec-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.view-all-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  transition: color var(--transition);
+}
+
+.view-all-link:hover {
+  color: var(--accent);
+}
+
+.drives-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drive-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+}
+
+.compact-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compact-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.c-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.compact-comp-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.compact-time-badge {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.compact-apply-btn {
+  padding: 6px 16px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.compact-view-btn {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+}
+
+/* Motto Action Card */
+.motto-action-card {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  min-height: 160px;
+}
+
+.motto-text-side {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.motto-text-side h3 {
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.motto-visual-side {
+  position: relative;
+  overflow: hidden;
+}
+
+.motto-vis-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.motto-vis-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-surface) 0%, transparent 100%);
+}
+
+@media (max-width: 1024px) {
+  .dash-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dash-main-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-hero-banner {
+    grid-template-columns: 1fr;
+  }
+  .hero-car-card {
+    display: none;
+  }
+  .dash-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .gauge-split {
+    flex-direction: column;
+  }
+  .motto-action-card {
+    grid-template-columns: 1fr;
+  }
+  .motto-visual-side {
+    display: none;
+  }
+}

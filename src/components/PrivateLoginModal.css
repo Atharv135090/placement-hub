@@ -1,0 +1,129 @@
+.plm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.plm-modal {
+  padding: 32px;
+  max-width: 400px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+}
+
+.plm-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition);
+}
+
+.plm-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.plm-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.plm-lock-icon {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+
+.plm-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.plm-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.plm-error {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--rose-subtle);
+  color: var(--rose);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  text-align: center;
+}
+
+.plm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.plm-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.plm-submit {
+  margin-top: 4px;
+}
+
+.plm-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.plm-divider::before,
+.plm-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.plm-google-btn {
+  width: 100%;
+  gap: 10px;
+}
+
+.plm-footer-text {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

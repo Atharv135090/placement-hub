@@ -1,0 +1,146 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── HELPER FUNCTIONS ──────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isAuth() && request.auth.token.role == 'owner';
+    }
+
+    function isAdmin() {
+      return isAuth() && request.auth.token.role == 'admin';
+    }
+
+    function isOwnerOrAdmin() {
+      return isOwner() || isAdmin();
+    }
+
+    function isOwnerDoc(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // Check users/{uid} document for role (works without custom claims)
+    // exists() guard prevents get() from failing when the document doesn't exist yet
+    function hasOwnerRole() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+    }
+
+    function hasAdminRole() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
+    }
+
+    // ─── COMPANIES ─────────────────────────────────────────────
+
+    match /companies/{companyId} {
+      // Anyone authenticated can read companies
+      allow read: if isAuth();
+
+      // Only owner/admin can create, update, delete
+      // Checks both custom claims AND users/{uid} document
+      allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── JOBS / PLACEMENT DRIVES ──────────────────────────────
+
+    match /jobs/{jobId} {
+      // Anyone authenticated can read jobs
+      allow read: if isAuth();
+
+      // Only owner/admin can create, update, delete
+      // Checks both custom claims AND users/{uid} document
+      allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── USERS / STUDENT PROFILES ─────────────────────────────
+
+    match /users/{userId} {
+      // Users can read any profile (needed for displaying names, etc.)
+      allow read: if isAuth();
+
+      // Users can create their own profile only
+      allow create: if isOwnerDoc(userId);
+
+      // Users can update their own profile
+      // Owner can update any profile (for role management)
+      // Allow self-update for role promotion
+      allow update: if isOwnerDoc(userId) || isOwner() || hasOwnerRole();
+
+      // Only owner can delete user profiles
+      allow delete: if isOwner() || hasOwnerRole();
+    }
+
+    // ─── APPLICATIONS ─────────────────────────────────────────
+
+    match /applications/{applicationId} {
+      // Students can read their own applications
+      // Owner/admin can read all applications
+      allow read: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
+
+      // Students can create their own application
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid;
+
+      // Students can update their own application (e.g. withdraw)
+      // Owner/admin can update any application (status changes)
+      allow update: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
+
+      // Students can delete their own application (withdraw)
+      // Owner/admin can delete any application
+      allow delete: if isOwnerDoc(resource.data.userId) || isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── ANNOUNCEMENTS ────────────────────────────────────────
+
+    match /announcements/{announcementId} {
+      // Anyone authenticated can read announcements
+      allow read: if isAuth();
+
+      // Only owner/admin can create, update, delete
+      allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── ATTACHMENTS ─────────────────────────────────────────
+
+    match /attachments/{attachmentId} {
+      // Anyone authenticated can read attachments
+      allow read: if isAuth();
+
+      // Only owner/admin can create, update, delete
+      allow create, update, delete: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── NOTIFICATIONS ────────────────────────────────────────
+
+    match /notifications/{notificationId} {
+      // Anyone authenticated can read notifications
+      allow read: if isAuth();
+
+      // Only owner/admin can create notifications
+      allow create: if isOwnerOrAdmin() || hasAdminRole();
+
+      // Users can update readBy array (mark as read)
+      // Owner/admin can update any notification
+      allow update: if isAuth();
+
+      // Only owner/admin can delete notifications
+      allow delete: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
+    // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,520 @@
+/* ═══════════════════════════════════════════════════════════
+   WEBSITE ANALYTICS — Futuristic Premium Dashboard
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes waFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes waStatSlide {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes waBarGrow {
+  from { height: 0; }
+  to   { height: var(--bar-h); }
+}
+
+@keyframes waFunnelFill {
+  from { width: 0; }
+  to   { width: var(--funnel-w); }
+}
+
+@keyframes waLivePulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes waCardGlow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--card-glow); }
+  50%      { box-shadow: 0 0 20px 4px var(--card-glow); }
+}
+
+.wa-page {
+  animation: waFadeUp 0.5s var(--ease);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 40px;
+}
+
+/* ─── HEADER ────────────────────────────────────────────── */
+.wa-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.wa-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.wa-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.wa-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--emerald);
+  background: var(--emerald-subtle);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  animation: waLivePulse 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+.wa-live-badge svg {
+  color: var(--emerald);
+}
+
+/* ─── STAT CARDS ────────────────────────────────────────── */
+.wa-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.wa-stat-card {
+  position: relative;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: waStatSlide 0.55s var(--ease) both;
+  transition: all var(--transition);
+}
+
+.wa-stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--card-accent) 50%, transparent 100%);
+  opacity: 0.6;
+}
+
+.wa-stat-card::after {
+  content: "";
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--card-accent);
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.wa-stat-card:hover {
+  border-color: var(--glass-border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3), 0 0 20px var(--card-glow);
+}
+
+.wa-stat-top {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wa-stat-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 18%, transparent);
+  color: var(--card-accent);
+}
+
+.wa-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--card-accent);
+}
+
+.wa-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── SECTIONS ──────────────────────────────────────────── */
+.wa-section {
+  padding: 24px;
+  animation: waFadeUp 0.5s var(--ease) both;
+}
+
+.wa-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-section-dot {
+  width: 3px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ─── TWO-COLUMN LAYOUT ─────────────────────────────────── */
+.wa-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ─── FUNNEL ────────────────────────────────────────────── */
+.wa-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wa-funnel-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.wa-funnel-label {
+  width: 100px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: right;
+  font-weight: 500;
+}
+
+.wa-funnel-track {
+  flex: 1;
+  height: 30px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.wa-funnel-bar {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  transition: width 0.6s var(--ease);
+  animation: waFunnelFill 0.8s var(--ease) both;
+}
+
+.wa-funnel-count {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.wa-funnel-pct {
+  width: 40px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── BAR CHART ─────────────────────────────────────────── */
+.wa-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 180px;
+  padding: 0 2px;
+}
+
+.wa-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  gap: 4px;
+}
+
+.wa-bar-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.wa-bar-fill {
+  width: 70%;
+  max-width: 36px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  min-height: 2px;
+  transition: height 0.6s var(--ease);
+  animation: waBarGrow 0.7s var(--ease) both;
+  position: relative;
+}
+
+.wa-bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+}
+
+.wa-bar-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ─── COMPANY BREAKDOWN ─────────────────────────────────── */
+.wa-company-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wa-company-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wa-company-rank {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  width: 22px;
+  font-weight: 600;
+}
+
+.wa-company-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-company-track {
+  flex: 1;
+  height: 18px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.wa-company-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dim) 100%);
+  border-radius: var(--radius-xs);
+  transition: width 0.5s var(--ease);
+  min-width: 3px;
+}
+
+.wa-company-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── USERS LIST ────────────────────────────────────────── */
+.wa-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wa-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+}
+
+.wa-user-row:hover {
+  border-color: var(--glass-border-hover);
+  background: var(--bg-hover);
+}
+
+.wa-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  flex-shrink: 0;
+}
+
+.wa-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.wa-user-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-user-email {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-user-role {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.wa-role-owner {
+  background: var(--amber-subtle);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.wa-role-admin {
+  background: rgba(168, 85, 247, 0.14);
+  color: #a78bfa;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+
+.wa-role-student {
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+/* ─── EMPTY STATE ───────────────────────────────────────── */
+.wa-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  color: var(--text-muted);
+}
+
+.wa-empty svg {
+  color: var(--text-muted);
+  opacity: 0.3;
+}
+
+.wa-empty p {
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .wa-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .wa-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .wa-header {
+    flex-direction: column;
+  }
+  .wa-funnel-label {
+    width: 80px;
+    font-size: 0.74rem;
+  }
+  .wa-bar-chart {
+    height: 140px;
+  }
+  .wa-company-name {
+    width: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wa-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .wa-title {
+    font-size: 1.35rem;
+  }
+  .wa-stat-value {
+    font-size: 1.6rem;
+  }
+}

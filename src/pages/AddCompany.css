@@ -1,0 +1,288 @@
+.add-company-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 860px;
+}
+
+.ac-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ac-form {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.ac-error-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--rose-subtle);
+  color: var(--rose);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ─── SECTIONS ──────────────────────────────────────── */
+.ac-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ac-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ac-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ac-section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ─── FIELDS ────────────────────────────────────────── */
+.ac-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ac-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ac-field--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ac-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ac-input-error {
+  border-color: var(--rose) !important;
+}
+
+.ac-field-error {
+  font-size: 0.76rem;
+  color: var(--rose);
+}
+
+.ac-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+/* ─── LOGO SECTION ──────────────────────────────────── */
+.ac-logo-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ac-logo-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ac-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ac-logo-input-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ac-logo-mode-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.ac-mode-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition);
+}
+
+.ac-mode-btn.active {
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+  border-color: var(--accent-light);
+}
+
+.ac-logo-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* ─── CHIPS (Eligible Courses) ──────────────────────── */
+.ac-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+}
+
+.ac-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 1px solid rgba(124, 58, 237, 0.20);
+}
+
+.ac-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  color: var(--accent-light);
+  background: var(--accent-subtle);
+  transition: all var(--transition);
+}
+
+.ac-chip-remove:hover {
+  background: var(--rose-subtle);
+  color: var(--rose);
+}
+
+.ac-course-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ac-course-input-row .input-field {
+  flex: 1;
+}
+
+.ac-common-courses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ac-common-course-btn {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.ac-common-course-btn:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ─── ACTIONS ───────────────────────────────────────── */
+.ac-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.ac-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ac-form {
+    padding: 18px;
+  }
+
+  .ac-row {
+    flex-direction: column;
+  }
+
+  .ac-field--grow {
+    min-width: 100%;
+  }
+
+  .ac-logo-section {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .ac-actions {
+    flex-direction: column;
+  }
+
+  .ac-actions .btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,221 @@
+/* ─── FLOATING ACTION BUTTON ─────────────────────────── */
+.pcp-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1500;
+  border: 2px solid var(--accent-light);
+  background: var(--bg-surface);
+  box-shadow: 0 4px 20px var(--accent-glow);
+  transition: all var(--transition);
+}
+
+.pcp-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px var(--accent-glow);
+}
+
+.pcp-fab-icon {
+  font-size: 1.2rem;
+  color: var(--accent-light);
+  font-weight: 700;
+}
+
+.pcp-fab-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-light);
+  opacity: 0;
+  animation: pcpPulse 2s ease-out infinite;
+}
+
+@keyframes pcpPulse {
+  0% { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+
+/* ─── CONTROL PANEL ─────────────────────────────────── */
+.pcp-panel {
+  position: fixed;
+  bottom: 88px;
+  right: 24px;
+  width: 320px;
+  max-height: 480px;
+  border-radius: var(--radius-lg);
+  z-index: 1499;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pcpSlideUp 0.25s ease-out;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@keyframes pcpSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pcp-panel--minimized {
+  max-height: 52px;
+}
+
+.pcp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.pcp-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pcp-panel-icon {
+  color: var(--accent-light);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.pcp-panel-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pcp-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pcp-panel-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+
+.pcp-panel-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.pcp-panel-btn--exit:hover {
+  background: var(--rose-subtle);
+  color: var(--rose);
+}
+
+.pcp-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.pcp-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: left;
+  width: 100%;
+}
+
+.pcp-action-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+.pcp-action-icon {
+  font-size: 1.3rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle);
+  flex-shrink: 0;
+}
+
+.pcp-action-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pcp-action-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pcp-action-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.pcp-action-arrow {
+  font-size: 0.85rem;
+  color: var(--accent-light);
+  opacity: 0;
+  transition: all var(--transition);
+}
+
+.pcp-action-card:hover .pcp-action-arrow {
+  opacity: 1;
+}
+
+.pcp-panel-footer {
+  padding: 8px 4px 4px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}
+
+.pcp-exit-btn {
+  width: 100%;
+  font-size: 0.8rem;
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pcp-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: 80px;
+  }
+
+  .pcp-fab {
+    bottom: 16px;
+    right: 16px;
+  }
+}

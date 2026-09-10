@@ -1,0 +1,192 @@
+.tl-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tl-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+}
+
+.tl-filter-pills button {
+  padding: 6px 14px;
+  border-radius: var(--radius-xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.tl-filter-pills button.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+  color: white;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+/* ─── VERTICAL TIMELINE ──────────────────────────────── */
+.tl-container {
+  max-width: 860px;
+  margin-top: 10px;
+}
+
+.tl-group-label {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.tl-vertical-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tl-item-row {
+  display: flex;
+  gap: 20px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.tl-date-badge-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 54px;
+  flex-shrink: 0;
+}
+
+.tl-date-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+
+.tl-db-day {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.tl-db-month {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.tl-vertical-line {
+  position: absolute;
+  top: 50px;
+  bottom: 0;
+  width: 2px;
+  background: var(--glass-border);
+}
+
+.tl-item-row:last-child .tl-vertical-line {
+  display: none;
+}
+
+/* ─── EVENT CARD ─────────────────────────────────────── */
+.tl-event-card {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tl-event-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tl-logo-box {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.tl-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tl-event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tl-company-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tl-role-title {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.tl-meta-specs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  margin-top: 3px;
+}
+
+.tl-ctc {
+  font-weight: 700;
+  color: var(--emerald);
+}
+
+.tl-loc {
+  color: var(--text-muted);
+}
+
+.tl-event-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tl-empty {
+  padding: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}

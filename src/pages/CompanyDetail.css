@@ -1,0 +1,875 @@
+.cd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cd-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cd-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cd-saved {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--amber);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.btn-danger {
+  background: var(--rose);
+  color: white;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger-outline:hover {
+  background: var(--rose-subtle);
+  border-color: var(--rose);
+}
+
+/* ─── HERO IDENTITY ───────────────────────────────────── */
+.cd-hero {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cd-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.cd-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cd-reg-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cd-reg-status--open {
+  background: var(--emerald-subtle);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cd-reg-status--closed {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.cd-reg-status--upcoming {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+.cd-logo-box {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--glass-border-light);
+  flex-shrink: 0;
+}
+
+.cd-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cd-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cd-company-name {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.cd-industry {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.cd-website-link {
+  font-size: 0.78rem;
+  color: var(--accent-light);
+  margin-top: 4px;
+}
+
+/* ─── ROLE & ACTION STRIP ────────────────────────────── */
+.cd-role-action-box {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  border-left: 4px solid var(--accent-light);
+}
+
+.cd-role-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cd-role-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cd-role-specs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.84rem;
+}
+
+.spec-ctc {
+  font-weight: 700;
+  color: var(--emerald);
+}
+
+.spec-date {
+  color: var(--text-secondary);
+}
+
+.spec-loc {
+  color: var(--text-muted);
+}
+
+.cd-action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cd-action-error {
+  font-size: 0.78rem;
+  color: var(--rose);
+  font-weight: 500;
+}
+
+/* ─── TABS ────────────────────────────────────────────── */
+.cd-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+}
+
+.cd-tab {
+  padding: 8px 18px;
+  border-radius: var(--radius-xs);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.cd-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cd-tab--active {
+  color: white;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+/* ─── OVERVIEW GRID ──────────────────────────────────── */
+.cd-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+.cd-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cd-section {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cd-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cd-section-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── ATTACHMENTS ────────────────────────────────────── */
+.cd-attachments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cd-attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.cd-att-icon {
+  font-size: 1.4rem;
+  margin-right: 12px;
+}
+
+.cd-att-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cd-att-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cd-att-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.cd-att-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── SIDE PANEL ─────────────────────────────────────── */
+.cd-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cd-side-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cd-side-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+
+}
+
+.sched-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+}
+
+.sched-row span {
+  color: var(--text-muted);
+}
+
+.sched-row strong {
+  color: var(--text-secondary);
+}
+
+/* ─── STATUS SELECTOR GRID ───────────────────────────── */
+.status-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.status-opt-btn {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.status-opt-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.status-opt-btn.active {
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+  border-color: var(--accent-light);
+}
+
+.course-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.course-chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* ─── JOB SUMMARY GRID ──────────────────────────────── */
+.cd-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.cd-summary-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cd-summary-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cd-summary-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cd-summary-value--green {
+  color: var(--emerald);
+}
+
+.spec-stipend {
+  color: var(--accent-light);
+  font-weight: 600;
+}
+
+.spec-type {
+  color: var(--violet);
+  font-weight: 600;
+}
+
+/* ─── REGISTRATION BADGE IN SIDE CARD ───────────────── */
+.cd-reg-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.cd-reg-badge--open {
+  background: var(--emerald-subtle);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cd-reg-badge--closed {
+  background: var(--rose-subtle);
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.cd-reg-badge--upcoming {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+/* ─── SIDE LINK ─────────────────────────────────────── */
+.cd-side-link {
+  color: var(--accent-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cd-side-link:hover {
+  color: var(--accent);
+}
+
+/* ─── DELETE CONFIRMATION MODAL ──────────────────────── */
+.cd-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.cd-modal {
+  padding: 28px;
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cd-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cd-modal-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.cd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .cd-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cd-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cd-top-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .cd-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   3D EFFECTS - COMPANY DETAIL PAGE
+   ═══════════════════════════════════════════════════════ */
+
+.cd-page {
+  perspective: 1200px;
+}
+
+/* -- Hero Card 3D -- */
+.cd-hero {
+  transform-style: preserve-3d;
+  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cd-hero:hover {
+  transform: translateY(-3px) translateZ(10px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25), 0 0 30px rgba(124,58,237,0.04);
+}
+
+/* -- Logo 3D -- */
+.cd-logo-box {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+}
+
+.cd-hero:hover .cd-logo-box {
+  transform: translateZ(14px) rotateY(-8deg) scale(1.05);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.3);
+}
+
+/* -- Role Action Strip 3D -- */
+.cd-role-action-box {
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cd-role-action-box:hover {
+  transform: translateZ(6px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+}
+
+/* -- Registration Status 3D -- */
+.cd-reg-status {
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.cd-reg-status:hover {
+  transform: translateY(-1px) translateZ(4px) scale(1.04);
+}
+
+/* -- Summary Cards 3D -- */
+.cd-summary-card {
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.cd-summary-card:hover {
+  transform: translateY(-6px) translateZ(10px) rotateX(-1deg);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.3), 0 0 20px rgba(124,58,237,0.05);
+}
+
+/* ─── Upload Area ─────────────────────────────────────── */
+.cd-upload-area {
+  margin-bottom: 16px;
+}
+
+.cd-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.cd-upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 20px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  transition: all var(--transition);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cd-upload-box:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.cd-upload-box--busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.cd-upload-icon {
+  font-size: 1.8rem;
+  color: var(--accent-light);
+  line-height: 1;
+}
+
+.cd-upload-hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.cd-upload-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: cdSpin 0.7s linear infinite;
+}
+
+@keyframes cdSpin {
+  to { transform: rotate(360deg); }
+}
+
+.cd-upload-error {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--rose);
+  font-weight: 600;
+}
+
+/* ─── Section Header ─────────────────────────────────── */
+.cd-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cd-add-jd-btn {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* ─── Upload Modal ───────────────────────────────────── */
+.cd-modal-upload-area {
+  margin: 8px 0;
+}
+
+.cd-upload-box--modal {
+  border-color: var(--border);
+}
+
+.cd-upload-box--modal:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.cd-upload-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.cd-upload-file-icon {
+  font-size: 1.6rem;
+}
+
+.cd-upload-file-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+  text-align: center;
+}
+
+.cd-upload-file-size {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ─── Upload Success ─────────────────────────────────── */
+.cd-upload-success {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.cd-upload-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--emerald-subtle);
+  color: var(--emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin: 0 auto 16px auto;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cd-upload-success h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.cd-upload-success p {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Empty Text ─────────────────────────────────────── */
+.cd-empty-text {
+  padding: 8px 0;
+}
+
+/* ─── Stats Strip ────────────────────────────────────── */
+.cd-stats-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 16px 24px;
+  border-radius: var(--radius-xl);
+}
+
+.cd-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cd-stat-item strong {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+.cd-stat-item span {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.cd-stat-sep {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+
+/* ─── Drives List ────────────────────────────────────── */
+.cd-drives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cd-drive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.cd-drive-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cd-drive-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cd-drive-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.cd-drive-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.cd-drive-status--active {
+  background: var(--emerald-subtle);
+  color: var(--emerald);
+}
+
+.cd-drive-status--inactive {
+  background: var(--rose-subtle);
+  color: var(--rose);
+}
+
+/* ─── PDF Viewer Modal ───────────────────────────────── */
+.cd-pdf-viewer-modal {
+  position: fixed;
+  inset: 16px;
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.cd-pdf-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.cd-pdf-viewer-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cd-pdf-viewer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cd-pdf-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #1a1a1a;
+}

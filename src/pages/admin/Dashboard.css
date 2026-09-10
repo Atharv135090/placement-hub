@@ -1,0 +1,506 @@
+/* ═══════════════════════════════════════════════════════════
+   ADMIN DASHBOARD — REFERENCE UI ARCHITECTURE
+   ═══════════════════════════════════════════════════════════ */
+
+.adm-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+/* ─── HEADER ROW ────────────────────────────────────────── */
+.adm-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.adm-header-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adm-page-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-theme="light"] .adm-page-title {
+  color: #0f172a;
+}
+
+.adm-page-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+[data-theme="light"] .adm-page-subtitle {
+  color: #64748b;
+}
+
+/* Date Chip on the right */
+.adm-date-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .adm-date-chip {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.adm-date-icon {
+  font-size: 0.95rem;
+}
+
+/* ─── 4 STAT CARDS ROW ──────────────────────────────────── */
+.adm-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.adm-stat-card {
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+[data-theme="light"] .adm-stat-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
+}
+
+.adm-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hover);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .adm-stat-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.adm-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Color-coded icon containers matching reference image */
+.adm-stat-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Blue for Companies */
+.icon-blue {
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  color: #38bdf8;
+}
+
+[data-theme="light"] .icon-blue {
+  background: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0284c7;
+}
+
+/* Purple for Drives */
+.icon-purple {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+}
+
+[data-theme="light"] .icon-purple {
+  background: #f3e8ff;
+  border-color: #e9d5ff;
+  color: #9333ea;
+}
+
+/* Orange for Applications */
+.icon-orange {
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  color: #fb923c;
+}
+
+[data-theme="light"] .icon-orange {
+  background: #ffedd5;
+  border-color: #fed7aa;
+  color: #ea580c;
+}
+
+/* Green for Offers */
+.icon-green {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+[data-theme="light"] .icon-green {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.adm-stat-chevron {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  transition: transform var(--transition);
+}
+
+.adm-stat-card:hover .adm-stat-chevron {
+  transform: translateX(3px);
+  color: var(--text-primary);
+}
+
+.adm-stat-val {
+  font-size: 1.85rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-top: 14px;
+  letter-spacing: -0.03em;
+}
+
+[data-theme="light"] .adm-stat-val {
+  color: #0f172a;
+}
+
+.adm-stat-lbl {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ─── APPLICATIONS OVERVIEW CARD ────────────────────────── */
+.adm-chart-card {
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+[data-theme="light"] .adm-chart-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
+}
+
+.adm-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.adm-chart-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adm-chart-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="light"] .adm-chart-icon-box {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+.adm-chart-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-theme="light"] .adm-chart-heading {
+  color: #0f172a;
+}
+
+.adm-chart-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 2px 0 0 0;
+}
+
+.adm-chart-select {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+[data-theme="light"] .adm-chart-select {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+/* Chart Body with Y-Axis and Plot Area */
+.adm-chart-body {
+  display: flex;
+  gap: 14px;
+  height: 240px;
+  margin-top: 10px;
+}
+
+.adm-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: right;
+  width: 20px;
+}
+
+.adm-plot-area {
+  flex: 1;
+  position: relative;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+[data-theme="light"] .adm-plot-area {
+  border-color: #e2e8f0;
+}
+
+.adm-grid-line {
+  width: 100%;
+  height: 1px;
+  border-top: 1px dashed var(--border);
+  opacity: 0.6;
+}
+
+[data-theme="light"] .adm-grid-line {
+  border-top-color: #e2e8f0;
+}
+
+/* Empty state centered inside the chart */
+.adm-empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.adm-empty-glow-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+[data-theme="light"] .adm-empty-glow-circle {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #e11d48;
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.2);
+}
+
+.adm-empty-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-theme="light"] .adm-empty-title {
+  color: #0f172a;
+}
+
+.adm-empty-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* X-Axis Months Row */
+.adm-x-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 34px;
+  padding: 6px 12px 0 12px;
+}
+
+.adm-x-month {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ─── GET STARTED CARD ──────────────────────────────────── */
+.adm-get-started-banner {
+  padding: 20px 24px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.18) 0%, rgba(15, 18, 28, 0.95) 100%);
+  border: 1px solid var(--accent-border);
+  box-shadow: 0 4px 20px var(--accent-subtle);
+}
+
+[data-theme="light"] .adm-get-started-banner {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
+  border-color: #fecdd3;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.08);
+}
+
+.adm-gs-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.adm-gs-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="light"] .adm-gs-icon-wrap {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+.adm-gs-heading {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-theme="light"] .adm-gs-heading {
+  color: #0f172a;
+}
+
+.adm-gs-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
+}
+
+[data-theme="light"] .adm-gs-sub {
+  color: #64748b;
+}
+
+.adm-gs-btn {
+  padding: 10px 24px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 10px var(--accent-glow);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .adm-gs-btn {
+  background: #e11d48;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.35);
+}
+
+.adm-gs-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .adm-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .adm-stats-row {
+    grid-template-columns: 1fr;
+  }
+  .adm-get-started-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .adm-gs-btn {
+    width: 100%;
+  }
+}
