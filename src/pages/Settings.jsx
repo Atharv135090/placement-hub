@@ -11,7 +11,7 @@ import "../components/Modal.css";
 import "./Settings.css";
 
 export default function Settings() {
-  const { user, profile } = useAuth();
+  const { user, profile, setProfile } = useAuth();
   const { themeMode, setThemeMode } = useTheme();
   const { stats } = usePlacementData();
   const navigate = useNavigate();
@@ -141,16 +141,17 @@ export default function Settings() {
     setUploadingPhoto(true);
     const result = await uploadProfilePicture(user.uid, file);
     setUploadingPhoto(false);
-    if (!result.error) {
-      window.location.reload();
+    if (!result.error && result.data) {
+      setProfile((prev) => prev ? { ...prev, photoUrl: result.data.photoUrl } : prev);
     }
   }
 
   async function handleRemoveProfilePicture() {
     if (!user?.uid) return;
-    const fallbackPhoto = getAutoAssignedPhoto(user);
+    const googlePhoto = user.photoURL;
+    const fallbackPhoto = googlePhoto || getAutoAssignedPhoto(user);
     await updateUserProfile(user.uid, { photoUrl: fallbackPhoto });
-    window.location.reload();
+    setProfile((prev) => prev ? { ...prev, photoUrl: fallbackPhoto } : prev);
   }
 
   function handleResumeFileSelect(e) {

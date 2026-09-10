@@ -40,15 +40,36 @@ export async function getStudentProfile(userId) {
   }
 }
 
+export function subscribeToStudentProfile(userId, callback) {
+  return onSnapshot(doc(db, "users", userId), (docSnap) => {
+    if (docSnap.exists()) {
+      callback({ id: docSnap.id, ...docSnap.data() });
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("subscribeToStudentProfile error:", error);
+    callback(null);
+  });
+}
+
 export async function getAllStudents() {
   try {
-    const snapshot = await getDocs(
-      query(collection(db, "users"), where("role", "==", "student"))
-    );
+    const snapshot = await getDocs(collection(db, "users"));
     return { data: mapDocs(snapshot), error: null };
   } catch (error) {
     return handleSocialError(error);
   }
+}
+
+export function subscribeToStudents(callback, onError) {
+  return onSnapshot(collection(db, "users"), (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error("subscribeToStudents error:", error);
+    if (onError) onError(error);
+    callback([]);
+  });
 }
 
 export async function updateStudentProfile(userId, updates) {
@@ -211,6 +232,56 @@ export async function getFollowing(userId) {
   } catch (error) {
     return handleSocialError(error);
   }
+}
+
+export function subscribeToFollowers(userId, callback) {
+  const q = query(
+    collection(db, "follows"),
+    where("toUserId", "==", userId),
+    where("status", "==", "accepted")
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const followDocs = mapDocs(snapshot);
+    if (followDocs.length === 0) {
+      callback([]);
+      return;
+    }
+    const profiles = await Promise.all(
+      followDocs.map(async (f) => {
+        const userSnap = await getDoc(doc(db, "users", f.fromUserId));
+        return userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
+      })
+    );
+    callback(profiles.filter(Boolean));
+  }, (error) => {
+    console.error("subscribeToFollowers error:", error);
+    callback([]);
+  });
+}
+
+export function subscribeToFollowing(userId, callback) {
+  const q = query(
+    collection(db, "follows"),
+    where("fromUserId", "==", userId),
+    where("status", "==", "accepted")
+  );
+  return onSnapshot(q, async (snapshot) => {
+    const followDocs = mapDocs(snapshot);
+    if (followDocs.length === 0) {
+      callback([]);
+      return;
+    }
+    const profiles = await Promise.all(
+      followDocs.map(async (f) => {
+        const userSnap = await getDoc(doc(db, "users", f.toUserId));
+        return userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : null;
+      })
+    );
+    callback(profiles.filter(Boolean));
+  }, (error) => {
+    console.error("subscribeToFollowing error:", error);
+    callback([]);
+  });
 }
 
 export async function getPendingFollowRequests(userId) {

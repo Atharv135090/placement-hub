@@ -165,9 +165,9 @@ service cloud.firestore {
     match /messages/{messageId} {
       // Only conversation participants can read messages
       allow read: if isAuth()
-        && request.resource.data.conversationId != null
-        && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
-        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
+        && resource.data.conversationId != null
+        && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
 
       // Only conversation participants can create messages
       allow create: if isAuth()

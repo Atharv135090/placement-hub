@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import {
-  getAllStudents,
+  subscribeToStudents,
   sendFollowRequest,
   unfollowUser,
   cancelFollowRequest,
+  acceptFollowRequest,
   subscribeToAllFollowStatuses,
   blockUser,
 } from "../services/social";
@@ -47,29 +48,23 @@ export default function Students() {
   }, []);
 
   useEffect(() => {
+    let unsubStudents = null;
     let unsubFollowStatuses = null;
 
-    async function load() {
-      try {
-        const { data } = await getAllStudents();
-        const list = (data || []).filter((s) => s.id !== user?.uid);
-        setStudents(list);
+    unsubStudents = subscribeToStudents((allUsers) => {
+      const list = (allUsers || []).filter((s) => s.id !== user?.uid);
+      setStudents(list);
+      setLoading(false);
+    });
 
-        if (user?.uid) {
-          unsubFollowStatuses = subscribeToAllFollowStatuses(user.uid, (statuses) => {
-            setFollowStatuses(statuses || {});
-          });
-        }
-      } catch (err) {
-        console.error("Failed to load students:", err);
-      } finally {
-        setLoading(false);
-      }
+    if (user?.uid) {
+      unsubFollowStatuses = subscribeToAllFollowStatuses(user.uid, (statuses) => {
+        setFollowStatuses(statuses || {});
+      });
     }
 
-    load();
-
     return () => {
+      unsubStudents?.();
       unsubFollowStatuses?.();
     };
   }, [user?.uid]);
@@ -141,17 +136,12 @@ export default function Students() {
     setFollowLoading((prev) => ({ ...prev, [studentId]: true }));
     try {
       const status = followStatuses[studentId];
-      if (status === "accepted" || status === "pending") {
-        if (status === "accepted") {
-          await unfollowUser(user.uid, studentId);
-        } else {
-          await cancelFollowRequest(user.uid, studentId);
-        }
-        setFollowStatuses((prev) => {
-          const next = { ...prev };
-          delete next[studentId];
-          return next;
-        });
+      if (status === "accepted") {
+        await unfollowUser(user.uid, studentId);
+      } else if (status === "pending") {
+        await cancelFollowRequest(user.uid, studentId);
+      } else if (status === "incoming_pending") {
+        await acceptFollowRequest(studentId, user.uid);
       } else {
         const { data } = await sendFollowRequest(user.uid, studentId);
         if (data) {
@@ -421,6 +411,7 @@ export default function Students() {
             const status = followStatuses[s.id];
             const isFollowing = status === "accepted";
             const isRequested = status === "pending";
+            const isIncomingPending = status === "incoming_pending";
             const isPrivate = s.profileVisibility === "private";
             const isProtected = isPrivate && !isFollowing;
             const menuOpen = activeMenuId === s.id;
@@ -607,6 +598,8 @@ export default function Students() {
                         ? "btn-following-state"
                         : isRequested
                         ? "btn-requested-state"
+                        : isIncomingPending
+                        ? "btn-follow-state"
                         : "btn-follow-state"
                     }`}
                     onClick={() => handleFollow(s.id)}
@@ -629,6 +622,13 @@ export default function Students() {
                           <polyline points="12 6 12 12 16 14" />
                         </svg>
                         <span>Requested</span>
+                      </>
+                    ) : isIncomingPending ? (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span>Accept</span>
                       </>
                     ) : (
                       <>

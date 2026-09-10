@@ -10,8 +10,6 @@ import {
   acceptFollowRequest,
   rejectFollowRequest,
   removeFollower,
-  getFollowers,
-  getFollowing,
   blockUser,
   unblockUser,
   isBlocked,
@@ -19,6 +17,9 @@ import {
   uploadReportEvidence,
   subscribeToPendingFollowRequests,
   subscribeToFollowStatus,
+  subscribeToStudentProfile,
+  subscribeToFollowers,
+  subscribeToFollowing,
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
@@ -52,37 +53,48 @@ export default function StudentProfile() {
   useEffect(() => {
     let unsubFollowStatus = null;
     let unsubPendingRequests = null;
+    let unsubProfile = null;
+    let unsubFollowers = null;
+    let unsubFollowing = null;
 
-    async function load() {
-      setLoading(true);
-      const { data } = await getStudentProfile(studentId);
+    setLoading(true);
+    unsubProfile = subscribeToStudentProfile(studentId, (data) => {
       setProfile(data);
-      if (!isOwnProfile) {
-        unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, ({ status, incomingStatus }) => {
-          setFollowStatus(status);
-          setIncomingFollowStatus(incomingStatus);
-        });
-        const { data: bd } = await isBlocked(user.uid, studentId);
-        setBlocked(bd || false);
-        const { data: bd2 } = await isBlocked(studentId, user.uid);
-        if (bd2) setBlocked(true);
-      }
-      const { data: fols } = await getFollowers(studentId);
-      setFollowers(fols || []);
-      const { data: folg } = await getFollowing(studentId);
-      setFollowing(folg || []);
-      if (isOwnProfile) {
-        unsubPendingRequests = subscribeToPendingFollowRequests(user.uid, (requests) => {
-          setPendingRequests(requests);
-        });
-      }
       setLoading(false);
+    });
+
+    if (!isOwnProfile) {
+      unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, ({ status, incomingStatus }) => {
+        setFollowStatus(status);
+        setIncomingFollowStatus(incomingStatus);
+      });
+      isBlocked(user.uid, studentId).then(({ data: bd }) => {
+        if (bd) setBlocked(true);
+      });
+      isBlocked(studentId, user.uid).then(({ data: bd2 }) => {
+        if (bd2) setBlocked(true);
+      });
     }
-    load();
+
+    unsubFollowers = subscribeToFollowers(studentId, (list) => {
+      setFollowers(list || []);
+    });
+    unsubFollowing = subscribeToFollowing(studentId, (list) => {
+      setFollowing(list || []);
+    });
+
+    if (isOwnProfile) {
+      unsubPendingRequests = subscribeToPendingFollowRequests(user.uid, (requests) => {
+        setPendingRequests(requests);
+      });
+    }
 
     return () => {
+      unsubProfile?.();
       unsubFollowStatus?.();
       unsubPendingRequests?.();
+      unsubFollowers?.();
+      unsubFollowing?.();
     };
   }, [studentId, user?.uid, isOwnProfile]);
 
@@ -92,47 +104,36 @@ export default function StudentProfile() {
     try {
       if (followStatus === "accepted") {
         await unfollowUser(user.uid, studentId);
-        setFollowStatus(null);
       } else if (followStatus === "pending") {
         await cancelFollowRequest(user.uid, studentId);
-        setFollowStatus(null);
       } else if (incomingFollowStatus === "pending") {
         await acceptFollowRequest(studentId, user.uid);
-        setIncomingFollowStatus("accepted");
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
         if (error === "blocked") {
           setBlocked(true);
           return;
         }
-        if (data) {
-          setFollowStatus(data.status);
-          if (data.status === "pending") {
-            createNotification({
-              title: "Follow Request",
-              message: `${user.displayName || "Someone"} wants to follow you.`,
-              type: "follow",
-              link: `/students/${user.uid}`,
-              targetUserId: studentId,
-            }).catch(() => {});
-          }
+        if (data && data.status === "pending") {
+          createNotification({
+            title: "Follow Request",
+            message: `${user.displayName || "Someone"} wants to follow you.`,
+            type: "follow",
+            link: `/students/${user.uid}`,
+            targetUserId: studentId,
+          }).catch(() => {});
         }
       }
-      const { data: fols } = await getFollowers(studentId);
-      setFollowers(fols || []);
-      const { data: folg } = await getFollowing(studentId);
-      setFollowing(folg || []);
     } finally {
       setFollowLoading(false);
     }
   }
 
-  async function handleRejectRequest() {
+  async function handleRejectIncomingRequest() {
     if (followLoading) return;
     setFollowLoading(true);
     try {
       await rejectFollowRequest(studentId, user.uid);
-      setIncomingFollowStatus(null);
     } finally {
       setFollowLoading(false);
     }
@@ -148,7 +149,6 @@ export default function StudentProfile() {
 
   async function handleAcceptRequest(fromId) {
     await acceptFollowRequest(fromId, user.uid);
-    setPendingRequests((prev) => prev.filter((r) => r.id !== fromId));
     createNotification({
       title: "Follow Request Accepted",
       message: `You are now connected.`,
@@ -156,19 +156,14 @@ export default function StudentProfile() {
       link: `/students/${fromId}`,
       targetUserId: fromId,
     }).catch(() => {});
-    const { data: fols } = await getFollowers(user.uid);
-    setFollowers(fols || []);
   }
 
-  async function handleRejectRequest(fromId) {
+  async function handleRejectFromList(fromId) {
     await rejectFollowRequest(fromId, user.uid);
-    setPendingRequests((prev) => prev.filter((r) => r.id !== fromId));
   }
 
   async function handleRemoveFollower(followerId) {
     await removeFollower(user.uid, followerId);
-    const { data: fols } = await getFollowers(user.uid);
-    setFollowers(fols || []);
   }
 
   async function handleBlock() {
@@ -309,7 +304,7 @@ export default function StudentProfile() {
             {incomingFollowStatus === "pending" && (
               <button
                 className="btn btn-ghost"
-                onClick={handleRejectRequest}
+                onClick={handleRejectIncomingRequest}
                 disabled={blocked || followLoading}
               >
                 Reject
@@ -345,7 +340,7 @@ export default function StudentProfile() {
                 <UserAvatar user={{ uid: r.id }} profile={r} style={{ width: 36, height: 36 }} />
                 <span className="sp-request-name">{r.displayName || "Student"}</span>
                 <button className="btn btn-primary btn-sm" onClick={() => handleAcceptRequest(r.id)}>Accept</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => handleRejectRequest(r.id)}>Reject</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => handleRejectFromList(r.id)}>Reject</button>
               </div>
             ))}
           </div>

@@ -33,7 +33,8 @@ export function AuthProvider({ children }) {
           }
 
           if (!data.photoUrl) {
-            const autoPhoto = getAutoAssignedPhoto(firebaseUser);
+            const googlePhoto = firebaseUser.photoURL;
+            const autoPhoto = googlePhoto || getAutoAssignedPhoto(firebaseUser);
             await updateUserProfile(firebaseUser.uid, { photoUrl: autoPhoto });
             setProfile((prev) => prev ? { ...prev, photoUrl: autoPhoto } : prev);
           }
@@ -45,7 +46,8 @@ export function AuthProvider({ children }) {
         } else {
           const isOwnerEmail = typeof firebaseUser.email === "string"
             && firebaseUser.email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
-          const autoPhoto = getAutoAssignedPhoto(firebaseUser);
+          const googlePhoto = firebaseUser.photoURL;
+          const autoPhoto = googlePhoto || getAutoAssignedPhoto(firebaseUser);
           const { data: newProfile } = await createUserProfile(firebaseUser.uid, {
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || "",
@@ -67,7 +69,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile, loading, setProfile }}>
       {children}
     </AuthContext.Provider>
   );
