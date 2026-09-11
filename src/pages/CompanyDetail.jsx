@@ -189,7 +189,9 @@ export default function CompanyDetail() {
 
   // Find the first active drive for this company
   const activeDrive = drives.find((d) => d.isActive !== false) || drives[0];
-  const hasAppliedToDrive = activeDrive ? appliedJobIds.has(activeDrive.id) : false;
+  const hasAppliedToDrive = activeDrive
+    ? appliedJobIds.has(activeDrive.id)
+    : applications.some((a) => a.userId === user?.uid && (a.companyId === companyId || a.companyName?.toLowerCase() === company?.name?.toLowerCase()));
 
   function scrollToSection(id, tabName) {
     setActiveTab(tabName);
@@ -303,9 +305,11 @@ export default function CompanyDetail() {
   }
 
   async function handleApply() {
-    if (!activeDrive || hasAppliedToDrive || applying) return;
+    if (hasAppliedToDrive || applying) return;
     setApplying(true);
-    const { error } = await applyToDrive(activeDrive.id, company.name, activeDrive.title);
+    const driveId = activeDrive?.id || `drive_${companyId}`;
+    const roleTitle = activeDrive?.title || activeDrive?.role || "Software Development Engineer";
+    const { error } = await applyToDrive(driveId, company?.name || "Company", roleTitle, companyId);
     if (!error) {
       setApplySuccess(true);
       setTimeout(() => setApplySuccess(false), 4000);
@@ -884,7 +888,7 @@ export default function CompanyDetail() {
                 Applied
               </button>
             ) : (
-              <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying || !activeDrive}>
+              <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />

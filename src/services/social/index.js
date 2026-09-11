@@ -1,5 +1,4 @@
-// Backward-compatible barrel re-export from domain modules
-// All existing `import { ... } from "./social"` continue to work unchanged
+// Re-export all social domain modules
 
 // Students
 export {
@@ -8,7 +7,7 @@ export {
   getAllStudents,
   subscribeToStudents,
   updateStudentProfile,
-} from "./social/students";
+} from "./students";
 
 // Follows
 export {
@@ -27,14 +26,14 @@ export {
   subscribeToPendingFollowRequests,
   subscribeToFollowStatus,
   subscribeToAllFollowStatuses,
-} from "./social/follows";
+} from "./follows";
 
 // Blocks
 export {
   blockUser,
   unblockUser,
   isBlocked,
-} from "./social/blocks";
+} from "./blocks";
 
 // Reports
 export {
@@ -42,7 +41,7 @@ export {
   uploadReportEvidence,
   getAllReports,
   updateReportStatus,
-} from "./social/reports";
+} from "./reports";
 
 // Messaging
 export {
@@ -54,4 +53,4 @@ export {
   markConversationRead,
   encryptMessage,
   decryptMessage,
-} from "./social/messaging";
+} from "./messaging";

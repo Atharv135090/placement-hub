@@ -256,7 +256,7 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   user-select: none;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -361,6 +361,71 @@
 
 .crc-dots-btn:hover {
   color: var(--text-primary);
+}
+
+.crc-dots-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.crc-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 155px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.22);
+  z-index: 60;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: crcFadeIn 0.15s ease;
+}
+
+[data-theme="light"] .crc-dropdown-menu {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+}
+
+.crc-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.crc-dropdown-item:hover {
+  background: rgba(225, 29, 72, 0.08);
+  color: #e11d48;
+}
+
+@keyframes crcFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Card Middle: Meta details list */

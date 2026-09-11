@@ -1,7 +1,7 @@
-// Backward-compatible barrel re-export from domain modules
-// All existing `import { ... } from "./firestore"` continue to work unchanged
+// Re-export all domain modules for backward compatibility
+// Existing `import { ... } from "./firestore"` will continue to work
 
-export { normalizeCompanyName } from "./firestore/companies";
+export { normalizeCompanyName } from "./companies";
 
 // Companies
 export {
@@ -12,7 +12,7 @@ export {
   deleteCompany,
   getActiveCompanies,
   findCompanyByName,
-} from "./firestore/companies";
+} from "./companies";
 
 // Jobs
 export {
@@ -25,7 +25,7 @@ export {
   getActiveJobs,
   getRecentJobs,
   getJobsByCompanyIds,
-} from "./firestore/jobs";
+} from "./jobs";
 
 // Users
 export {
@@ -37,7 +37,7 @@ export {
   toggleSaveJob,
   getUserSavedIds,
   getAllUsers,
-} from "./firestore/users";
+} from "./users";
 
 // Applications
 export {
@@ -51,7 +51,7 @@ export {
   getApplicationsByJobIds,
   getAllApplications,
   deleteApplication,
-} from "./firestore/applications";
+} from "./applications";
 
 // Announcements
 export {
@@ -61,7 +61,7 @@ export {
   updateAnnouncement,
   deleteAnnouncement,
   getActiveAnnouncements,
-} from "./firestore/announcements";
+} from "./announcements";
 
 // Notifications
 export {
@@ -71,7 +71,7 @@ export {
   markNotificationRead,
   markAllNotificationsRead,
   subscribeToNotifications,
-} from "./firestore/notifications";
+} from "./notifications";
 
 // Attachments
 export {
@@ -80,7 +80,7 @@ export {
   getAttachmentsByJob,
   getAttachmentsByCompany,
   deleteAttachment,
-} from "./firestore/attachments";
+} from "./attachments";
 
 // Admin
 export {
@@ -90,4 +90,4 @@ export {
   deleteAllAnnouncements,
   adminLogoutUser,
   adminDeleteUser,
-} from "./firestore/admin";
+} from "./admin";

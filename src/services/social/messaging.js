@@ -1,0 +1,217 @@
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
+import { db } from "../../config/firebase";
+import { handleSocialError, mapDocs } from "./helpers";
+import { isBlocked } from "./blocks";
+import {
+  getOrInitECDHPublicKey,
+  getECDHPrivateKey,
+  encryptMessageE2EE,
+  decryptMessageE2EE,
+} from "../../utils/crypto";
+
+function getConversationId(uid1, uid2) {
+  return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+}
+
+export async function getOrCreateConversation(uid1, uid2) {
+  try {
+    const blocked = await isBlocked(uid1, uid2);
+    if (blocked.data) return { data: null, error: "blocked" };
+
+    const convId = getConversationId(uid1, uid2);
+    await setDoc(doc(db, "conversations", convId), {
+      participants: [uid1, uid2],
+      lastMessage: null,
+      lastMessageAt: null,
+      unread1: 0,
+      unread2: 0,
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+    return { data: { id: convId }, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function getConversations(userId) {
+  try {
+    const q1 = query(collection(db, "conversations"), where("participants", "array-contains", userId));
+    const snapshot = await getDocs(q1);
+    const convs = mapDocs(snapshot);
+    const enriched = await Promise.all(
+      convs.map(async (c) => {
+        const otherId = c.participants.find((p) => p !== userId);
+        const otherSnap = await getDoc(doc(db, "users", otherId));
+        const otherProfile = otherSnap.exists() ? otherSnap.data() : {};
+        return {
+          ...c,
+          otherUser: { id: otherId, ...otherProfile },
+          unreadCount: c.participants[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
+        };
+      })
+    );
+    enriched.sort((a, b) => {
+      const aTime = a.lastMessageAt?.toMillis?.() || 0;
+      const bTime = b.lastMessageAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+    return { data: enriched, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2) {
+  try {
+    const msgRef = await addDoc(collection(db, "messages"), {
+      conversationId,
+      senderId,
+      encryptedText,
+      messageVersion,
+      createdAt: serverTimestamp(),
+      read: false,
+    });
+
+    const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
+    await updateDoc(doc(db, "conversations", conversationId), {
+      lastMessage: encryptedText,
+      lastMessageAt: serverTimestamp(),
+      [unreadField]: increment(1),
+    });
+
+    return { data: { id: msgRef.id }, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export function subscribeToMessages(conversationId, callback) {
+  const q = query(
+    collection(db, "messages"),
+    where("conversationId", "==", conversationId),
+    orderBy("createdAt", "asc")
+  );
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error("subscribeToMessages error:", error);
+    callback([]);
+  });
+}
+
+export function subscribeToConversations(userId, callback) {
+  const q = query(collection(db, "conversations"), where("participants", "array-contains", userId));
+  let generation = 0;
+  return onSnapshot(q, (snapshot) => {
+    const convs = mapDocs(snapshot);
+    const otherIds = [...new Set(convs.map((c) => c.participants.find((p) => p !== userId)))];
+    const gen = ++generation;
+    if (otherIds.length === 0) {
+      callback([]);
+      return;
+    }
+    Promise.all(
+      otherIds.map(async (otherId) => {
+        const otherSnap = await getDoc(doc(db, "users", otherId));
+        return otherSnap.exists() ? { id: otherId, ...otherSnap.data() } : { id: otherId };
+      })
+    ).then((profiles) => {
+      if (gen !== generation) return;
+      const profileMap = {};
+      profiles.forEach((p) => { profileMap[p.id] = p; });
+      const enriched = convs.map((c) => {
+        const otherId = c.participants.find((p) => p !== userId);
+        return {
+          ...c,
+          otherUser: profileMap[otherId] || { id: otherId },
+          unreadCount: c.participants[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
+        };
+      });
+      enriched.sort((a, b) => {
+        const aTime = a.lastMessageAt?.toMillis?.() || 0;
+        const bTime = b.lastMessageAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
+      callback(enriched);
+    });
+  }, (error) => {
+    console.error("subscribeToConversations error:", error);
+    callback([]);
+  });
+}
+
+export async function markConversationRead(conversationId, userId, participants) {
+  try {
+    const unreadField = participants?.[0] === userId ? "unread1" : "unread2";
+    await updateDoc(doc(db, "conversations", conversationId), { [unreadField]: 0 });
+    return { error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+// ─── ENCRYPTION ──────────────────────────────────────────────
+
+function sortIds(uid1, uid2) {
+  return uid1 < uid2 ? [uid1, uid2] : [uid2, uid1];
+}
+
+async function deriveKeyV1(uid1, uid2) {
+  const [a, b] = sortIds(uid1, uid2);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`${a}:${b}:placement-hub-chat-v1`),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: new TextEncoder().encode("placement-hub-salt"), iterations: 100000, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function decryptV1(cipherText, uid1, uid2) {
+  const [ivHex, encHex] = cipherText.split(":");
+  const iv = new Uint8Array(ivHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
+  const data = new Uint8Array(encHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
+  const key = await deriveKeyV1(uid1, uid2);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  return new TextDecoder().decode(decrypted);
+}
+
+export async function encryptMessage(plaintext, senderUid, recipientUid) {
+  const privateKey = await getECDHPrivateKey(senderUid);
+  const recipientPubKey = await getOrInitECDHPublicKey(recipientUid);
+
+  if (privateKey && recipientPubKey) {
+    const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
+    return { encryptedText: encrypted, messageVersion: 2 };
+  }
+
+  const key = await deriveKeyV1(senderUid, recipientUid);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
+  const ivHex = Array.from(iv).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const encHex = Array.from(new Uint8Array(enc)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return { encryptedText: `${ivHex}:${encHex}`, messageVersion: 1 };
+}
+
+export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
+  try {
+    if (messageVersion === 2) {
+      const myPrivKey = await getECDHPrivateKey(uid1);
+      const theirPubKey = await getOrInitECDHPublicKey(uid2);
+      if (myPrivKey && theirPubKey) {
+        return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+      }
+      return "Unable to decrypt this message.";
+    }
+    return await decryptV1(cipherText, uid1, uid2);
+  } catch {
+    return "Unable to decrypt this message.";
+  }
+}

@@ -118,13 +118,14 @@ export function PlacementDataProvider({ children }) {
     };
   }, [stats]);
 
-  async function applyToDrive(jobId, companyName, role) {
-    const existing = applications.find(a => a.jobId === jobId);
+  async function applyToDrive(jobId, companyName, role, compId) {
+    const existing = applications.find(a => a.jobId === jobId || (compId && a.companyId === compId));
     if (existing) return { error: "already_applied", data: existing };
     const newApp = {
       id: `${uid}_${jobId}`,
       userId: uid,
       jobId,
+      companyId: compId || null,
       companyName,
       role: role || "Open Role",
       status: "applied",

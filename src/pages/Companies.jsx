@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import CompanyLogo from "../components/CompanyLogo";
@@ -17,6 +17,26 @@ export default function Companies() {
   const [locationFilter, setLocationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOption, setSortOption] = useState("name_asc");
+  const [activeMenuCompanyId, setActiveMenuCompanyId] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest(".crc-dots-wrapper")) {
+        setActiveMenuCompanyId(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setActiveMenuCompanyId(null);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const companies = useMemo(() => {
     const appStatusMap = {};
@@ -342,18 +362,65 @@ export default function Companies() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="crc-dots-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCardClick(c);
-                      }}
-                      title="Options"
-                      aria-label="Company options"
-                    >
-                      ⋮
-                    </button>
+                    <div className="crc-dots-wrapper">
+                      <button
+                        type="button"
+                        className="crc-dots-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuCompanyId((prev) => (prev === c.id ? null : c.id));
+                        }}
+                        title="Options"
+                        aria-label="Company options"
+                        aria-expanded={activeMenuCompanyId === c.id}
+                      >
+                        ⋮
+                      </button>
+                      {activeMenuCompanyId === c.id && (
+                        <div
+                          className="crc-dropdown-menu"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="crc-dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuCompanyId(null);
+                              handleCardClick(c);
+                            }}
+                          >
+                            <span>👁️</span> View Details
+                          </button>
+                          {compWebsite && (
+                            <a
+                              href={compWebsite.startsWith("http") ? compWebsite : `https://${compWebsite}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="crc-dropdown-item"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuCompanyId(null);
+                              }}
+                            >
+                              <span>🌐</span> Visit Website
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="crc-dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuCompanyId(null);
+                              const fullUrl = `${window.location.origin}/companies/${c.id}`;
+                              navigator.clipboard?.writeText(fullUrl);
+                            }}
+                          >
+                            <span>🔗</span> Copy Link
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Middle Meta List */}
