@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { db } from "../config/firebase";
 import { useAuth } from "./AuthContext";
 import {
   subscribeToConversations,
@@ -44,11 +46,34 @@ export function ChatProvider({ children }) {
     return () => { unsubConvRef.current?.(); };
   }, [uid]);
 
+  // Duration mapping for disappearing messages (ms)
+  const DISAPPEARING_DURATIONS = {
+    "24h": 24 * 60 * 60 * 1000,
+    "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
+  };
+
   useEffect(() => {
     if (!activeConversation?.id || !uid) {
       setMessages([]);
       return;
     }
+
+    let disappearingSettingRef = { current: null };
+
+    // Fetch disappearing messages setting for this conversation
+    (async () => {
+      try {
+        const convSnap = await getDoc(doc(db, "conversations", activeConversation.id));
+        if (convSnap.exists()) {
+          const dm = convSnap.data().disappearingMessages;
+          if (dm?.enabled && dm.duration && DISAPPEARING_DURATIONS[dm.duration]) {
+            disappearingSettingRef.current = dm.duration;
+          }
+        }
+      } catch {}
+    })();
+
     unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
       const otherId = activeConversation.participants.find((p) => p !== uid);
       const decrypted = await Promise.all(
@@ -61,7 +86,39 @@ export function ChatProvider({ children }) {
           }
         })
       );
-      setMessages(decrypted);
+
+      // Filter out expired disappearing messages
+      let filtered = decrypted;
+      const expiredIds = [];
+      const duration = disappearingSettingRef.current;
+      if (duration) {
+        const durationMs = DISAPPEARING_DURATIONS[duration];
+        const now = Date.now();
+        filtered = decrypted.filter((m) => {
+          const msgTime = m.createdAt?.toDate ? m.createdAt.toDate().getTime() : new Date(m.createdAt).getTime();
+          const age = now - msgTime;
+          if (age > durationMs) {
+            expiredIds.push(m.id);
+            return false;
+          }
+          return true;
+        });
+      }
+
+      setMessages(filtered);
+
+      // Background cleanup: delete expired messages from Firestore (best-effort, non-blocking)
+      if (expiredIds.length > 0) {
+        (async () => {
+          try {
+            const batch = writeBatch(db);
+            expiredIds.forEach((id) => {
+              batch.delete(doc(db, "messages", id));
+            });
+            await batch.commit();
+          } catch {}
+        })();
+      }
     });
     return () => { unsubMsgRef.current?.(); };
   }, [activeConversation?.id, uid]);
