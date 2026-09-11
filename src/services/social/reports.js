@@ -168,6 +168,24 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
 
     console.log("sendAdminWarning:", { reportId, targetUserId, adminId, reason });
 
+    const convRes = await getOrCreateAdminConversation(adminId, targetUserId);
+    if (convRes.error) {
+      console.error("Failed to create conversation:", convRes.error);
+      return { data: null, error: convRes.error };
+    }
+
+    const warningText = `[WARNING] ${warningMessage.trim()}`;
+    const msgRes = await sendAdminChatMessage(
+      convRes.data.id,
+      adminId,
+      warningText,
+      [adminId, targetUserId]
+    );
+    if (msgRes.error) {
+      console.error("Failed to send warning chat:", msgRes.error);
+      return { data: null, error: msgRes.error };
+    }
+
     await addDoc(collection(db, "moderations"), {
       reportId,
       targetUserId,
@@ -175,6 +193,7 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       action: "warning",
       reason: reason || "",
       message: warningMessage.trim(),
+      conversationId: convRes.data.id,
       createdAt: new Date().toISOString(),
     });
 
@@ -182,7 +201,7 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
 
     await addDoc(collection(db, "notifications"), {
       title: "Warning from Placement Hub Admin",
-      message: `You have received a warning: ${warningMessage.trim()}`,
+      message: warningMessage.trim(),
       type: "admin_warning",
       link: `/chat?adminConv=${convRes.data.id}`,
       targetUserId,
@@ -191,8 +210,8 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       createdAt: new Date().toISOString(),
     });
 
-    console.log("sendAdminWarning: success");
-    return { data: { success: true }, error: null };
+    console.log("sendAdminWarning: success, conversation:", convRes.data.id);
+    return { data: { success: true, conversationId: convRes.data.id }, error: null };
   } catch (error) {
     console.error("sendAdminWarning FAILED:", error.code, error.message);
     return handleSocialError(error);

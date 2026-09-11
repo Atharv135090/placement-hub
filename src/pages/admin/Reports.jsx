@@ -3,7 +3,6 @@ import {
   getAllReports,
   getModerationHistory,
   getModerationsByReport,
-  sendAdminMessage,
   sendAdminWarning,
   adminUpdateReport,
 } from "../../services/social";
@@ -60,10 +59,6 @@ export default function AdminReports() {
   const [moderationHistory, setModerationHistory] = useState([]);
   const [moderations, setModerations] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-
-  const [messageModal, setMessageModal] = useState(false);
-  const [messageText, setMessageText] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
 
   const [warningModal, setWarningModal] = useState(false);
   const [warningReason, setWarningReason] = useState("");
@@ -155,28 +150,6 @@ export default function AdminReports() {
       setFeedback(`Failed: ${error}`);
     }
     setUpdatingStatus(false);
-    setTimeout(() => setFeedback(""), 5000);
-  }
-
-  async function handleSendMessage() {
-    if (!messageText.trim() || !detailReport) return;
-    setSendingMessage(true);
-    const { data, error } = await sendAdminMessage(
-      detailReport.id,
-      detailReport.reportedId,
-      messageText.trim()
-    );
-    if (!error) {
-      setFeedback("Message sent to user.");
-      setMessageModal(false);
-      setMessageText("");
-      const moderationsRes = await getModerationsByReport(detailReport.id);
-      setModerations(moderationsRes.data || []);
-    } else {
-      console.error("Message send error:", error);
-      setFeedback(`Failed: ${error}`);
-    }
-    setSendingMessage(false);
     setTimeout(() => setFeedback(""), 5000);
   }
 
@@ -617,12 +590,6 @@ export default function AdminReports() {
             <div className="ar-detail-section">
               <span className="ar-detail-label">Admin Actions</span>
               <div className="ar-detail-action-buttons">
-                <button className="ar-detail-action-btn ar-detail-action-btn--message" onClick={() => setMessageModal(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  Message User
-                </button>
                 <button className="ar-detail-action-btn ar-detail-action-btn--warning" onClick={() => { setWarningReason(detailReport.reason || ""); setWarningModal(true); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -673,26 +640,6 @@ export default function AdminReports() {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Message User Modal */}
-      <Modal open={messageModal} onClose={() => { setMessageModal(false); setMessageText(""); }} title={`Message ${detailReport?.reportedName || "User"}`}>
-        <div className="ar-modal-content">
-          <p className="ar-modal-desc">Send an official moderation message to the reported user.</p>
-          <textarea
-            className="ar-modal-textarea"
-            placeholder="Write a message..."
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            rows={4}
-          />
-          <div className="ar-modal-actions">
-            <button className="ar-modal-cancel" onClick={() => { setMessageModal(false); setMessageText(""); }}>Cancel</button>
-            <button className="ar-modal-submit" onClick={handleSendMessage} disabled={!messageText.trim() || sendingMessage}>
-              {sendingMessage ? "Sending..." : "Send Message"}
-            </button>
-          </div>
-        </div>
       </Modal>
 
       {/* Send Warning Modal */}
