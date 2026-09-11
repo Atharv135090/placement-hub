@@ -260,6 +260,7 @@ export default function Students() {
         onSelectStudent={(id) => setSearchParams({ chat: id })}
         students={students}
         currentUser={user}
+        followStatuses={followStatuses}
       />
     );
   }

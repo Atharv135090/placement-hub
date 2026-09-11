@@ -172,6 +172,7 @@ export default function IntegratedStudentsChat({
   onSelectStudent,
   students = [],
   currentUser,
+  followStatuses = {},
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -197,6 +198,11 @@ export default function IntegratedStudentsChat({
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const chatMenuRef = useRef(null);
+
+  const pendingRequestsCount = useMemo(
+    () => Object.values(followStatuses).filter((s) => s === "incoming_pending").length,
+    [followStatuses]
+  );
 
   // Close chat menu on click outside
   useEffect(() => {
@@ -385,7 +391,7 @@ export default function IntegratedStudentsChat({
             className={`isc-tab-btn ${activeTab === "requests" ? "active" : ""}`}
             onClick={() => setActiveTab("requests")}
           >
-            Requests <span className="isc-tab-badge">2</span>
+            Requests <span className="isc-tab-badge">{pendingRequestsCount}</span>
           </button>
         </div>
 
