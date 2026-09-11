@@ -248,7 +248,7 @@ export default function StudentProfile() {
     try {
       const conv = await startConversation(studentId);
       if (conv) {
-        navigate(`/students?chat=${studentId}`);
+        navigate(`/chat?student=${studentId}`);
       } else {
         setChatError("Could not start conversation.");
       }

@@ -174,6 +174,29 @@ export default function Chat() {
     };
   }, [adminConvId, user?.uid, setActiveConversation]);
 
+  // Handle ?student= param — auto-select conversation
+  useEffect(() => {
+    if (!user?.uid) return;
+    const studentId = searchParams.get("student");
+    if (!studentId) return;
+    if (activeConversation?.otherUser?.id === studentId) {
+      setSearchParams({});
+      return;
+    }
+    async function selectStudent() {
+      try {
+        const conv = await startConversation(studentId);
+        if (conv) {
+          setActiveConversation(conv);
+        }
+      } catch (err) {
+        console.error("Failed to start conversation:", err);
+      }
+      setSearchParams({});
+    }
+    selectStudent();
+  }, [searchParams, user?.uid, activeConversation?.otherUser?.id, startConversation, setActiveConversation, setSearchParams]);
+
   // Auto-scroll admin messages
   useEffect(() => {
     adminMsgEndRef.current?.scrollIntoView({ behavior: "smooth" });
