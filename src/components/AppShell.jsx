@@ -250,7 +250,7 @@ export default function AppShell() {
       {/* ── MAIN VIEWPORT ── */}
       <div className="main-viewport">
         <TopHeader />
-        <main className="main-content">
+        <main key={location.pathname} className="main-content animate-page-enter">
           <Outlet />
         </main>
       </div>

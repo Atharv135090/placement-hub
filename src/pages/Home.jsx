@@ -143,7 +143,7 @@ export default function Home() {
       )}
 
       {/* ── 1. HERO BANNER ────────────────────────────────────────── */}
-      <div className="dash-hero-banner glass">
+      <div className="dash-hero-banner glass ambient-sheen">
         <div className="hero-left-col">
           <h1 className="hero-heading">{greeting}, {name}! 🎉</h1>
           <p className="hero-tagline">

@@ -125,14 +125,17 @@ const FEATURES = [
 export default function AtsChecker() {
   const [activeHighlight, setActiveHighlight] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewPhase, setPreviewPhase] = useState(1); // 1: Scanning, 2: Analysis, 3: Score, 4: Final
+  const [previewPhase, setPreviewPhase] = useState(0); // 0: idle, 1: scanning, 2: analyzing, 3: scoring, 4: result
   const [animScore, setAnimScore] = useState(0);
   const [notified, setNotified] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   // Mouse Parallax state
   const [parallax, setParallax] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null);
   const isReducedMotion = useRef(false);
+  const previewOverlayRef = useRef(null);
+  const closeBtnRef = useRef(null);
 
   useEffect(() => {
     isReducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -152,70 +155,86 @@ export default function AtsChecker() {
     setParallax({ x: 0, y: 0 });
   }
 
-  // Watch Preview modal phase sequence controller
+  // Preview state machine — runs when showPreviewModal or previewKey changes
   useEffect(() => {
-    let timer1, timer2, timer3, scoreInterval;
+    if (!showPreviewModal) return;
 
-    if (showPreviewModal) {
-      setPreviewPhase(1);
-      setAnimScore(0);
-
-      // Phase 1 -> Phase 2 (after 2.5s)
-      timer1 = setTimeout(() => {
-        setPreviewPhase(2);
-      }, 2600);
-
-      // Phase 2 -> Phase 3 (after 5s)
-      timer2 = setTimeout(() => {
-        setPreviewPhase(3);
-
-        // Animate score from 0 to 98
-        let current = 0;
-        const targets = [0, 24, 51, 73, 86, 98];
-        let step = 0;
-        scoreInterval = setInterval(() => {
-          if (step < targets.length) {
-            setAnimScore(targets[step]);
-            step++;
-          } else {
-            clearInterval(scoreInterval);
-          }
-        }, 300);
-      }, 5400);
-
-      // Phase 3 -> Phase 4 (after 8.5s)
-      timer3 = setTimeout(() => {
-        setPreviewPhase(4);
-      }, 9000);
-    }
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearInterval(scoreInterval);
-    };
-  }, [showPreviewModal]);
-
-  function handleWatchAgain() {
     setPreviewPhase(1);
     setAnimScore(0);
-    // Restart animation flow manually
-    setTimeout(() => setPreviewPhase(2), 2600);
-    setTimeout(() => {
+
+    const timers = [];
+    const intervals = [];
+
+    // Phase 1 → 2 (scanning → analyzing)
+    timers.push(setTimeout(() => setPreviewPhase(2), 2600));
+
+    // Phase 2 → 3 (analyzing → scoring) with score animation
+    timers.push(setTimeout(() => {
       setPreviewPhase(3);
-      let step = 0;
       const targets = [0, 24, 51, 73, 86, 98];
-      const interval = setInterval(() => {
+      let step = 0;
+      const iv = setInterval(() => {
         if (step < targets.length) {
           setAnimScore(targets[step]);
           step++;
         } else {
-          clearInterval(interval);
+          clearInterval(iv);
         }
       }, 300);
-    }, 5400);
-    setTimeout(() => setPreviewPhase(4), 9000);
+      intervals.push(iv);
+    }, 5400));
+
+    // Phase 3 → 4 (scoring → result)
+    timers.push(setTimeout(() => setPreviewPhase(4), 9000));
+
+    return () => {
+      timers.forEach(clearTimeout);
+      intervals.forEach(clearInterval);
+    };
+  }, [showPreviewModal, previewKey]);
+
+  // Escape key to close
+  useEffect(() => {
+    if (!showPreviewModal) return;
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        setShowPreviewModal(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showPreviewModal]);
+
+  // Focus trap & autofocus for overlay
+  useEffect(() => {
+    if (showPreviewModal && closeBtnRef.current) {
+      closeBtnRef.current.focus();
+    }
+  }, [showPreviewModal, previewPhase]);
+
+  // Lock body scroll when preview is open
+  useEffect(() => {
+    if (showPreviewModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showPreviewModal]);
+
+  function handleOpenPreview() {
+    setPreviewKey((k) => k + 1);
+    setShowPreviewModal(true);
+  }
+
+  function handleClosePreview() {
+    setShowPreviewModal(false);
+    setPreviewPhase(0);
+    setAnimScore(0);
+  }
+
+  function handleWatchAgain() {
+    setPreviewKey((k) => k + 1);
   }
 
   return (
@@ -285,7 +304,7 @@ export default function AtsChecker() {
                 <button
                   type="button"
                   className="ats-btn-preview glass"
-                  onClick={() => setShowPreviewModal(true)}
+                  onClick={handleOpenPreview}
                 >
                   <PlayIcon />
                   <span>Watch Preview</span>
@@ -329,7 +348,7 @@ export default function AtsChecker() {
                       className={`ats-feature-card glass ${isHovered ? "active" : ""}`}
                       onMouseEnter={() => setActiveHighlight(item.id)}
                       onMouseLeave={() => setActiveHighlight(null)}
-                      onClick={() => setShowPreviewModal(true)}
+                      onClick={handleOpenPreview}
                       role="button"
                       tabIndex={0}
                     >
@@ -492,7 +511,14 @@ export default function AtsChecker() {
           WATCH PREVIEW EXPERIENCE — FULLSCREEN GLASS OVERLAY MODAL
          ═══════════════════════════════════════════════════════════════ */}
       {showPreviewModal && (
-        <div className="ats-preview-overlay glass-heavy animate-fade-in" onClick={() => setShowPreviewModal(false)}>
+        <div
+          className="ats-preview-overlay glass-heavy animate-fade-in"
+          onClick={handleClosePreview}
+          ref={previewOverlayRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="ATS Preview Demo"
+        >
           <div className="ats-preview-modal glass-heavy" onClick={(e) => e.stopPropagation()}>
             {/* Ambient Background Particles / Glows */}
             <div className="ats-modal-glow ats-modal-glow--pink" />
@@ -505,43 +531,20 @@ export default function AtsChecker() {
                 <span className="ats-modal-title">FUTURE ATS ANALYSIS</span>
               </div>
 
-              <div className="ats-modal-phase-stepper">
-                <button
-                  type="button"
-                  className={`ats-step-pill ${previewPhase === 1 ? "active" : ""}`}
-                  onClick={() => setPreviewPhase(1)}
-                >
-                  1. Scan
-                </button>
-                <button
-                  type="button"
-                  className={`ats-step-pill ${previewPhase === 2 ? "active" : ""}`}
-                  onClick={() => setPreviewPhase(2)}
-                >
-                  2. Analysis
-                </button>
-                <button
-                  type="button"
-                  className={`ats-step-pill ${previewPhase === 3 ? "active" : ""}`}
-                  onClick={() => setPreviewPhase(3)}
-                >
-                  3. Score
-                </button>
-                <button
-                  type="button"
-                  className={`ats-step-pill ${previewPhase === 4 ? "active" : ""}`}
-                  onClick={() => setPreviewPhase(4)}
-                >
-                  4. Final
-                </button>
+              <div className="ats-modal-phase-stepper" aria-hidden="true">
+                <span className={`ats-step-pill ${previewPhase === 1 ? "active" : ""}`}>1. Scan</span>
+                <span className={`ats-step-pill ${previewPhase === 2 ? "active" : ""}`}>2. Analysis</span>
+                <span className={`ats-step-pill ${previewPhase === 3 ? "active" : ""}`}>3. Score</span>
+                <span className={`ats-step-pill ${previewPhase === 4 ? "active" : ""}`}>4. Final</span>
               </div>
 
               <button
                 type="button"
                 className="ats-modal-close-btn"
-                onClick={() => setShowPreviewModal(false)}
-                title="Close preview"
+                onClick={handleClosePreview}
+                title="Close preview (Esc)"
                 aria-label="Close preview"
+                ref={closeBtnRef}
               >
                 ✕
               </button>
@@ -667,7 +670,7 @@ export default function AtsChecker() {
                       <button type="button" className="ats-btn-preview glass" onClick={handleWatchAgain}>
                         Watch Again
                       </button>
-                      <button type="button" className="ats-btn-primary" onClick={() => setShowPreviewModal(false)}>
+                      <button type="button" className="ats-btn-primary" onClick={handleClosePreview}>
                         Close Preview
                       </button>
                     </div>

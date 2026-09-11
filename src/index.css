@@ -1,35 +1,42 @@
 :root, [data-theme="dark"] {
-  /* Surface colors — Rich Navy / Charcoal Atmosphere */
-  --bg-void:            #090d16;
+  /* Surface colors — Deep Translucent Atmosphere */
+  --bg-void:            #080c14;
   --bg-deep:            #0e1320;
   --bg-base:            #121827;
-  --bg-surface:         #161e30;
-  --bg-elevated:        #1c263b;
-  --bg-hover:           #243049;
-  --bg-card:            rgba(22, 30, 48, 0.8);
-  --bg-card-hover:      rgba(30, 41, 64, 0.9);
+  --bg-surface:         rgba(22, 30, 48, 0.82);
+  --bg-elevated:        rgba(28, 38, 59, 0.9);
+  --bg-hover:           rgba(36, 48, 73, 0.92);
+  --bg-card:            rgba(22, 30, 48, 0.82);
+  --bg-card-hover:      rgba(30, 41, 64, 0.94);
 
-  /* Cinematic Glass Surfaces */
-  --glass-bg:           rgba(20, 27, 44, 0.76);
-  --glass-bg-heavy:     rgba(13, 17, 27, 0.92);
-  --glass-border:       rgba(255, 255, 255, 0.11);
-  --glass-border-light: rgba(255, 255, 255, 0.06);
-  --glass-border-hover: rgba(244, 63, 94, 0.4);
-  --glass-blur:         18px;
-  --glass-blur-heavy:   28px;
+  /* Cinematic Glass Surfaces (~8–12% visible depth) */
+  --glass-bg:           rgba(20, 27, 44, 0.82);
+  --glass-bg-heavy:     rgba(13, 17, 27, 0.94);
+  --glass-border:       rgba(255, 255, 255, 0.13);
+  --glass-border-light: rgba(255, 255, 255, 0.07);
+  --glass-border-hover: rgba(244, 63, 94, 0.5);
+  --glass-blur:         20px;
+  --glass-blur-heavy:   30px;
+
+  /* Specular Highlight & Shadows */
+  --glass-top-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --shadow-sm:          0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-md:          0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --shadow-lg:          0 16px 52px rgba(0, 0, 0, 0.75);
+  --shadow-red-glow:    0 0 24px rgba(244, 63, 94, 0.32);
 
   /* Premium Red Glass Accent */
-  --red-glass:          rgba(244, 63, 94, 0.08);
-  --red-glass-border:   rgba(244, 63, 94, 0.22);
-  --red-glass-glow:     rgba(244, 63, 94, 0.16);
+  --red-glass:          rgba(244, 63, 94, 0.1);
+  --red-glass-border:   rgba(244, 63, 94, 0.28);
+  --red-glass-glow:     rgba(244, 63, 94, 0.22);
 
   /* Primary Accent — Refined Red */
   --accent:             #f43f5e;
   --accent-light:       #fb7185;
   --accent-dim:         #e11d48;
-  --accent-subtle:      rgba(244, 63, 94, 0.14);
-  --accent-glow:        rgba(244, 63, 94, 0.35);
-  --accent-border:      rgba(244, 63, 94, 0.48);
+  --accent-subtle:      rgba(244, 63, 94, 0.16);
+  --accent-glow:        rgba(244, 63, 94, 0.38);
+  --accent-border:      rgba(244, 63, 94, 0.5);
 
   /* Supportive Palette */
   --emerald:            #10b981;
@@ -48,51 +55,53 @@
   --text-inverse:       #090d16;
 
   /* Borders & Shadows */
-  --border:             rgba(255, 255, 255, 0.09);
-  --border-subtle:      rgba(255, 255, 255, 0.05);
-  --border-hover:       rgba(244, 63, 94, 0.4);
-
-  --shadow-sm:          0 2px 10px rgba(0, 0, 0, 0.45);
-  --shadow-md:          0 6px 24px rgba(0, 0, 0, 0.6);
-  --shadow-lg:          0 12px 48px rgba(0, 0, 0, 0.75);
-  --shadow-red-glow:    0 0 24px rgba(244, 63, 94, 0.28);
+  --border:             rgba(255, 255, 255, 0.11);
+  --border-subtle:      rgba(255, 255, 255, 0.06);
+  --border-hover:       rgba(244, 63, 94, 0.45);
 
   --hero-bg:            linear-gradient(135deg, rgba(244, 63, 94, 0.18) 0%, rgba(20, 27, 44, 0.95) 50%, #090d16 100%);
   --motto-bg:           linear-gradient(180deg, rgba(244, 63, 94, 0.14) 0%, #0e1320 100%);
 }
 
 [data-theme="light"] {
-  /* Surface colors — Crisp Clean White / Warm Ivory */
-  --bg-void:            #f5f6f9;
+  /* Surface colors — Crisp Translucent Glass Atmosphere */
+  --bg-void:            #f1f5f9;
   --bg-deep:            #ffffff;
-  --bg-base:            #edf0f5;
-  --bg-surface:         #ffffff;
-  --bg-elevated:        #e6ebf2;
-  --bg-hover:           #dde3ed;
-  --bg-card:            rgba(255, 255, 255, 0.88);
-  --bg-card-hover:      #ffffff;
+  --bg-base:            #e2e8f0;
+  --bg-surface:         rgba(255, 255, 255, 0.84);
+  --bg-elevated:        rgba(241, 245, 249, 0.92);
+  --bg-hover:           rgba(254, 205, 211, 0.3);
+  --bg-card:            rgba(255, 255, 255, 0.84);
+  --bg-card-hover:      rgba(255, 255, 255, 0.96);
 
-  /* Frosted Glass Surfaces */
-  --glass-bg:           rgba(255, 255, 255, 0.85);
-  --glass-bg-heavy:     rgba(255, 255, 255, 0.95);
+  /* Frosted Glass Surfaces (~8–12% visible depth) */
+  --glass-bg:           rgba(255, 255, 255, 0.84);
+  --glass-bg-heavy:     rgba(255, 255, 255, 0.94);
   --glass-border:       rgba(0, 0, 0, 0.08);
   --glass-border-light: rgba(0, 0, 0, 0.04);
-  --glass-border-hover: rgba(225, 29, 72, 0.35);
-  --glass-blur:         16px;
+  --glass-border-hover: rgba(225, 29, 72, 0.4);
+  --glass-blur:         18px;
   --glass-blur-heavy:   28px;
 
+  /* Specular Highlight & Shadows */
+  --glass-top-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --shadow-sm:          0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow-md:          0 8px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --shadow-lg:          0 14px 38px rgba(15, 23, 42, 0.12);
+  --shadow-red-glow:    0 0 20px rgba(225, 29, 72, 0.2);
+
   /* Premium Red Glass Accent */
-  --red-glass:          rgba(225, 29, 72, 0.04);
-  --red-glass-border:   rgba(225, 29, 72, 0.15);
-  --red-glass-glow:     rgba(225, 29, 72, 0.08);
+  --red-glass:          rgba(225, 29, 72, 0.05);
+  --red-glass-border:   rgba(225, 29, 72, 0.18);
+  --red-glass-glow:     rgba(225, 29, 72, 0.12);
 
   /* Primary Accent — Refined Red */
   --accent:             #e11d48;
   --accent-light:       #ef4444;
   --accent-dim:         #be123c;
-  --accent-subtle:      rgba(225, 29, 72, 0.09);
-  --accent-glow:        rgba(225, 29, 72, 0.18);
-  --accent-border:      rgba(225, 29, 72, 0.35);
+  --accent-subtle:      rgba(225, 29, 72, 0.1);
+  --accent-glow:        rgba(225, 29, 72, 0.2);
+  --accent-border:      rgba(225, 29, 72, 0.38);
 
   /* Supportive Palette */
   --emerald:            #059669;
@@ -107,20 +116,15 @@
   /* Typography */
   --text-primary:       #0f172a;
   --text-secondary:     #475569;
-  --text-muted:         #94a3b8;
+  --text-muted:         #64748b;
   --text-inverse:       #ffffff;
 
   /* Borders & Shadows */
-  --border:             rgba(0, 0, 0, 0.07);
+  --border:             rgba(0, 0, 0, 0.08);
   --border-subtle:      rgba(0, 0, 0, 0.04);
-  --border-hover:       rgba(225, 29, 72, 0.28);
+  --border-hover:       rgba(225, 29, 72, 0.35);
 
-  --shadow-sm:          0 1px 4px rgba(15, 23, 42, 0.05);
-  --shadow-md:          0 4px 18px rgba(15, 23, 42, 0.08);
-  --shadow-lg:          0 10px 32px rgba(15, 23, 42, 0.12);
-  --shadow-red-glow:    0 0 20px rgba(225, 29, 72, 0.15);
-
-  --hero-bg:            linear-gradient(135deg, #fff1f2 0%, #ffffff 60%, #f8fafc 100%);
+  --hero-bg:            linear-gradient(135deg, rgba(255, 241, 242, 0.9) 0%, rgba(255, 255, 255, 0.85) 60%, rgba(248, 250, 252, 0.9) 100%);
   --motto-bg:           linear-gradient(180deg, #fff1f2 0%, #ffffff 100%);
 }
 
@@ -133,8 +137,24 @@
   --radius-full: 9999px;
 
   --ease:            cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:        cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out:     cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+
   --transition:      0.2s var(--ease);
   --transition-slow: 0.35s var(--ease);
+  --transition-fast: 0.12s var(--ease);
+
+  /* Shared Motion Durations */
+  --dur-fast:   120ms;
+  --dur-normal: 200ms;
+  --dur-slow:   350ms;
+  --dur-enter:  280ms;
+  --dur-exit:   200ms;
+
+  /* Gloss Intensity Target: 5-6% */
+  --gloss-opacity: 0.05;
+  --gloss-sheen: rgba(255, 255, 255, var(--gloss-opacity));
 }
 
 /* ─── RESET & BASE ──────────────────────────────────── */
@@ -468,14 +488,100 @@ input, select, textarea { font-family: inherit; }
   to { transform: rotate(360deg); }
 }
 
-/* ─── ANIMATIONS ─────────────────────────────────────── */
+/* ─── ANIMATIONS & REUSABLE MOTION ENGINE ─────────────── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in,
+.animate-page-enter {
+  animation: fadeIn var(--dur-enter) var(--ease) forwards;
+}
+
+.animate-fade-up {
+  animation: fadeUp var(--dur-enter) var(--ease) forwards;
+}
+
+.animate-slide-up {
+  animation: fadeUp var(--dur-enter) var(--ease) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--dur-enter) var(--ease) forwards;
+}
+
+/* Staggered entrance — apply via data-delay attribute or inline style */
+.animate-stagger > * {
+  opacity: 0;
+  animation: fadeUp var(--dur-enter) var(--ease) forwards;
+}
+.animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.animate-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.animate-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.animate-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.animate-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.animate-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.animate-stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Ambient Light Sweep for Hero Cards & Banners */
+@keyframes ambientLightSweep {
+  0%   { background-position: -200% 0; }
+  50%  { background-position: 100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ambient-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.ambient-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(244, 63, 94, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 55%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+  animation: lightSweepPass 12s ease-in-out infinite;
+}
+
+@keyframes lightSweepPass {
+  0% { left: -150%; opacity: 0; }
+  15% { opacity: 1; }
+  35% { left: 150%; opacity: 0; }
+  100% { left: 150%; opacity: 0; }
 }
 
 /* Red Glow Pulse */
@@ -486,4 +592,53 @@ input, select, textarea { font-family: inherit; }
 
 .pulse-glow-red {
   animation: redPulse 3s ease-in-out infinite;
+}
+
+/* ─── SHARED HOVER & INTERACTION PATTERNS ────────────── */
+/* Subtle card hover lift — use on interactive cards */
+.hover-lift {
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+.hover-lift:active {
+  transform: translateY(0);
+}
+
+/* Gloss interactive — elevated card with accent glow on hover */
+.gloss-interactive {
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.gloss-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), 0 0 18px var(--accent-subtle);
+  border-color: var(--border-hover);
+}
+
+/* Global Button & Interactive Element Press Feedback */
+.btn:active,
+.view-btn:active,
+.dropdown-item:active,
+.sidebar-link:active {
+  transform: scale(0.98);
+}
+
+/* Content visibility for offscreen performance */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* Accessibility: Respect Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ambient-sheen::after {
+    display: none !important;
+  }
 }
