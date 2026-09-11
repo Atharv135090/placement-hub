@@ -108,6 +108,8 @@ export default function StudentProfile() {
         await unfollowUser(user.uid, studentId);
       } else if (followStatus === "pending") {
         await cancelFollowRequest(user.uid, studentId);
+      } else if (incomingFollowStatus === "accepted") {
+        await removeFollower(user.uid, studentId);
       } else if (incomingFollowStatus === "pending") {
         await acceptFollowRequest(studentId, user.uid);
         createNotification({
@@ -156,6 +158,7 @@ export default function StudentProfile() {
   function getFollowLabel() {
     if (followStatus === "accepted") return "Following";
     if (followStatus === "pending") return "Requested";
+    if (incomingFollowStatus === "accepted") return "Following";
     if (incomingFollowStatus === "pending") return "Accept Request";
     return "Follow";
   }
@@ -252,16 +255,18 @@ export default function StudentProfile() {
     if (isOwnProfile) return true;
     if (profile?.profileVisibility === "public") return true;
     if (followStatus === "accepted") return true;
+    if (incomingFollowStatus === "accepted") return true;
     return false;
-  }, [isOwnProfile, profile?.profileVisibility, followStatus]);
+  }, [isOwnProfile, profile?.profileVisibility, followStatus, incomingFollowStatus]);
 
   const canChat = useMemo(() => {
     if (isOwnProfile) return false;
     if (blocked) return false;
     if (profile?.profileVisibility === "public") return true;
     if (followStatus === "accepted") return true;
+    if (incomingFollowStatus === "accepted") return true;
     return false;
-  }, [isOwnProfile, blocked, profile?.profileVisibility, followStatus]);
+  }, [isOwnProfile, blocked, profile?.profileVisibility, followStatus, incomingFollowStatus]);
 
   if (loading) {
     return (
