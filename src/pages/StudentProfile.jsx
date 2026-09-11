@@ -117,6 +117,7 @@ export default function StudentProfile() {
           link: `/students/${user.uid}`,
           targetUserId: studentId,
           senderId: user.uid,
+          relatedUserId: studentId,
         }).catch(() => {});
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
@@ -128,10 +129,12 @@ export default function StudentProfile() {
           createNotification({
             title: "Follow Request",
             message: `${user.displayName || "Someone"} wants to follow you.`,
-            type: "follow",
+            type: "follow_request",
             link: `/students/${user.uid}`,
             targetUserId: studentId,
             senderId: user.uid,
+            relatedUserId: user.uid,
+            followRequestId: data.id,
           }).catch(() => {});
         }
       }
@@ -166,6 +169,7 @@ export default function StudentProfile() {
       link: `/students/${user.uid}`,
       targetUserId: fromId,
       senderId: user.uid,
+      relatedUserId: fromId,
     }).catch(() => {});
   }
 
@@ -226,14 +230,14 @@ export default function StudentProfile() {
 
   async function handleStartChat() {
     if (blocked || chatLoading) return;
-    const canChat = profile?.profileVisibility === "public" || followStatus === "accepted";
+    const canChat = profile?.profileVisibility === "public" || followStatus === "accepted" || incomingFollowStatus === "accepted";
     if (!canChat) return;
     setChatLoading(true);
     setChatError("");
     try {
       const conv = await startConversation(studentId);
       if (conv) {
-        navigate("/chat");
+        navigate(`/students?chat=${studentId}`);
       } else {
         setChatError("Could not start conversation.");
       }

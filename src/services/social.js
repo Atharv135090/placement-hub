@@ -618,7 +618,7 @@ export async function getConversations(userId) {
   }
 }
 
-export async function sendMessage(conversationId, senderId, encryptedText) {
+export async function sendMessage(conversationId, senderId, encryptedText, participants) {
   try {
     const msgRef = await addDoc(collection(db, "messages"), {
       conversationId,
@@ -628,16 +628,12 @@ export async function sendMessage(conversationId, senderId, encryptedText) {
       read: false,
     });
 
-    const convSnap = await getDoc(doc(db, "conversations", conversationId));
-    if (convSnap.exists()) {
-      const conv = convSnap.data();
-      const unreadField = conv.participants[0] === senderId ? "unread2" : "unread1";
-      await updateDoc(doc(db, "conversations", conversationId), {
-        lastMessage: encryptedText,
-        lastMessageAt: serverTimestamp(),
-        [unreadField]: increment(1),
-      });
-    }
+    const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
+    await updateDoc(doc(db, "conversations", conversationId), {
+      lastMessage: encryptedText,
+      lastMessageAt: serverTimestamp(),
+      [unreadField]: increment(1),
+    });
 
     return { data: { id: msgRef.id }, error: null };
   } catch (error) {
@@ -700,12 +696,9 @@ export function subscribeToConversations(userId, callback) {
   });
 }
 
-export async function markConversationRead(conversationId, userId) {
+export async function markConversationRead(conversationId, userId, participants) {
   try {
-    const convSnap = await getDoc(doc(db, "conversations", conversationId));
-    if (!convSnap.exists()) return { error: null };
-    const conv = convSnap.data();
-    const unreadField = conv.participants[0] === userId ? "unread1" : "unread2";
+    const unreadField = participants?.[0] === userId ? "unread1" : "unread2";
     await updateDoc(doc(db, "conversations", conversationId), { [unreadField]: 0 });
     return { error: null };
   } catch (error) {

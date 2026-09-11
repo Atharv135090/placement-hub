@@ -8,6 +8,7 @@ import {
   markConversationRead,
   encryptMessage,
   decryptMessage,
+  getStudentProfile,
 } from "../services/social";
 
 const ChatContext = createContext(null);
@@ -65,62 +66,42 @@ export function ChatProvider({ children }) {
     const res = await getOrCreateConversation(uid, otherUserId);
     if (res.error) return null;
     const convId = res.data.id;
+    let otherUser = { id: otherUserId };
     try {
-      const { getDoc, doc } = await import("firebase/firestore");
-      const { db } = await import("../config/firebase");
-      const otherSnap = await getDoc(doc(db, "users", otherUserId));
-      const otherUser = otherSnap.exists()
-        ? { id: otherUserId, ...otherSnap.data() }
-        : { id: otherUserId };
-      const convData = {
-        id: convId,
-        participants: [uid, otherUserId],
-        lastMessage: null,
-        lastMessageAt: null,
-        unread1: 0,
-        unread2: 0,
-        otherUser,
-      };
-      setActiveConversation(convData);
-      return convData;
-    } catch {
-      const convData = {
-        id: convId,
-        participants: [uid, otherUserId],
-        lastMessage: null,
-        lastMessageAt: null,
-        unread1: 0,
-        unread2: 0,
-        otherUser: { id: otherUserId },
-      };
-      setActiveConversation(convData);
-      return convData;
-    }
+      const profileRes = await getStudentProfile(otherUserId);
+      if (profileRes.data) otherUser = { id: otherUserId, ...profileRes.data };
+    } catch {}
+    const convData = {
+      id: convId,
+      participants: [uid, otherUserId],
+      lastMessage: null,
+      lastMessageAt: null,
+      unread1: 0,
+      unread2: 0,
+      otherUser,
+    };
+    setActiveConversation(convData);
+    return convData;
   }, [uid]);
 
   const sendChatMessage = useCallback(async (conversationId, text) => {
     if (!uid || !text.trim()) return;
     setSending(true);
     try {
-      const convSnap = await import("firebase/firestore").then((mod) =>
-        import("../config/firebase").then((fb) =>
-          mod.getDoc(mod.doc(fb.db, "conversations", conversationId))
-        )
-      );
-      if (!convSnap.exists()) return;
-      const conv = convSnap.data();
-      const otherId = conv.participants.find((p) => p !== uid);
+      const otherId = activeConversation?.participants?.find((p) => p !== uid)
+        || activeConversation?.otherUser?.id;
+      if (!otherId) return;
       const encrypted = await encryptMessage(text, uid, otherId);
-      await sendMessage(conversationId, uid, encrypted);
+      await sendMessage(conversationId, uid, encrypted, activeConversation?.participants);
     } finally {
       setSending(false);
     }
-  }, [uid]);
+  }, [uid, activeConversation?.participants, activeConversation?.otherUser?.id]);
 
   const markRead = useCallback(async (conversationId) => {
     if (!uid) return;
-    await markConversationRead(conversationId, uid);
-  }, [uid]);
+    await markConversationRead(conversationId, uid, activeConversation?.participants);
+  }, [uid, activeConversation?.participants]);
 
   const totalUnread = useMemo(
     () => conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0),

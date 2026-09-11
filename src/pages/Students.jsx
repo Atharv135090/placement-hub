@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import {
@@ -13,6 +13,7 @@ import {
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
+import IntegratedStudentsChat from "../components/IntegratedStudentsChat";
 import "./Students.css";
 
 export default function Students() {
@@ -150,6 +151,7 @@ export default function Students() {
           link: `/students/${user.uid}`,
           targetUserId: studentId,
           senderId: user.uid,
+          relatedUserId: studentId,
         }).catch(() => {});
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
@@ -174,10 +176,12 @@ export default function Students() {
             createNotification({
               title: "Follow Request",
               message: `${user.displayName || "Someone"} wants to follow you.`,
-              type: "follow",
+              type: "follow_request",
               link: `/students/${user.uid}`,
               targetUserId: studentId,
               senderId: user.uid,
+              relatedUserId: user.uid,
+              followRequestId: data.id,
             }).catch(() => {});
           }
         }
@@ -195,8 +199,7 @@ export default function Students() {
   async function handleStartChat(studentId) {
     setActiveMenuId(null);
     try {
-      const conv = await startConversation(studentId);
-      if (conv) navigate("/chat");
+      navigate(`/students?chat=${studentId}`);
     } catch (err) {
       console.error("Chat error:", err);
       navigate(`/students/${studentId}`);
@@ -244,6 +247,21 @@ export default function Students() {
       return `Class of ${str}`;
     }
     return str;
+  }
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isChatMode = searchParams.has("chat") || searchParams.has("message");
+  const chatStudentId = searchParams.get("chat") || searchParams.get("message");
+
+  if (isChatMode) {
+    return (
+      <IntegratedStudentsChat
+        activeStudentId={chatStudentId}
+        onSelectStudent={(id) => setSearchParams({ chat: id })}
+        students={students}
+        currentUser={user}
+      />
+    );
   }
 
   if (loading) {

@@ -173,7 +173,7 @@ export default function TopHeader() {
                   notifications.map((n) => (
                     <div key={n.id} className="notif-item" onClick={() => {
                       handleMarkRead(n.id);
-                      const target = n.link || (n.senderId ? `/students/${n.senderId}` : null);
+                      const target = n.senderId ? `/students/${n.senderId}` : n.link;
                       if (target) navigate(target);
                       setPanelOpen(false);
                     }}>

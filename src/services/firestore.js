@@ -725,7 +725,7 @@ export async function findCompanyByName(name) {
 
 // ─── NOTIFICATIONS ──────────────────────────────────────────────
 
-export async function createNotification({ title, message, type, link, targetUserId, senderId }) {
+export async function createNotification({ title, message, type, link, targetUserId, senderId, followRequestId }) {
   try {
     const docRef = await addDoc(collection(db, NOTIFICATIONS), {
       title,
@@ -734,6 +734,7 @@ export async function createNotification({ title, message, type, link, targetUse
       link: link || null,
       targetUserId: targetUserId || null,
       senderId: senderId || null,
+      followRequestId: followRequestId || null,
       readBy: [],
       createdAt: serverTimestamp(),
     });
