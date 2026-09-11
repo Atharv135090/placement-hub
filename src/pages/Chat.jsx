@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, getDocs, writeBatch, collection } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
-import { db } from "../config/firebase";
+import { db, storage } from "../config/firebase";
 import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
+import EmojiPicker from "../components/EmojiPicker";
 import Modal from "../components/Modal";
 import "./Chat.css";
 
@@ -120,6 +122,40 @@ export default function Chat() {
 
   // Conversation action state
   const [showConvMenu, setShowConvMenu] = useState(false);
+
+  // Emoji picker state
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // File attachment state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef(null);
+
+  // Disappearing messages state
+  const [showDisappearingPopup, setShowDisappearingPopup] = useState(false);
+  const [disappearingDuration, setDisappearingDuration] = useState(null);
+
+  // Clear/Delete confirmation state
+  const [confirmAction, setConfirmAction] = useState(null); // "clear" | "delete" | null
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+  const ALLOWED_TYPES = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/zip",
+    "application/x-zip-compressed",
+  ];
+  const ALLOWED_EXTENSIONS = [".pdf",".doc",".docx",".xls",".xlsx",".ppt",".pptx",".txt",".jpg",".jpeg",".png",".webp",".zip"];
+  const BLOCKED_EXTENSIONS = [".exe",".bat",".cmd",".scr",".ps1"];
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -331,6 +367,205 @@ export default function Chat() {
     }
   }
 
+  // Handle emoji selection
+  function handleEmojiSelect(emoji) {
+    setInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
+  }
+
+  // Handle file attachment
+  function handleFileSelect() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !activeConversation?.id) return;
+    e.target.value = "";
+
+    // Validate blocked types
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (BLOCKED_EXTENSIONS.includes(ext)) {
+      alert("This file type is not allowed.");
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_FILE_SIZE) {
+      alert("File is too large. Maximum file size is 10 MB.");
+      return;
+    }
+
+    // Validate MIME type (fallback to extension check)
+    const mimeValid = ALLOWED_TYPES.includes(file.type);
+    const extValid = ALLOWED_EXTENSIONS.includes(ext);
+    if (!mimeValid && !extValid) {
+      alert("Unsupported file type. Please select a valid file.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const storagePath = `chat_attachments/${activeConversation.id}/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      await new Promise((resolve, reject) => {
+        uploadTask.on("state_changed",
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(Math.round(progress));
+          },
+          (error) => reject(error),
+          () => resolve()
+        );
+      });
+
+      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+      // Send attachment message
+      const attachmentData = {
+        type: "attachment",
+        fileName: file.name,
+        fileSize: file.size,
+        contentType: file.type || ext,
+        downloadURL,
+        storagePath,
+      };
+
+      await sendChatMessage(activeConversation.id, JSON.stringify(attachmentData));
+    } catch (err) {
+      console.error("File upload error:", err);
+      alert("Failed to upload file. Please try again.");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  }
+
+  // Close chat (deselect conversation, keep it in list)
+  function handleCloseChat() {
+    setShowConvMenu(false);
+    setActiveConversation(null);
+  }
+
+  // Disappearing messages
+  async function handleSetDisappearing(duration) {
+    if (!activeConversation?.id) return;
+    try {
+      await updateDoc(doc(db, "conversations", activeConversation.id), {
+        disappearingMessages: {
+          enabled: duration !== null,
+          duration: duration,
+        },
+      });
+      setDisappearingDuration(duration);
+      setShowDisappearingPopup(false);
+    } catch (err) {
+      console.error("Failed to update disappearing messages:", err);
+    }
+  }
+
+  // Load disappearing messages setting
+  useEffect(() => {
+    if (!activeConversation?.id) {
+      setDisappearingDuration(null);
+      return;
+    }
+    async function loadSetting() {
+      try {
+        const snap = await getDoc(doc(db, "conversations", activeConversation.id));
+        if (snap.exists()) {
+          const data = snap.data();
+          const dm = data.disappearingMessages;
+          if (dm?.enabled) {
+            setDisappearingDuration(dm.duration || null);
+          } else {
+            setDisappearingDuration(null);
+          }
+        }
+      } catch {}
+    }
+    loadSetting();
+  }, [activeConversation?.id]);
+
+  // Close disappearing popup on click outside
+  useEffect(() => {
+    if (!showDisappearingPopup) return;
+    function handleClick(e) {
+      if (!e.target.closest(".msg-disappearing-popup") && !e.target.closest(".msg-conv-menu-item")) {
+        setShowDisappearingPopup(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showDisappearingPopup]);
+
+  // Clear chat messages
+  async function handleClearChat() {
+    if (!activeConversation?.id || !user?.uid) return;
+    setConfirmAction(null);
+    try {
+      const msgQuery = query(
+        collection(db, "messages"),
+        where("conversationId", "==", activeConversation.id)
+      );
+      const snapshot = await getDocs(msgQuery);
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+
+      await updateDoc(doc(db, "conversations", activeConversation.id), {
+        lastMessage: null,
+        lastMessageAt: null,
+      });
+    } catch (err) {
+      console.error("Clear chat error:", err);
+    }
+  }
+
+  // Delete chat (remove from user's conversation list)
+  async function handleDeleteChat() {
+    if (!activeConversation?.id || !user?.uid) return;
+    setConfirmAction(null);
+    try {
+      const convRef = doc(db, "conversations", activeConversation.id);
+      const convSnap = await getDoc(convRef);
+      if (!convSnap.exists()) return;
+
+      const convData = convSnap.data();
+      const participants = convData.participants || [];
+
+      // Remove current user from participants
+      const updatedParticipants = participants.filter((p) => p !== user.uid);
+
+      if (updatedParticipants.length === 0) {
+        // Last participant — delete conversation and its messages
+        const msgQuery = query(
+          collection(db, "messages"),
+          where("conversationId", "==", activeConversation.id)
+        );
+        const msgSnap = await getDocs(msgQuery);
+        const batch = writeBatch(db);
+        msgSnap.docs.forEach((d) => batch.delete(d.ref));
+        batch.delete(convRef);
+        await batch.commit();
+      } else {
+        // Update participants to exclude current user
+        await updateDoc(convRef, { participants: updatedParticipants });
+      }
+
+      setActiveConversation(null);
+    } catch (err) {
+      console.error("Delete chat error:", err);
+    }
+  }
+
   // Format message timestamp: 08:48 PM
   function formatMessageTime(date) {
     if (!date) return "";
@@ -362,6 +597,13 @@ export default function Chat() {
     if (isYesterday) return "Yesterday";
 
     return d.toLocaleDateString([], { day: "numeric", month: "short" });
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 
   // Filter conversations based on search and tab
@@ -749,25 +991,49 @@ export default function Chat() {
                       <ThreeDotsIcon />
                     </button>
                     {showConvMenu && (
-                      <div className="msg-conv-menu" style={{
-                        position: "absolute", right: 0, top: "100%", zIndex: 100,
-                        background: "var(--surface, #1e1e2e)", border: "1px solid var(--border, #333)",
-                        borderRadius: 8, padding: "4px 0", minWidth: 160,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.3)"
-                      }}>
+                      <div className="msg-conv-menu">
                         <button
                           className="msg-conv-menu-item"
-                          style={{ display: "block", width: "100%", padding: "8px 14px", background: "none", border: "none", color: "var(--text, #e0e0e0)", textAlign: "left", cursor: "pointer", fontSize: "0.85rem" }}
-                          onClick={() => { setShowConvMenu(false); navigate(`/students/${activePartner?.id || ""}`); }}
+                          onClick={handleCloseChat}
                         >
-                          View Profile
+                          Close Chat
+                        </button>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            className="msg-conv-menu-item"
+                            onClick={() => { setShowConvMenu(false); setShowDisappearingPopup(!showDisappearingPopup); }}
+                          >
+                            Disappearing Messages {disappearingDuration ? `(${disappearingDuration})` : "(Off)"}
+                          </button>
+                          {showDisappearingPopup && (
+                            <div className="msg-disappearing-popup">
+                              <div className="msg-disappearing-title">Disappearing Messages</div>
+                              {[null, "24h", "7d", "30d"].map((dur) => (
+                                <label key={dur || "off"} className="msg-disappearing-option">
+                                  <input
+                                    type="radio"
+                                    name="disappearing"
+                                    checked={disappearingDuration === dur}
+                                    onChange={() => handleSetDisappearing(dur)}
+                                  />
+                                  <span>{dur === null ? "Off" : dur === "24h" ? "24 hours" : dur === "7d" ? "7 days" : "30 days"}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="msg-conv-menu-divider" />
+                        <button
+                          className="msg-conv-menu-item"
+                          onClick={() => { setShowConvMenu(false); setConfirmAction("clear"); }}
+                        >
+                          Clear Chat
                         </button>
                         <button
-                          className="msg-conv-menu-item"
-                          style={{ display: "block", width: "100%", padding: "8px 14px", background: "none", border: "none", color: "#ef4444", textAlign: "left", cursor: "pointer", fontSize: "0.85rem" }}
-                          onClick={() => { setShowConvMenu(false); navigate("/chat"); }}
+                          className="msg-conv-menu-item danger"
+                          onClick={() => { setShowConvMenu(false); setConfirmAction("delete"); }}
                         >
-                          Leave Conversation
+                          Delete Chat
                         </button>
                       </div>
                     )}
@@ -792,6 +1058,19 @@ export default function Chat() {
                     const isSent = m.senderId === user?.uid;
                     const timeStr = formatMessageTime(m.createdAt);
 
+                    // Check if message is an attachment
+                    let isAttachment = false;
+                    let attachmentData = null;
+                    try {
+                      const parsed = JSON.parse(m.text);
+                      if (parsed.type === "attachment" && parsed.downloadURL) {
+                        isAttachment = true;
+                        attachmentData = parsed;
+                      }
+                    } catch {}
+
+                    const isImage = attachmentData?.contentType?.startsWith("image/");
+
                     return (
                       <div key={m.id} className={`msg-bubble-row ${isSent ? "sent" : "received"}`}>
                         {!isSent && (
@@ -805,7 +1084,34 @@ export default function Chat() {
                         )}
 
                         <div className={`msg-bubble-box ${isSent ? "sent" : "received"}`}>
-                          <p className="msg-bubble-text">{m.text}</p>
+                          {isAttachment ? (
+                            <>
+                              {isImage && attachmentData.downloadURL && (
+                                <div className="msg-attachment-preview">
+                                  <img src={attachmentData.downloadURL} alt={attachmentData.fileName} loading="lazy" />
+                                </div>
+                              )}
+                              <div className="msg-attachment-card">
+                                <div className="msg-attachment-icon">
+                                  {isImage ? "🖼️" : "📄"}
+                                </div>
+                                <div className="msg-attachment-info">
+                                  <span className="msg-attachment-name">{attachmentData.fileName}</span>
+                                  <span className="msg-attachment-size">{formatFileSize(attachmentData.fileSize)}</span>
+                                </div>
+                                <a
+                                  href={attachmentData.downloadURL}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="msg-attachment-download"
+                                >
+                                  Open
+                                </a>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="msg-bubble-text">{m.text}</p>
+                          )}
                           <div className="msg-bubble-footer">
                             <span className="msg-bubble-time">{timeStr}</span>
                             {isSent && (
@@ -824,13 +1130,29 @@ export default function Chat() {
 
               {/* ─── 7. MESSAGE COMPOSER BAR ───────────────────────── */}
               <div className="msg-composer-outer">
-                <div className="msg-composer-capsule">
+                {uploading && (
+                  <div className="msg-upload-progress">
+                    <span>Uploading...</span>
+                    <div className="msg-upload-bar">
+                      <div className="msg-upload-bar-fill" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                )}
+                <div className="msg-composer-capsule" style={{ position: "relative" }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    style={{ display: "none" }}
+                    onChange={handleFileUpload}
+                    accept={ALLOWED_EXTENSIONS.join(",")}
+                  />
                   <button
                     type="button"
                     className="msg-composer-tool-btn"
                     title="Attach file"
-                    disabled
-                    style={{ opacity: 0.4, cursor: "not-allowed" }}
+                    onClick={handleFileSelect}
+                    disabled={uploading}
                   >
                     <PaperclipIcon />
                   </button>
@@ -843,23 +1165,31 @@ export default function Chat() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    disabled={sending}
+                    disabled={sending || uploading}
                   />
 
-                  <button
-                    type="button"
-                    className="msg-composer-tool-btn"
-                    title="Insert emoji"
-                    onClick={() => setInput((prev) => prev + " 😊 ")}
-                  >
-                    <EmojiIcon />
-                  </button>
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      className="msg-composer-tool-btn"
+                      title="Insert emoji"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
+                      <EmojiIcon />
+                    </button>
+                    {showEmojiPicker && (
+                      <EmojiPicker
+                        onSelect={handleEmojiSelect}
+                        onClose={() => setShowEmojiPicker(false)}
+                      />
+                    )}
+                  </div>
 
                   <button
                     type="button"
                     className="msg-composer-send-btn"
                     onClick={handleSend}
-                    disabled={!input.trim() || sending}
+                    disabled={!input.trim() || sending || uploading}
                     title="Send message"
                   >
                     <SendAirplaneIcon />
@@ -921,6 +1251,33 @@ export default function Chat() {
           </div>
         </div>
       </Modal>
+
+      {/* ─── CONFIRMATION MODAL ─────────────────────────────────── */}
+      {confirmAction && (
+        <div className="msg-confirm-overlay" onClick={() => setConfirmAction(null)}>
+          <div className="msg-confirm-box" onClick={(e) => e.stopPropagation()}>
+            <h3 className="msg-confirm-title">
+              {confirmAction === "clear" ? "Clear this chat?" : "Delete this chat?"}
+            </h3>
+            <p className="msg-confirm-desc">
+              {confirmAction === "clear"
+                ? "This will remove all messages from this conversation for you. This cannot be undone."
+                : "This conversation will be removed from your conversation list. This cannot be undone."}
+            </p>
+            <div className="msg-confirm-actions">
+              <button className="msg-confirm-cancel" onClick={() => setConfirmAction(null)}>
+                Cancel
+              </button>
+              <button
+                className={`msg-confirm-action ${confirmAction === "delete" ? "danger" : ""}`}
+                onClick={confirmAction === "clear" ? handleClearChat : handleDeleteChat}
+              >
+                {confirmAction === "clear" ? "Clear" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
