@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [blockedMessage, setBlockedMessage] = useState(null);
   const forceLogoutHandledRef = useRef(false);
 
   useEffect(() => {
@@ -28,6 +29,11 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const { data } = await getUserProfile(firebaseUser.uid);
         if (data) {
+          if (data.blocked) {
+            setBlockedMessage("Your account has been blocked by Placement Hub. Please contact support if you believe this was a mistake.");
+            await signOut(auth);
+            return;
+          }
           if (data.accountDeleted) {
             await signOut(auth);
             return;
@@ -88,7 +94,10 @@ export function AuthProvider({ children }) {
     const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
       if (!snap.exists()) return;
       const d = snap.data();
-      if (d.accountDeleted) {
+      if (d.blocked) {
+        setBlockedMessage("Your account has been blocked by Placement Hub. Please contact support if you believe this was a mistake.");
+        signOut(auth);
+      } else if (d.accountDeleted) {
         signOut(auth);
       } else if (d.forceLogout && !forceLogoutHandledRef.current) {
         forceLogoutHandledRef.current = true;
@@ -101,7 +110,7 @@ export function AuthProvider({ children }) {
   }, [user?.uid]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, setProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, setProfile, blockedMessage, setBlockedMessage }}>
       {children}
     </AuthContext.Provider>
   );

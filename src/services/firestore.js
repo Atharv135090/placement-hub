@@ -90,4 +90,5 @@ export {
   deleteAllAnnouncements,
   adminLogoutUser,
   adminDeleteUser,
+  adminBlockUser,
 } from "./firestore/admin";

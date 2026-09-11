@@ -10,6 +10,7 @@ import ProtectedAdmin from "./components/ProtectedAdmin";
 import "./App.css";
 
 const Login = lazy(() => import("./pages/Login"));
+const BlockedPage = lazy(() => import("./pages/BlockedPage"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Home = lazy(() => import("./pages/Home"));
 const Companies = lazy(() => import("./pages/Companies"));
@@ -44,10 +45,18 @@ function PageSpinner() {
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, blockedMessage } = useAuth();
 
   if (loading) {
     return <PageSpinner />;
+  }
+
+  if (blockedMessage) {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <BlockedPage />
+      </Suspense>
+    );
   }
 
   if (!user) {

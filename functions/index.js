@@ -327,6 +327,9 @@ exports.adminDeleteUser = onCall(async (request) => {
   const notifSnap = await db.collection("notifications").where("targetUserId", "==", userId).get();
   notifSnap.forEach((doc) => batch.delete(doc.ref));
 
+  const appSnap = await db.collection("applications").where("userId", "==", userId).get();
+  appSnap.forEach((doc) => batch.delete(doc.ref));
+
   const convSnap = await db.collection("conversations").where("participants", "array-contains", userId).get();
   for (const convDoc of convSnap.docs) {
     const msgSnap = await db.collection("messages").where("conversationId", "==", convDoc.id).get();
@@ -338,6 +341,65 @@ exports.adminDeleteUser = onCall(async (request) => {
   logger.info(`Cleaned up Firestore data for user ${userId}`);
 
   return { success: true };
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 6: adminBlockUser
+// Blocks/unblocks a user and revokes their session
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminBlockUser = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can block users.");
+  }
+
+  const { userId, blocked } = request.data || {};
+  if (!userId || typeof userId !== "string") {
+    throw new HttpsError("invalid-argument", "userId is required.");
+  }
+  if (typeof blocked !== "boolean") {
+    throw new HttpsError("invalid-argument", "blocked must be a boolean.");
+  }
+
+  const targetSnap = await db.collection("users").doc(userId).get();
+  if (!targetSnap.exists) {
+    throw new HttpsError("not-found", "User not found.");
+  }
+
+  const targetRole = targetSnap.data().role || "student";
+  if (targetRole === "owner") {
+    throw new HttpsError("failed-precondition", "Cannot block an owner account.");
+  }
+
+  try {
+    await getAuth().revokeRefreshTokens(userId);
+    logger.info(`Revoked refresh tokens for user ${userId} (block/unblock)`);
+  } catch (error) {
+    logger.error(`Failed to revoke tokens for user ${userId}:`, error);
+  }
+
+  try {
+    await db.collection("users").doc(userId).set(
+      {
+        blocked: blocked,
+        blockedAt: blocked ? new Date().toISOString() : null,
+        forceLogout: blocked,
+        forceLogoutAt: blocked ? new Date().toISOString() : null,
+      },
+      { merge: true }
+    );
+    logger.info(`Set blocked=${blocked} for user ${userId}`);
+  } catch (error) {
+    logger.error(`Failed to set blocked state for user ${userId}:`, error);
+    throw new HttpsError("internal", "Failed to update block state.");
+  }
+
+  return { success: true, blocked };
 });
 
 exports.chat = onCall(

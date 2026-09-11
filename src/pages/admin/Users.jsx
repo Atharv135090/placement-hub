@@ -1,12 +1,18 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import {
-  getAllUsers,
   updateUserProfile,
-  getAllApplications,
   adminLogoutUser,
   adminDeleteUser,
+  adminBlockUser,
 } from "../../services/firestore";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
+import { db } from "../../config/firebase";
 import Modal from "../../components/Modal";
 import UserAvatar from "../../components/UserAvatar";
 import "./Users.css";
@@ -33,18 +39,35 @@ export default function AdminUsers() {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
+  const [blockModal, setBlockModal] = useState(null);
+  const [blocking, setBlocking] = useState(false);
+
+  const usersUnsubRef = useRef(null);
+  const appsUnsubRef = useRef(null);
+
+  // ── REALTIME: users listener ──────────────────────────────
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      const [userRes, appRes] = await Promise.all([
-        getAllUsers(),
-        getAllApplications(),
-      ]);
-      setUsers(userRes.data || []);
-      setAllApps(appRes.data || []);
+    setLoading(true);
+    const q = query(collection(db, "users"));
+    usersUnsubRef.current = onSnapshot(q, (snap) => {
+      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
-    }
-    fetchData();
+    }, (err) => {
+      console.error("Admin users listener error:", err);
+      setLoading(false);
+    });
+    return () => { usersUnsubRef.current?.(); };
+  }, []);
+
+  // ── REALTIME: all applications listener ───────────────────
+  useEffect(() => {
+    const q = query(collection(db, "applications"));
+    appsUnsubRef.current = onSnapshot(q, (snap) => {
+      setAllApps(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.error("Admin applications listener error:", err);
+    });
+    return () => { appsUnsubRef.current?.(); };
   }, []);
 
   const filtered = useMemo(() => {
@@ -74,7 +97,6 @@ export default function AdminUsers() {
     setSaving(true);
     const { error: err } = await updateUserProfile(roleModal.id, { role: newRole });
     if (!err) {
-      setUsers((prev) => prev.map((u) => u.id === roleModal.id ? { ...u, role: newRole } : u));
       setFeedback("Role updated successfully.");
     } else {
       setFeedback("Failed to update role.");
@@ -108,18 +130,37 @@ export default function AdminUsers() {
     try {
       const { error } = await adminDeleteUser(deleteModal.id);
       if (!error) {
-        setUsers((prev) => prev.filter((u) => u.id !== deleteModal.id));
         setFeedback(`${deleteModal.displayName || deleteModal.email} has been deleted.`);
       } else {
-        setFeedback("Failed to delete user.");
+        setFeedback(`Delete failed: ${typeof error === "string" ? error : "Unknown error"}`);
       }
-    } catch {
-      setFeedback("Failed to delete user.");
+    } catch (err) {
+      setFeedback(`Delete failed: ${err?.message || "Network error"}`);
     }
     setDeleting(false);
     setDeleteModal(null);
     setDeleteConfirmText("");
     setTimeout(() => setFeedback(""), 3000);
+  }
+
+  async function handleBlockUser() {
+    if (!blockModal || blocking) return;
+    setBlocking(true);
+    try {
+      const isCurrentlyBlocked = blockModal.blocked === true;
+      const { error } = await adminBlockUser(blockModal.id, !isCurrentlyBlocked);
+      if (!error) {
+        const action = isCurrentlyBlocked ? "unblocked" : "blocked";
+        setFeedback(`${blockModal.displayName || blockModal.email} has been ${action}.`);
+      } else {
+        setFeedback(`Block failed: ${typeof error === "string" ? error : "Unknown error"}`);
+      }
+    } catch (err) {
+      setFeedback(`Block failed: ${err?.message || "Network error"}`);
+    }
+    setBlocking(false);
+    setBlockModal(null);
+    setTimeout(() => setFeedback(""), 4000);
   }
 
   function getStatusBadge(status) {
@@ -255,15 +296,19 @@ export default function AdminUsers() {
             const userApps = getUserApps(u.id);
             const interviews = userApps.filter(a => a.status === "interview").length;
             const offers = userApps.filter(a => a.status === "offer" || a.status === "selected").length;
+            const isBlocked = u.blocked === true;
 
             return (
-              <div key={u.id} className="au-row" style={{ animationDelay: `${idx * 0.04}s` }}>
+              <div key={u.id} className={`au-row ${isBlocked ? "au-row--blocked" : ""}`} style={{ animationDelay: `${idx * 0.04}s` }}>
                 <span className="au-cell au-cell--user">
                   <div className="au-avatar">
                     <UserAvatar user={u} profile={u} className="au-avatar-img" />
                   </div>
                   <div className="au-user-info">
-                    <span className="au-user-name">{u.displayName || "Unnamed"}</span>
+                    <span className="au-user-name">
+                      {u.displayName || "Unnamed"}
+                      {isBlocked && <span className="au-blocked-badge">Blocked</span>}
+                    </span>
                     <span className="au-user-email">{u.email}</span>
                   </div>
                 </span>
@@ -287,8 +332,19 @@ export default function AdminUsers() {
                   </button>
                   {!isSelf(u) && (u.role || "student") !== "owner" && (
                     <>
-                      <button className="au-action-btn au-action-btn--warn" onClick={() => setLogoutModal(u)} title="Logout user">
+                      <button className="au-action-btn au-action-btn--warn" onClick={() => setLogoutModal(u)} title="Force logout">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      </button>
+                      <button
+                        className={`au-action-btn ${isBlocked ? "au-action-btn--unblock" : "au-action-btn--warn"}`}
+                        onClick={() => setBlockModal(u)}
+                        title={isBlocked ? "Unblock user" : "Block user"}
+                      >
+                        {isBlocked ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                        ) : (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                        )}
                       </button>
                       <button className="au-action-btn au-action-btn--danger" onClick={() => { setDeleteModal(u); setDeleteConfirmText(""); }} title="Delete account">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -392,7 +448,7 @@ export default function AdminUsers() {
           <p className="au-modal-danger-text">
             Log out <strong>{logoutModal?.displayName || logoutModal?.email}</strong>?
           </p>
-          <p className="au-modal-danger-sub">This will sign the user out of their current session.</p>
+          <p className="au-modal-danger-sub">This will revoke all active sessions for this user.</p>
         </div>
         <div className="au-modal-actions">
           <button className="btn btn-secondary" onClick={() => setLogoutModal(null)} disabled={loggingOut}>Cancel</button>
@@ -402,6 +458,41 @@ export default function AdminUsers() {
                 <span className="au-modal-spinner" /> Logging out...
               </span>
             ) : "Logout User"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Block/Unblock User Modal */}
+      <Modal open={!!blockModal} onClose={() => { if (!blocking) { setBlockModal(null); } }} title={blockModal?.blocked ? "Unblock User" : "Block User"}>
+        <div className="au-modal-danger">
+          <div className={`au-modal-danger-icon ${blockModal?.blocked ? "au-modal-danger-icon--unblock" : "au-modal-danger-icon--warn"}`}>
+            {blockModal?.blocked ? (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            ) : (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            )}
+          </div>
+          <p className="au-modal-danger-text">
+            {blockModal?.blocked ? "Unblock" : "Block"} <strong>{blockModal?.displayName || blockModal?.email}</strong>?
+          </p>
+          <p className="au-modal-danger-sub">
+            {blockModal?.blocked
+              ? "This will restore the user's access. They will be able to log in and use Placement Hub normally."
+              : "This will immediately log the user out and prevent them from logging back in. They will see a blocked message."}
+          </p>
+        </div>
+        <div className="au-modal-actions">
+          <button className="btn btn-secondary" onClick={() => setBlockModal(null)} disabled={blocking}>Cancel</button>
+          <button
+            className={blockModal?.blocked ? "btn btn-primary" : "btn btn-danger"}
+            onClick={handleBlockUser}
+            disabled={blocking}
+          >
+            {blocking ? (
+              <span className="au-modal-saving">
+                <span className="au-modal-spinner" /> {blockModal?.blocked ? "Unblocking..." : "Blocking..."}
+              </span>
+            ) : (blockModal?.blocked ? "Unblock User" : "Block User")}
           </button>
         </div>
       </Modal>
@@ -416,7 +507,7 @@ export default function AdminUsers() {
             Delete <strong>{deleteModal?.displayName || deleteModal?.email}</strong>?
           </p>
           <p className="au-modal-danger-sub">
-            This action is permanent and cannot be undone. The user's Firebase Authentication account, profile data, and all associated social relationships will be permanently removed.
+            This action is permanent and cannot be undone. The user's Firebase Authentication account, profile data, applications, and all associated social relationships will be permanently removed.
           </p>
           <p className="au-modal-danger-sub" style={{ fontWeight: 700, marginTop: 4 }}>
             Type <span style={{ color: "var(--accent-light)" }}>DELETE</span> to confirm.
