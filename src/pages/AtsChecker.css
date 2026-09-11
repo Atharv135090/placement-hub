@@ -1,0 +1,975 @@
+/* ==========================================================================
+   ATS CHECKER — FUTURISTIC AUTOMOTIVE SHOWCASE (STEP 1: UI/UX)
+   Placement Hub Design Language: Light Glass & Dark Cyber-Futuristic Luxury
+   ========================================================================== */
+
+.ats-workspace {
+  position: relative;
+  min-height: calc(100vh - 64px);
+  padding: 18px 20px 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: hidden;
+  background: var(--bg-void);
+}
+
+/* ── Ambient Radial Background Glows ── */
+.ats-ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+  opacity: 0.35;
+  z-index: 0;
+  transition: opacity var(--transition-slow);
+}
+
+.ats-ambient-glow--pink {
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.38) 0%, transparent 70%);
+  top: -40px;
+  left: 15%;
+}
+
+.ats-ambient-glow--purple {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
+  bottom: 0px;
+  right: 10%;
+}
+
+.ats-ambient-glow--cyan {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.2) 0%, transparent 70%);
+  top: 25%;
+  right: 25%;
+}
+
+[data-theme="dark"] .ats-ambient-glow--pink {
+  background: radial-gradient(circle, rgba(255, 46, 116, 0.5) 0%, transparent 70%);
+}
+
+[data-theme="dark"] .ats-ambient-glow--purple {
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.45) 0%, transparent 70%);
+}
+
+/* ── Outer Container ── */
+.ats-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* ── Showcase Card ── */
+.ats-showcase-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(225, 29, 72, 0.22);
+  border-radius: 26px;
+  padding: 24px 32px 20px;
+  box-shadow: 0 20px 50px -15px rgba(225, 29, 72, 0.08),
+              0 8px 20px -5px rgba(0, 0, 0, 0.04),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  transition: all var(--transition-slow);
+}
+
+[data-theme="dark"] .ats-showcase-card {
+  background: rgba(11, 17, 32, 0.84);
+  border: 1px solid rgba(255, 46, 116, 0.28);
+  box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.7),
+              0 0 35px -5px rgba(255, 46, 116, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ── Top Brand Pill (Lamborghini / Placement Identity) ── */
+.ats-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  margin-bottom: 18px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="dark"] .ats-brand-pill {
+  background: rgba(18, 25, 44, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.ats-brand-logo {
+  filter: drop-shadow(0 2px 4px rgba(217, 119, 6, 0.3));
+}
+
+.ats-brand-name {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+}
+
+.ats-brand-divider {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.ats-brand-slogan {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* ── 2-Column Grid Layout ── */
+.ats-showcase-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+/* ── LEFT COLUMN ── */
+.ats-hero-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.ats-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.ats-soon-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 11px;
+  border-radius: 9999px;
+  background: #ffe4e6;
+  border: 1px solid rgba(225, 29, 72, 0.3);
+}
+
+[data-theme="dark"] .ats-soon-pill {
+  background: rgba(255, 46, 116, 0.15);
+  border-color: rgba(255, 46, 116, 0.4);
+  box-shadow: 0 0 12px rgba(255, 46, 116, 0.3);
+}
+
+.ats-pulse-beacon {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: #e11d48;
+  box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7);
+  animation: atsPulseBeacon 2s infinite;
+}
+
+[data-theme="dark"] .ats-pulse-beacon {
+  background: #ff2e74;
+  box-shadow: 0 0 0 0 rgba(255, 46, 116, 0.7);
+}
+
+@keyframes atsPulseBeacon {
+  0% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(225, 29, 72, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0);
+  }
+}
+
+.ats-soon-pill-text {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #e11d48;
+}
+
+[data-theme="dark"] .ats-soon-pill-text {
+  color: #ff3b7c;
+}
+
+.ats-future-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ats-main-title {
+  font-size: 2.85rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.ats-gradient-text {
+  background: linear-gradient(135deg, #e11d48 0%, #a855f7 60%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="dark"] .ats-gradient-text {
+  background: linear-gradient(135deg, #ff2e74 0%, #c084fc 60%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(255, 46, 116, 0.4));
+}
+
+.ats-subtitle-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ats-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.ats-status-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ats-hero-description {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+  max-width: 480px;
+}
+
+/* ── 4 Feature Highlight Cards ── */
+.ats-features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.ats-feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+}
+
+[data-theme="dark"] .ats-feature-card {
+  background: rgba(17, 24, 42, 0.7);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ats-feature-card:hover,
+.ats-feature-card.active {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(225, 29, 72, 0.38);
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.1);
+}
+
+[data-theme="dark"] .ats-feature-card:hover,
+[data-theme="dark"] .ats-feature-card.active {
+  background: rgba(22, 32, 56, 0.85);
+  border-color: rgba(255, 46, 116, 0.45);
+  box-shadow: 0 6px 20px rgba(255, 46, 116, 0.2);
+}
+
+.ats-feature-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #fef2f2;
+  color: #e11d48;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .ats-feature-icon-box {
+  background: rgba(255, 46, 116, 0.12);
+  color: #ff3b7c;
+  border-color: rgba(255, 46, 116, 0.3);
+}
+
+.ats-feature-card:hover .ats-feature-icon-box {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .ats-feature-card:hover .ats-feature-icon-box {
+  background: #ff2e74;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 46, 116, 0.5);
+}
+
+.ats-feature-info {
+  flex: 1;
+}
+
+.ats-feature-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.ats-feature-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.ats-feature-tag {
+  font-size: 0.54rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+[data-theme="dark"] .ats-feature-tag {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.ats-feature-desc {
+  font-size: 0.69rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ── RIGHT COLUMN: AUTOMOTIVE & HUD VISUAL ── */
+.ats-visual-col {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ats-visual-stage {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Telemetry Gyroscope Background */
+.ats-gyro-container {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  width: 160px;
+  height: 160px;
+  pointer-events: none;
+  z-index: 1;
+  color: #a855f7;
+}
+
+[data-theme="dark"] .ats-gyro-container {
+  color: #00f0ff;
+}
+
+.ats-gyro-ring {
+  width: 100%;
+  height: 100%;
+  animation: atsRotateGyro 35s linear infinite;
+}
+
+@keyframes atsRotateGyro {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Floating Holographic HUD Resume Document */
+.ats-hud-resume {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  width: 175px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.2);
+  z-index: 5;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .ats-hud-resume {
+  background: rgba(12, 22, 44, 0.84);
+  border-color: rgba(0, 240, 255, 0.55);
+  box-shadow: 0 10px 30px -5px rgba(0, 240, 255, 0.25),
+              inset 0 0 12px rgba(0, 240, 255, 0.1);
+}
+
+.ats-hud-resume:hover {
+  transform: translateY(-3px) scale(1.02);
+}
+
+/* Scanning Laser Animation */
+.ats-scan-laser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, #00f0ff 40%, #ff2e74 70%, transparent);
+  box-shadow: 0 0 10px #00f0ff, 0 0 5px #ff2e74;
+  z-index: 10;
+  pointer-events: none;
+  animation: atsScanLaser 3s ease-in-out infinite alternate;
+}
+
+@keyframes atsScanLaser {
+  0% {
+    top: 4px;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 6px);
+    opacity: 0.8;
+  }
+}
+
+.ats-resume-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ats-resume-doc-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.ats-resume-doc-chip {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #0284c7;
+}
+
+[data-theme="dark"] .ats-resume-doc-chip {
+  background: rgba(0, 240, 255, 0.15);
+  color: #38bdf8;
+}
+
+.ats-resume-body-mock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ats-resume-avatar-mock {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+}
+
+.ats-resume-lines-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ats-mock-line {
+  height: 4.5px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+[data-theme="dark"] .ats-mock-line {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.ats-mock-line--bold {
+  width: 75%;
+  height: 5px;
+  background: #0284c7;
+}
+
+[data-theme="dark"] .ats-mock-line--bold {
+  background: #38bdf8;
+}
+
+.ats-mock-line--mid {
+  width: 50%;
+}
+
+.ats-mock-line--section {
+  width: 40%;
+  height: 4.5px;
+  background: rgba(225, 29, 72, 0.4);
+  margin-top: 3px;
+}
+
+[data-theme="dark"] .ats-mock-line--section {
+  background: rgba(255, 46, 116, 0.5);
+}
+
+.ats-mock-line--full {
+  width: 100%;
+}
+
+.ats-mock-line--short {
+  width: 65%;
+}
+
+.ats-resume-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Floating Holographic ATS Score Gauge */
+.ats-hud-score-card {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 155px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1.5px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.18);
+  z-index: 6;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .ats-hud-score-card {
+  background: rgba(12, 22, 44, 0.86);
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.25),
+              inset 0 0 12px rgba(16, 185, 129, 0.1);
+}
+
+.ats-hud-score-card:hover {
+  transform: translateY(-3px) scale(1.02);
+}
+
+.ats-score-radial-box {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3px;
+}
+
+.ats-score-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ats-radial-bg {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.2);
+  stroke-width: 5.5;
+}
+
+.ats-radial-progress {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-dasharray: 213;
+  stroke-dashoffset: 8;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));
+}
+
+.ats-score-number {
+  position: absolute;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.ats-score-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ats-score-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.ats-check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ats-check-badge {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Automotive Visual Treatment (Light & Dark switching) ── */
+.ats-car-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 12px 35px -10px rgba(0, 0, 0, 0.12);
+  margin-top: 40px;
+  z-index: 2;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+[data-theme="dark"] .ats-car-wrapper {
+  border-color: rgba(255, 46, 116, 0.25);
+  box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.6),
+              0 0 25px rgba(255, 46, 116, 0.15);
+}
+
+.ats-car-img {
+  width: 100%;
+  height: 215px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ats-car-wrapper:hover .ats-car-img {
+  transform: scale(1.025);
+}
+
+.ats-car-img--light {
+  display: block;
+}
+
+.ats-car-img--dark {
+  display: none;
+}
+
+[data-theme="dark"] .ats-car-img--light {
+  display: none;
+}
+
+[data-theme="dark"] .ats-car-img--dark {
+  display: block;
+}
+
+.ats-svj-floating-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ff2e74;
+  border: 1px solid rgba(255, 46, 116, 0.5);
+  box-shadow: 0 0 10px rgba(255, 46, 116, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+/* Orbital Neon Light Ribbon with Slogan */
+.ats-orbital-ribbon-box {
+  position: absolute;
+  bottom: -12px;
+  left: -15px;
+  right: -15px;
+  height: 90px;
+  pointer-events: none;
+  z-index: 7;
+  overflow: visible;
+}
+
+.ats-ribbon-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ats-ribbon-path {
+  filter: drop-shadow(0 0 8px #ff2e74);
+  animation: atsRibbonDash 15s linear infinite;
+}
+
+@keyframes atsRibbonDash {
+  to { stroke-dashoffset: -100; }
+}
+
+.ats-ribbon-slogan {
+  position: absolute;
+  bottom: 4px;
+  right: 15px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 46, 116, 0.9), 0 0 20px rgba(255, 46, 116, 0.5);
+  transform: rotate(-3deg);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 9px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 46, 116, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+[data-theme="light"] .ats-ribbon-slogan {
+  background: rgba(255, 255, 255, 0.9);
+  color: #e11d48;
+  border-color: rgba(225, 29, 72, 0.4);
+  text-shadow: 0 0 8px rgba(225, 29, 72, 0.3);
+}
+
+/* ── BOTTOM BANNER: COMING SOON & ITALIAN TRICOLOR ── */
+.ats-footer-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+[data-theme="dark"] .ats-footer-banner {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.ats-footer-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(225, 29, 72, 0.35), transparent);
+}
+
+[data-theme="dark"] .ats-footer-line {
+  background: linear-gradient(90deg, transparent, rgba(255, 46, 116, 0.4), transparent);
+}
+
+.ats-footer-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.ats-cs-spaced {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  color: var(--text-primary);
+}
+
+.ats-cs-sub {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
+
+.ats-tricolor-strip {
+  display: flex;
+  width: 54px;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.ats-tri-green {
+  flex: 1;
+  background: #009246;
+}
+
+.ats-tri-white {
+  flex: 1;
+  background: #ffffff;
+  border-top: 0.5px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+}
+
+.ats-tri-red {
+  flex: 1;
+  background: #ce2b37;
+}
+
+/* ── RESPONSIVE ADAPTATIONS ── */
+@media (max-width: 1024px) {
+  .ats-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .ats-main-title {
+    font-size: 2.5rem;
+  }
+
+  .ats-visual-stage {
+    max-width: 100%;
+  }
+
+  .ats-car-img {
+    height: 240px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ats-workspace {
+    padding: 14px 12px 28px;
+  }
+
+  .ats-showcase-card {
+    padding: 20px 16px 20px;
+    border-radius: 20px;
+  }
+
+  .ats-main-title {
+    font-size: 2.1rem;
+  }
+
+  .ats-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ats-hud-resume {
+    width: 155px;
+    top: -15px;
+    left: 0;
+  }
+
+  .ats-hud-score-card {
+    width: 140px;
+    top: -10px;
+    right: 0;
+  }
+
+  .ats-car-img {
+    height: 200px;
+  }
+
+  .ats-ribbon-slogan {
+    font-size: 0.56rem;
+    right: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ats-main-title {
+    font-size: 1.8rem;
+  }
+
+  .ats-brand-pill {
+    padding: 5px 12px;
+  }
+
+  .ats-brand-slogan {
+    display: none;
+  }
+
+  .ats-brand-divider {
+    display: none;
+  }
+
+  .ats-hud-resume {
+    position: relative;
+    width: 100%;
+    margin-bottom: 10px;
+    top: 0;
+    left: 0;
+  }
+
+  .ats-hud-score-card {
+    position: relative;
+    width: 100%;
+    top: 0;
+    right: 0;
+    margin-bottom: 14px;
+  }
+
+  .ats-car-wrapper {
+    margin-top: 0;
+  }
+
+  .ats-cs-spaced {
+    font-size: 0.74rem;
+    letter-spacing: 0.2em;
+  }
+}

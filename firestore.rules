@@ -148,7 +148,15 @@ service cloud.firestore {
       allow create: if isAuth()
         && request.resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
-        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants
+        // Encrypted message validation
+        && request.resource.data.encryptedText is string
+        && request.resource.data.encryptedText != ""
+        && (!request.resource.data.keys().hasAny(["messageVersion"])
+            || request.resource.data.messageVersion == 1
+            || request.resource.data.messageVersion == 2)
+        // No plaintext content stored in messages
+        && !request.resource.data.keys().hasAny(["text", "content", "plaintext"]);
 
       allow update: if isAuth()
         && resource.data.conversationId != null

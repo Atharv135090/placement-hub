@@ -1121,6 +1121,7 @@
 /* ─── 5. BOTTOM BRAND FOOTER ─────────────────────────────── */
 .adm-dashboard-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: 16px 6px;
@@ -1129,6 +1130,21 @@
   color: #94a3b8;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.adm-footer-copyright {
+  width: 100%;
+  text-align: center;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .adm-footer-copyright {
+  color: #64748b;
+  border-top-color: rgba(255, 255, 255, 0.04);
 }
 
 [data-theme="dark"] .adm-dashboard-footer {

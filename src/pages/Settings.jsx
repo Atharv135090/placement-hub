@@ -1326,6 +1326,68 @@ export default function Settings() {
           )}
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          COPYRIGHT & LEGAL SECTION
+          ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "security" && (
+        <div className="copyright-legal-section animate-fade-in">
+          <div className="futuristic-card glass copyright-card">
+            <div className="card-header-row">
+              <div className="card-header-left">
+                <div className="card-header-icon-badge copyright-icon-badge">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M14.83 14.83a4 4 0 1 1 0-5.66"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="card-section-title">Copyright &amp; Legal</h3>
+                  <p className="card-section-subtitle">Ownership, licensing, and legal information.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="copyright-content">
+              <div className="copyright-notice">
+                <span className="copyright-symbol">©</span>
+                <span className="copyright-year">2026</span>
+                <span className="copyright-brand">Placement Hub</span>
+                <span className="copyright-tagline">— All rights reserved.</span>
+              </div>
+
+              <div className="copyright-details">
+                <div className="copyright-detail-row">
+                  <span className="copyright-detail-label">Product</span>
+                  <span className="copyright-detail-value">Placement Hub — Campus Placement Management Platform</span>
+                </div>
+                <div className="copyright-detail-row">
+                  <span className="copyright-detail-label">Owner</span>
+                  <span className="copyright-detail-value">Atharv Shinde &amp; Placement Hub Contributors</span>
+                </div>
+                <div className="copyright-detail-row">
+                  <span className="copyright-detail-label">License</span>
+                  <span className="copyright-detail-value">Proprietary — All rights reserved. Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.</span>
+                </div>
+              </div>
+
+              <div className="copyright-disclaimer">
+                <h4 className="copyright-disclaimer-title">Third-Party Materials</h4>
+                <p className="copyright-disclaimer-text">
+                  This application may include third-party libraries, fonts, icons, or assets that are owned by their respective creators. Placement Hub does not claim ownership of any third-party materials. All trademarks, registered trademarks, product names, and logos are the property of their respective owners.
+                </p>
+              </div>
+
+              <div className="copyright-disclaimer">
+                <h4 className="copyright-disclaimer-title">Disclaimer</h4>
+                <p className="copyright-disclaimer-text">
+                  This software is provided "as is" without warranty of any kind, express or implied. Placement Hub is not responsible for any damages arising from the use of this platform. Placement data, company information, and drive details are provided for informational purposes and may not reflect real-time accuracy.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="profile-footer-slogan">
         <div className="slogan-rule-left">
           <span className="slogan-crimson-dash"></span>

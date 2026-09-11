@@ -10,6 +10,7 @@ import {
   decryptMessage,
   getStudentProfile,
 } from "../services/social";
+import { ensureECDHKeys } from "../utils/crypto";
 
 const ChatContext = createContext(null);
 
@@ -35,6 +36,10 @@ export function ChatProvider({ children }) {
       setConversations([]);
       return;
     }
+    // Ensure ECDH keys exist for this user (generates on first login)
+    ensureECDHKeys(uid).catch((err) => {
+      console.warn("ECDH key init failed, will use legacy encryption:", err);
+    });
     unsubConvRef.current = subscribeToConversations(uid, setConversations);
     return () => { unsubConvRef.current?.(); };
   }, [uid]);
@@ -49,10 +54,10 @@ export function ChatProvider({ children }) {
       const decrypted = await Promise.all(
         rawMessages.map(async (m) => {
           try {
-            const text = await decryptMessage(m.encryptedText, uid, otherId);
+            const text = await decryptMessage(m.encryptedText, uid, otherId, m.messageVersion);
             return { ...m, text };
           } catch {
-            return { ...m, text: "[decryption failed]" };
+            return { ...m, text: "Unable to decrypt this message." };
           }
         })
       );
@@ -91,8 +96,8 @@ export function ChatProvider({ children }) {
       const otherId = activeConversation?.participants?.find((p) => p !== uid)
         || activeConversation?.otherUser?.id;
       if (!otherId) return;
-      const encrypted = await encryptMessage(text, uid, otherId);
-      await sendMessage(conversationId, uid, encrypted, activeConversation?.participants);
+      const { encryptedText, messageVersion } = await encryptMessage(text, uid, otherId);
+      await sendMessage(conversationId, uid, encryptedText, activeConversation?.participants, messageVersion);
     } finally {
       setSending(false);
     }

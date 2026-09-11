@@ -46,12 +46,14 @@ const NAV_ITEMS = [
     ),
   },
   {
-    to: "/assistant",
-    label: "Assistant",
+    to: "/students",
+    label: "Students",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z" />
-        <line x1="10" y1="22" x2="14" y2="22" />
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
   },
@@ -67,14 +69,25 @@ const NAV_ITEMS = [
     ),
   },
   {
-    to: "/students",
-    label: "Students",
+    to: "/ats",
+    label: "ATS",
+    badge: "Soon",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.8 2 11 2 11.3V16c0 .6.4 1 1 1h2" />
+        <circle cx="7" cy="17" r="2" />
+        <path d="M9 17h6" />
+        <circle cx="17" cy="17" r="2" />
+      </svg>
+    ),
+  },
+  {
+    to: "/assistant",
+    label: "Assistant",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z" />
+        <line x1="10" y1="22" x2="14" y2="22" />
       </svg>
     ),
   },
@@ -179,7 +192,12 @@ export default function AppShell() {
                 title={item.label}
               >
                 <span className="sidebar-icon">{item.icon}</span>
-                {!collapsed && <span className="sidebar-label">{item.label}</span>}
+                {!collapsed && (
+                  <>
+                    <span className="sidebar-label">{item.label}</span>
+                    {item.badge && <span className="sidebar-soon-badge">{item.badge}</span>}
+                  </>
+                )}
               </NavLink>
             );
           })}
@@ -317,7 +335,10 @@ export default function AppShell() {
                   onClick={() => setMoreDrawerOpen(false)}
                 >
                   <span className="drawer-item-icon">{item.icon}</span>
-                  <span className="drawer-item-label">{item.label}</span>
+                  <span className="drawer-item-label">
+                    {item.label}
+                    {item.badge && <span className="drawer-soon-badge">{item.badge}</span>}
+                  </span>
                 </NavLink>
               ))}
               <NavLink

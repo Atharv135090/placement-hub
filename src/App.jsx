@@ -23,6 +23,7 @@ const Attention = lazy(() => import("./pages/Attention"));
 const StudentsGate = lazy(() => import("./components/StudentsGate"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const Chat = lazy(() => import("./pages/Chat"));
+const AtsChecker = lazy(() => import("./pages/AtsChecker"));
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
@@ -83,6 +84,9 @@ export default function App() {
 
               {/* 05. Analytics */}
               <Route path="/analytics" element={<Analytics />} />
+
+              {/* ATS Checker (Future feature showcase) */}
+              <Route path="/ats" element={<AtsChecker />} />
 
               {/* 06. Students */}
               <Route path="/students" element={<StudentsGate />} />

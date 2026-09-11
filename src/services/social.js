@@ -618,12 +618,13 @@ export async function getConversations(userId) {
   }
 }
 
-export async function sendMessage(conversationId, senderId, encryptedText, participants) {
+export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2) {
   try {
     const msgRef = await addDoc(collection(db, "messages"), {
       conversationId,
       senderId,
       encryptedText,
+      messageVersion,
       createdAt: serverTimestamp(),
       read: false,
     });
@@ -707,14 +708,23 @@ export async function markConversationRead(conversationId, userId, participants)
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CHAT ENCRYPTION (Web Crypto API - AES-GCM)
+// CHAT ENCRYPTION — ECDH + AES-256-GCM (messageVersion 2)
+// Legacy PBKDF2 support retained for messageVersion 1 / undefined
 // ═══════════════════════════════════════════════════════════════
+
+import {
+  getOrInitECDHPublicKey,
+  getECDHPrivateKey,
+  encryptMessageE2EE,
+  decryptMessageE2EE,
+} from "../utils/crypto";
 
 function sortIds(uid1, uid2) {
   return uid1 < uid2 ? [uid1, uid2] : [uid2, uid1];
 }
 
-async function deriveKey(uid1, uid2) {
+// Legacy PBKDF2 key derivation (messageVersion 1 / no version)
+async function deriveKeyV1(uid1, uid2) {
   const [a, b] = sortIds(uid1, uid2);
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -732,28 +742,56 @@ async function deriveKey(uid1, uid2) {
   );
 }
 
-export async function encryptMessage(plaintext, uid1, uid2) {
-  const key = await deriveKey(uid1, uid2);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(plaintext)
-  );
-  const ivHex = Array.from(iv).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const encHex = Array.from(new Uint8Array(encrypted)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `${ivHex}:${encHex}`;
+async function decryptV1(cipherText, uid1, uid2) {
+  const [ivHex, encHex] = cipherText.split(":");
+  const iv = new Uint8Array(ivHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
+  const data = new Uint8Array(encHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
+  const key = await deriveKeyV1(uid1, uid2);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  return new TextDecoder().decode(decrypted);
 }
 
-export async function decryptMessage(cipherText, uid1, uid2) {
+/**
+ * Encrypt a message using ECDH E2EE (messageVersion 2).
+ * Falls back to PBKDF2 if ECDH keys are unavailable.
+ * @returns {{ encryptedText: string, messageVersion: number }}
+ */
+export async function encryptMessage(plaintext, senderUid, recipientUid) {
+  const privateKey = await getECDHPrivateKey(senderUid);
+  const recipientPubKey = await getOrInitECDHPublicKey(recipientUid);
+
+  if (privateKey && recipientPubKey) {
+    const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
+    return { encryptedText: encrypted, messageVersion: 2 };
+  }
+
+  // Fallback: PBKDF2 (legacy)
+  const key = await deriveKeyV1(senderUid, recipientUid);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
+  const ivHex = Array.from(iv).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const encHex = Array.from(new Uint8Array(enc)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return { encryptedText: `${ivHex}:${encHex}`, messageVersion: 1 };
+}
+
+/**
+ * Decrypt a message. Uses messageVersion to select the right algorithm.
+ * messageVersion 2 = ECDH E2EE, messageVersion 1 or undefined = PBKDF2.
+ * @returns {string} Plaintext or error placeholder
+ */
+export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
   try {
-    const [ivHex, encHex] = cipherText.split(":");
-    const iv = new Uint8Array(ivHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
-    const data = new Uint8Array(encHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
-    const key = await deriveKey(uid1, uid2);
-    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-    return new TextDecoder().decode(decrypted);
+    if (messageVersion === 2) {
+      const myPrivKey = await getECDHPrivateKey(uid1);
+      const theirPubKey = await getOrInitECDHPublicKey(uid2);
+      if (myPrivKey && theirPubKey) {
+        return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+      }
+      return "Unable to decrypt this message.";
+    }
+    // Legacy (v1 or undefined)
+    return await decryptV1(cipherText, uid1, uid2);
   } catch {
-    return "[encrypted message]";
+    return "Unable to decrypt this message.";
   }
 }

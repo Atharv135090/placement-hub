@@ -799,11 +799,14 @@ export default function AdminDashboard() {
         <div className="adm-footer-left">
           <span className="adm-footer-dash">—</span>
           <span className="adm-footer-quote">
-            “ Empowering talent. Enabling opportunities. ”
+            " Empowering talent. Enabling opportunities. "
           </span>
         </div>
         <div className="adm-footer-right">
           TRACK &nbsp; PREPARE &nbsp; APPLY &nbsp; // &nbsp; ADMIN
+        </div>
+        <div className="adm-footer-copyright">
+          © 2026 Placement Hub — All rights reserved.
         </div>
       </footer>
     </div>
