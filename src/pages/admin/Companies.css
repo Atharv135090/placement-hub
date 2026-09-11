@@ -1108,3 +1108,49 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ─── ADD COMPANY DROPDOWN ──────────────────────────────── */
+.ac-add-btn-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.ac-add-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  background: var(--glass-bg-heavy);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.ac-add-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ac-add-dropdown button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .ac-add-dropdown {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .ac-add-dropdown button:hover {
+  background: #f1f5f9;
+}

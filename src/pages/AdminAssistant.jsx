@@ -8,11 +8,13 @@ import {
   deleteCompany,
   getJobs,
   addJob,
+  updateJob,
   deleteJob,
   getAllUsers,
   getAllApplications,
   deleteAllCompanies,
   deleteAllApplications,
+  uploadJobAttachment,
 } from "../services/firestore";
 import "./AdminAssistant.css";
 import { parsePodDriveMessage, parseCreateCompanyMessage, validateCompanyName } from "../utils/placementParser";
@@ -75,6 +77,15 @@ export default function AdminAssistant({ onClose }) {
   const [lastCreatedDrive, setLastCreatedDrive] = useState(null);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
 
+  // POD draft: editable preview before Firebase write (PRD §16, §31)
+  // { mode: "company_and_drive"|"company_only"|"drive_only",
+  //   company: { name, industry, organisationSize, description, logoUrl },
+  //   drive: { title, employmentType, location, ctc, stipend, description, otherBenefits, registrationOpensAt, registrationClosesAt, eligibleCourses, eligibilityCriteria, attachment },
+  //   source: { source }, existingCompanyId, existingCompanyName }
+  const [podDraft, setPodDraft] = useState(null);
+  const [podDraftPdf, setPodDraftPdf] = useState(null); // pending PDF file for attachment
+  const podDraftFileRef = useRef(null);
+
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -119,7 +130,7 @@ export default function AdminAssistant({ onClose }) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, pendingConfirmation, busy]);
+  }, [messages, pendingConfirmation, podDraft, busy]);
 
   function addMsg(role, text, extra = {}) {
     setMessages((prev) => [
@@ -179,7 +190,141 @@ export default function AdminAssistant({ onClose }) {
     ]);
     setActiveDriveDraft(null);
     setPendingConfirmation(null);
+    setPodDraft(null);
+    setPodDraftPdf(null);
     setTimeout(() => inputRef.current?.focus(), 100);
+  }
+
+  // Manage eligible courses in podDraft
+  function addPodDraftCourse(courseText) {
+    const trimmed = (courseText || "").trim();
+    if (!trimmed) return;
+    setPodDraft((p) => ({
+      ...p,
+      drive: {
+        ...p.drive,
+        eligibleCourses: [...(p.drive.eligibleCourses || []), trimmed],
+      },
+    }));
+  }
+
+  function removePodDraftCourse(index) {
+    setPodDraft((p) => ({
+      ...p,
+      drive: {
+        ...p.drive,
+        eligibleCourses: (p.drive.eligibleCourses || []).filter((_, i) => i !== index),
+      },
+    }));
+  }
+
+  function updatePodDraftCourse(index, value) {
+    setPodDraft((p) => {
+      const courses = [...(p.drive.eligibleCourses || [])];
+      courses[index] = value;
+      return { ...p, drive: { ...p.drive, eligibleCourses: courses } };
+    });
+  }
+
+  // Handle PDF file selection for attachment
+  function handlePodDraftPdfSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      addMsg("assistant", "Only PDF files are accepted. Please select a .pdf file.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      addMsg("assistant", "File is too large. Please select a PDF under 10 MB.");
+      e.target.value = "";
+      return;
+    }
+    setPodDraftPdf(file);
+  }
+
+  function removePodDraftPdf() {
+    setPodDraftPdf(null);
+    if (podDraftFileRef.current) podDraftFileRef.current.value = "";
+  }
+
+  // Handle chat commands to edit POD draft fields (PRD §29)
+  // Returns true if the command was handled
+  function handlePodDraftChatCommand(rawText, lower) {
+    // Cancel
+    if (/^(cancel|stop|abort|exit|never\s*mind|nevermind)$/i.test(lower)) {
+      setPodDraft(null);
+      setPodDraftPdf(null);
+      addMsg("assistant", "Draft cancelled. How else can I help?");
+      return true;
+    }
+
+    // Change <field> to <value>
+    const changeMatch = rawText.match(
+      /^(?:change|update|set|edit)\s+(?:the\s+)?(.+?)\s+to\s+(.+)/i
+    );
+    if (changeMatch) {
+      const fieldLabel = changeMatch[1].toLowerCase().trim();
+      const value = changeMatch[2].trim();
+      const fieldMap = {
+        "company name": { section: "company", key: "name" },
+        "name": { section: "company", key: "name" },
+        "industry": { section: "company", key: "industry" },
+        "organisation size": { section: "company", key: "organisationSize" },
+        "org size": { section: "company", key: "organisationSize" },
+        "description": { section: "drive", key: "description" },
+        "logo": { section: "company", key: "logoUrl" },
+        "position": { section: "drive", key: "title" },
+        "title": { section: "drive", key: "title" },
+        "role": { section: "drive", key: "title" },
+        "ctc": { section: "drive", key: "ctc" },
+        "package": { section: "drive", key: "ctc" },
+        "salary": { section: "drive", key: "ctc" },
+        "stipend": { section: "drive", key: "stipend" },
+        "location": { section: "drive", key: "location" },
+        "type": { section: "drive", key: "employmentType" },
+        "employment type": { section: "drive", key: "employmentType" },
+        "eligibility": { section: "drive", key: "eligibilityCriteria" },
+        "eligible courses": { section: "drive", key: "eligibleCourses" },
+        "registration opens": { section: "drive", key: "registrationOpensAt" },
+        "registration closes": { section: "drive", key: "registrationClosesAt" },
+        "deadline": { section: "drive", key: "registrationClosesAt" },
+        "other benefits": { section: "drive", key: "otherBenefits" },
+        "benefits": { section: "drive", key: "otherBenefits" },
+        "attachment": { section: "drive", key: "attachment" },
+      };
+      const mapping = fieldMap[fieldLabel];
+      if (mapping) {
+        // Special handling for eligibleCourses — store as array
+        if (mapping.key === "eligibleCourses") {
+          const courses = value.split(/,|;|\n/)
+            .map((s) => s.replace(/^[*•\-–]\s+/, "").trim())
+            .filter((s) => s.length > 0);
+          setPodDraft((prev) => ({
+            ...prev,
+            [mapping.section]: { ...prev[mapping.section], [mapping.key]: courses },
+          }));
+          addMsg("assistant", `Updated **eligible courses** to: ${courses.join(", ")}. You can continue editing or click **Confirm & Add**.`);
+          return true;
+        }
+        setPodDraft((prev) => ({
+          ...prev,
+          [mapping.section]: { ...prev[mapping.section], [mapping.key]: value },
+        }));
+        addMsg("assistant", `Updated **${fieldLabel}** to "${value}" in the draft. You can continue editing or click **Confirm & Add**.`);
+        return true;
+      }
+      addMsg("assistant", `I don't recognize the field "${changeMatch[1]}". You can edit fields directly in the form below, or use fields like: CTC, position, company name, industry, location, eligibility, etc.`);
+      return true;
+    }
+
+    // Confirm shortcut
+    if (/^(confirm|proceed|yes|submit|add|create|go ahead|save)\b/i.test(lower)) {
+      addMsg("assistant", "Click the **Confirm & Add** button below to save the draft to Firebase.");
+      return true;
+    }
+
+    return false;
   }
 
   // Main input submit handler
@@ -265,14 +410,24 @@ export default function AdminAssistant({ onClose }) {
 
         const extraInfo = companyFields.length > 0 ? `\n\nParsed details:\n${companyFields.join("\n")}` : "";
 
-        setPendingConfirmation({
-          action: "create_pod_company_only",
-          companyName,
-          companyData: parsed.companyData,
-          sourceData: parsed.sourceData,
-        });
+        // PRD §16: Show editable draft instead of text-only confirmation
+        const draft = {
+          mode: "company_only",
+          existingCompanyId: null,
+          existingCompanyName: null,
+          company: {
+            name: companyName,
+            industry: parsed.companyData?.industry || "",
+            organisationSize: parsed.companyData?.organisationSize || "",
+            description: parsed.companyData?.organisationDescription || "",
+            logoUrl: parsed.companyData?.companyLogo || "",
+          },
+          drive: {},
+          source: parsed.sourceData || {},
+        };
+        setPodDraft(draft);
 
-        addMsg("assistant", `Would you like me to register **${companyName}** as a new company?${extraInfo}`);
+        addMsg("assistant", `Review the company fields below, then click **Confirm & Add** to register **${companyName}**.`);
         return;
       }
       // If structured parsing failed, fall through to NLP handler below
@@ -303,7 +458,15 @@ export default function AdminAssistant({ onClose }) {
     }
 
     // ──────────────────────────────────────────────────────────
-    // 3. IN-PROGRESS DRIVE CREATION (MULTI-TURN CONVERSATION)
+    // 3. POD DRAFT FIELD EDITING (chat commands while draft is open)
+    // ──────────────────────────────────────────────────────────
+    if (podDraft) {
+      const handled = handlePodDraftChatCommand(rawText, lower);
+      if (handled) return;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // 3b. IN-PROGRESS DRIVE CREATION (MULTI-TURN CONVERSATION)
     // ──────────────────────────────────────────────────────────
     if (activeDriveDraft) {
       // Check if user is modifying a field on the current draft
@@ -1085,9 +1248,9 @@ export default function AdminAssistant({ onClose }) {
     }
   }
 
-  // Company found in Firebase — create drive under existing company
+  // Company found in Firebase — create editable draft for drive under existing company
   async function handlePodDriveWithExistingCompany(existingCompany, driveData, podCompanyData, sourceData) {
-    const jobTitle = driveData.title || "Not Specified";
+    const jobTitle = driveData.jobTitle || driveData.title || "Not Specified";
 
     // PRD §27: Duplicate prevention — use fresh data, not stale React state
     const freshJobs = freshDataRef.current.jobs;
@@ -1105,51 +1268,79 @@ export default function AdminAssistant({ onClose }) {
       return;
     }
 
-    // Build drive summary for confirmation (PRD §31)
-    const driveFields = buildDriveSummary(driveData, sourceData);
-
-    setPendingConfirmation({
-      action: "create_pod_drive",
-      companyId: existingCompany.id,
-      companyName: existingCompany.name,
-      existingCompany: true,
-      driveData,
-      sourceData,
-      podCompanyData,
-    });
+    // PRD §13: Clean draft object — only from parsed source, NO stale data fallback
+    const draft = {
+      mode: "drive_only",
+      existingCompanyId: existingCompany.id,
+      existingCompanyName: existingCompany.name,
+      company: { name: existingCompany.name },
+      drive: {
+        title: driveData.jobTitle || driveData.title || "",
+        employmentType: driveData.employmentType || "",
+        location: driveData.location || "",
+        ctc: driveData.ctc || "",
+        stipend: driveData.stipend || "",
+        description: driveData.description || "",
+        otherBenefits: driveData.otherBenefits || "",
+        registrationOpensAt: driveData.registrationOpensAt || "",
+        registrationClosesAt: driveData.registrationClosesAt || "",
+        eligibleCourses: Array.isArray(driveData.eligibleCourses)
+          ? driveData.eligibleCourses
+          : driveData.eligibleCourses
+            ? [driveData.eligibleCourses]
+            : [],
+        eligibilityCriteria: driveData.eligibilityCriteria || "",
+        attachment: driveData.attachment || "",
+      },
+      source: sourceData || {},
+    };
+    setPodDraft(draft);
 
     addMsg(
       "assistant",
-      `Found existing company: **${existingCompany.name}**\n\nDrive to create:\n${driveFields}\n\nCreate this drive under ${existingCompany.name}?`
+      `Found existing company: **${existingCompany.name}**\n\nReview and edit the drive fields below, then click **Confirm & Add**.`
     );
   }
 
-  // Company not found — ask admin before creating (PRD §16, §31)
+  // Company not found — create editable draft for company + drive (PRD §16, §31)
   async function handlePodDriveNewCompany(companyName, companyData, driveData, sourceData) {
-    const driveFields = buildDriveSummary(driveData, sourceData);
-
-    // Show what we know about the company from the screenshot
-    const companyFields = [];
-    if (companyData.industry && companyData.industry !== "Not Specified") companyFields.push(`• Industry: ${companyData.industry}`);
-    if (companyData.organisationSize && companyData.organisationSize !== "Not Specified") companyFields.push(`• Organisation Size: ${companyData.organisationSize}`);
-    if (companyData.organisationDescription && companyData.organisationDescription !== "Not Specified") companyFields.push(`• Description: ${companyData.organisationDescription.substring(0, 100)}${companyData.organisationDescription.length > 100 ? "..." : ""}`);
-    if (companyData.companyLogo && companyData.companyLogo !== "Not Specified") companyFields.push(`• Logo: ${companyData.companyLogo}`);
-
-    const companyInfo = companyFields.length > 0
-      ? `\nCompany info from screenshot:\n${companyFields.join("\n")}`
-      : "\nNo additional company information available from screenshot.";
-
-    setPendingConfirmation({
-      action: "create_pod_company_and_drive",
-      companyName,
-      companyData,
-      driveData,
-      sourceData,
-    });
+    // PRD §13: Clean draft object — only from parsed source
+    const draft = {
+      mode: "company_and_drive",
+      existingCompanyId: null,
+      existingCompanyName: null,
+      company: {
+        name: companyName || "",
+        industry: companyData?.industry || "",
+        organisationSize: companyData?.organisationSize || "",
+        description: companyData?.organisationDescription || "",
+        logoUrl: companyData?.companyLogo || "",
+      },
+      drive: {
+        title: driveData.jobTitle || driveData.title || "",
+        employmentType: driveData.employmentType || "",
+        location: driveData.location || "",
+        ctc: driveData.ctc || "",
+        stipend: driveData.stipend || "",
+        description: driveData.description || "",
+        otherBenefits: driveData.otherBenefits || "",
+        registrationOpensAt: driveData.registrationOpensAt || "",
+        registrationClosesAt: driveData.registrationClosesAt || "",
+        eligibleCourses: Array.isArray(driveData.eligibleCourses)
+          ? driveData.eligibleCourses
+          : driveData.eligibleCourses
+            ? [driveData.eligibleCourses]
+            : [],
+        eligibilityCriteria: driveData.eligibilityCriteria || "",
+        attachment: driveData.attachment || "",
+      },
+      source: sourceData || {},
+    };
+    setPodDraft(draft);
 
     addMsg(
       "assistant",
-      `I couldn't find "${companyName}" in Placement Hub.${companyInfo}\n\nDrive to create:\n${driveFields}\n\nWould you like me to create the company "${companyName}" and then add this drive?`
+      `I couldn't find **"${companyName}"** in Placement Hub.\n\nReview and edit the company + drive fields below, then click **Confirm & Add** to register both.`
     );
   }
 
@@ -1173,6 +1364,210 @@ export default function AdminAssistant({ onClose }) {
     if (driveData.attachment && driveData.attachment !== "Not Specified") lines.push(`• Attachment: ${driveData.attachment}`);
     if (sourceData.source) lines.push(`• Source: ${sourceData.source}`);
     return lines.length > 0 ? lines.join("\n") : "• (No additional drive fields provided)";
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // POD DRAFT CONFIRM: Write final edited values to Firebase
+  // PRD §16, §31: Final edited values are the SINGLE SOURCE OF TRUTH
+  // ──────────────────────────────────────────────────────────
+
+  // Sanitize attachment value — never let SOURCE contaminate attachment
+  function sanitizeAttachment(raw) {
+    if (!raw) return "Not Specified";
+    let val = String(raw).trim();
+    // Strip trailing "SOURCE" or "Source: ..." that leaked from parser
+    val = val.replace(/\s+source\b.*$/i, "").trim();
+    if (!val || val.toLowerCase() === "not specified") return "Not Specified";
+    return val;
+  }
+
+  async function handlePodDraftConfirm() {
+    if (!podDraft) return;
+    const { mode, company, drive, source, existingCompanyId, existingCompanyName } = podDraft;
+    const pendingPdf = podDraftPdf;
+
+    setPodDraft(null);
+    setPodDraftPdf(null);
+    setBusy(true);
+
+    try {
+      // MODE: drive_only — company already exists in Firebase
+      if (mode === "drive_only") {
+        const companyId = existingCompanyId;
+        const companyName = existingCompanyName || company.name;
+
+        const jobPayload = {
+          companyId,
+          companyName,
+          title: drive.title || "Not Specified",
+          jobTitle: drive.title || "Not Specified",
+          type: drive.employmentType || "Not Specified",
+          employmentType: drive.employmentType || "Not Specified",
+          location: drive.location || "Not Specified",
+          package: drive.ctc || "Not Specified",
+          ctc: drive.ctc || "Not Specified",
+          stipend: drive.stipend || "Not Specified",
+          description: drive.description || "Not Specified",
+          otherBenefits: drive.otherBenefits || "Not Specified",
+          registrationOpensAt: drive.registrationOpensAt || "Not Specified",
+          registrationClosesAt: drive.registrationClosesAt || "Not Specified",
+          deadline: drive.registrationClosesAt || "Not Specified",
+          eligibleCourses: Array.isArray(drive.eligibleCourses)
+            ? drive.eligibleCourses
+            : drive.eligibleCourses
+              ? [drive.eligibleCourses]
+              : [],
+          eligibility: drive.eligibilityCriteria || "Not Specified",
+          eligibilityCriteria: drive.eligibilityCriteria || "Not Specified",
+          attachment: sanitizeAttachment(drive.attachment),
+          source: source?.source || "Not Specified",
+          isActive: true,
+        };
+
+        const res = await addJob(jobPayload);
+        if (res.error) {
+          addMsg("assistant", `Failed to create drive: ${res.error}`);
+        } else {
+          // Upload PDF attachment if provided
+          if (pendingPdf && res.data?.id) {
+            const uploadRes = await uploadJobAttachment(res.data.id, companyId, pendingPdf);
+            if (!uploadRes.error) {
+              await updateJob(res.data.id, { attachment: uploadRes.data.fileUrl });
+            }
+          }
+          const newDrive = {
+            id: res.data?.id,
+            title: jobPayload.title,
+            companyId,
+            companyName,
+          };
+          setLastCreatedDrive(newDrive);
+          await refreshData();
+          addMsg(
+            "assistant",
+            `Drive created successfully!\n\n• Company: ${companyName}\n• Role: ${jobPayload.title}${pendingPdf ? "\n• Attachment: " + pendingPdf.name : ""}\n• ID: ${res.data?.id}\n\nThe drive is now visible to students.`
+          );
+        }
+        return;
+      }
+
+      // MODE: company_and_drive — new company + drive
+      if (mode === "company_and_drive") {
+        const companyName = company.name;
+        if (!validateCompanyName(companyName)) {
+          addMsg("assistant", `Creation aborted: "${companyName}" contains field labels. Please provide a clean company name.`);
+          return;
+        }
+
+        const companyPayload = {
+          name: companyName,
+          industry: company.industry || "",
+          organisationSize: company.organisationSize || "",
+          description: company.description || "",
+          logoUrl: company.logoUrl || "",
+          location: "",
+          website: "",
+          isActive: true,
+        };
+
+        const compRes = await addCompany(companyPayload);
+        if (compRes.error) {
+          addMsg("assistant", `Failed to create company "${companyName}": ${compRes.error}`);
+          return;
+        }
+
+        const newCompanyId = compRes.data?.id;
+
+        const jobPayload = {
+          companyId: newCompanyId,
+          companyName,
+          title: drive.title || "Not Specified",
+          jobTitle: drive.title || "Not Specified",
+          type: drive.employmentType || "Not Specified",
+          employmentType: drive.employmentType || "Not Specified",
+          location: drive.location || "Not Specified",
+          package: drive.ctc || "Not Specified",
+          ctc: drive.ctc || "Not Specified",
+          stipend: drive.stipend || "Not Specified",
+          description: drive.description || "Not Specified",
+          otherBenefits: drive.otherBenefits || "Not Specified",
+          registrationOpensAt: drive.registrationOpensAt || "Not Specified",
+          registrationClosesAt: drive.registrationClosesAt || "Not Specified",
+          deadline: drive.registrationClosesAt || "Not Specified",
+          eligibleCourses: Array.isArray(drive.eligibleCourses)
+            ? drive.eligibleCourses
+            : drive.eligibleCourses
+              ? [drive.eligibleCourses]
+              : [],
+          eligibility: drive.eligibilityCriteria || "Not Specified",
+          eligibilityCriteria: drive.eligibilityCriteria || "Not Specified",
+          attachment: sanitizeAttachment(drive.attachment),
+          source: source?.source || "Not Specified",
+          isActive: true,
+        };
+
+        const jobRes = await addJob(jobPayload);
+        if (jobRes.error) {
+          addMsg("assistant", `Company "${companyName}" was created (ID: ${newCompanyId}), but the drive failed: ${jobRes.error}`);
+        } else {
+          // Upload PDF attachment if provided
+          if (pendingPdf && jobRes.data?.id) {
+            const uploadRes = await uploadJobAttachment(jobRes.data.id, newCompanyId, pendingPdf);
+            if (!uploadRes.error) {
+              await updateJob(jobRes.data.id, { attachment: uploadRes.data.fileUrl });
+            }
+          }
+          const newDrive = {
+            id: jobRes.data?.id,
+            title: jobPayload.title,
+            companyId: newCompanyId,
+            companyName,
+          };
+          setLastCreatedDrive(newDrive);
+          await refreshData();
+          addMsg(
+            "assistant",
+            `Company "${companyName}" and drive "${jobPayload.title}" created successfully!\n\n• Company ID: ${newCompanyId}${pendingPdf ? "\n• Attachment: " + pendingPdf.name : ""}\n• Drive ID: ${jobRes.data?.id}\n\nBoth are now visible in Placement Hub.`
+          );
+        }
+        return;
+      }
+
+      // MODE: company_only — just create company from parsed data
+      if (mode === "company_only") {
+        const companyName = company.name;
+        if (!validateCompanyName(companyName)) {
+          addMsg("assistant", `Creation aborted: "${companyName}" contains field labels. Please provide a clean company name.`);
+          return;
+        }
+
+        const companyPayload = {
+          name: companyName,
+          industry: company.industry || "",
+          organisationSize: company.organisationSize || "",
+          description: company.description || "",
+          logoUrl: company.logoUrl || "",
+          location: "",
+          website: "",
+          isActive: true,
+        };
+
+        const res = await addCompany(companyPayload);
+        if (res.error) {
+          addMsg("assistant", `Failed to create company "${companyName}": ${res.error}`);
+        } else {
+          await refreshData();
+          addMsg(
+            "assistant",
+            `Company "${companyName}" created successfully!\n\n• Industry: ${company.industry || "Not Specified"}\n• Org Size: ${company.organisationSize || "Not Specified"}\n• ID: ${res.data?.id}`
+          );
+        }
+        return;
+      }
+    } finally {
+      setBusy(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
   }
 
   // Execute confirmed actions directly into Firebase
@@ -1258,44 +1653,6 @@ export default function AdminAssistant({ onClose }) {
       return;
     }
 
-    // ──────────────────────────────────────────────────────────
-    // POD.ai COMPANY CREATION (company only, no drive)
-    // PRD §13: Fresh transaction object from parsed source only
-    // ──────────────────────────────────────────────────────────
-    if (conf.action === "create_pod_company_only") {
-      const { companyName, companyData } = conf;
-
-      // PRD §9: Final validation before write
-      if (!validateCompanyName(companyName)) {
-        addMsg("assistant", `Creation aborted: "${companyName}" contains field labels. Please provide a clean company name.`);
-        return;
-      }
-
-      // PRD §13: Fresh object — only source-supplied fields
-      const companyPayload = {
-        name: companyName,
-        industry: companyData?.industry || "",
-        organisationSize: companyData?.organisationSize || "",
-        description: companyData?.organisationDescription || "",
-        logoUrl: companyData?.companyLogo || "",
-        location: "",
-        website: "",
-        isActive: true,
-      };
-
-      const res = await addCompany(companyPayload);
-      if (res.error) {
-        addMsg("assistant", `Failed to create company "${companyName}": ${res.error}`);
-      } else {
-        await refreshData();
-        addMsg(
-          "assistant",
-          `Company "${companyName}" created successfully!\n\n• Industry: ${companyData?.industry || "Not Specified"}\n• Org Size: ${companyData?.organisationSize || "Not Specified"}\n• ID: ${res.data?.id}`
-        );
-      }
-      return;
-    }
-
     if (conf.action === "delete_company") {
       const comp = conf.target;
       const res = await deleteCompany(comp.id);
@@ -1328,142 +1685,6 @@ export default function AdminAssistant({ onClose }) {
         "assistant",
         `All ${res.data?.deleted || conf.count} applications have been deleted.`
       );
-      return;
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // POD.ai DRIVE CREATION (existing company)
-    // PRD §14: Existing company MUST be reused
-    // PRD §15: Company data must NOT be overwritten
-    // ──────────────────────────────────────────────────────────
-    if (conf.action === "create_pod_drive") {
-      const { companyId, companyName, driveData, sourceData } = conf;
-
-      // PRD §5, §6: Drive fields — use exact values from screenshot, "Not Specified" for missing
-      const jobPayload = {
-        companyId,
-        companyName,
-        title: driveData.title || "Not Specified",
-        jobTitle: driveData.title || "Not Specified",
-        type: driveData.employmentType || "Not Specified",
-        employmentType: driveData.employmentType || "Not Specified",
-        location: driveData.location || "Not Specified",
-        package: driveData.ctc || "Not Specified",
-        ctc: driveData.ctc || "Not Specified",
-        stipend: driveData.stipend || "Not Specified",
-        description: driveData.description || "Not Specified",
-        otherBenefits: driveData.otherBenefits || "Not Specified",
-        registrationOpensAt: driveData.registrationOpensAt || "Not Specified",
-        registrationClosesAt: driveData.registrationClosesAt || "Not Specified",
-        deadline: driveData.registrationClosesAt || "Not Specified",
-        eligibleCourses: Array.isArray(driveData.eligibleCourses)
-          ? driveData.eligibleCourses
-          : driveData.eligibleCourses
-            ? [driveData.eligibleCourses]
-            : [],
-        eligibility: driveData.eligibilityCriteria || "Not Specified",
-        eligibilityCriteria: driveData.eligibilityCriteria || "Not Specified",
-        attachment: driveData.attachment || "Not Specified",
-        source: sourceData?.source || "Not Specified",
-        isActive: true,
-      };
-
-      const res = await addJob(jobPayload);
-      if (res.error) {
-        addMsg("assistant", `Failed to create drive: ${res.error}`);
-      } else {
-        const newDrive = {
-          id: res.data?.id,
-          title: jobPayload.title,
-          companyId,
-          companyName,
-        };
-        setLastCreatedDrive(newDrive);
-        await refreshData();
-        addMsg(
-          "assistant",
-          `Drive created successfully!\n\n• Company: ${companyName}\n• Role: ${jobPayload.title}\n• ID: ${res.data?.id}\n\nThe drive is now visible to students in the Placement Drives section.`
-        );
-      }
-      return;
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // POD.ai COMPANY + DRIVE CREATION (new company)
-    // PRD §16: Create company from source data only, then drive
-    // PRD §25: Do NOT invent missing company information
-    // ──────────────────────────────────────────────────────────
-    if (conf.action === "create_pod_company_and_drive") {
-      const { companyName, companyData, driveData, sourceData } = conf;
-
-      // PRD §16: Use ONLY values from the screenshot, "Not Specified" for missing
-      const companyPayload = {
-        name: companyName,
-        industry: companyData?.industry || "",
-        organisationSize: companyData?.organisationSize || "",
-        description: companyData?.organisationDescription || "",
-        logoUrl: companyData?.companyLogo && companyData.companyLogo !== "Not Specified"
-          ? companyData.companyLogo
-          : "",
-        location: "",
-        website: "",
-        isActive: true,
-      };
-
-      const compRes = await addCompany(companyPayload);
-      if (compRes.error) {
-        addMsg("assistant", `Failed to create company "${companyName}": ${compRes.error}`);
-        return;
-      }
-
-      const newCompanyId = compRes.data?.id;
-
-      // Now create the drive under the new company
-      const jobPayload = {
-        companyId: newCompanyId,
-        companyName,
-        title: driveData.title || "Not Specified",
-        jobTitle: driveData.title || "Not Specified",
-        type: driveData.employmentType || "Not Specified",
-        employmentType: driveData.employmentType || "Not Specified",
-        location: driveData.location || "Not Specified",
-        package: driveData.ctc || "Not Specified",
-        ctc: driveData.ctc || "Not Specified",
-        stipend: driveData.stipend || "Not Specified",
-        description: driveData.description || "Not Specified",
-        otherBenefits: driveData.otherBenefits || "Not Specified",
-        registrationOpensAt: driveData.registrationOpensAt || "Not Specified",
-        registrationClosesAt: driveData.registrationClosesAt || "Not Specified",
-        deadline: driveData.registrationClosesAt || "Not Specified",
-        eligibleCourses: Array.isArray(driveData.eligibleCourses)
-          ? driveData.eligibleCourses
-          : driveData.eligibleCourses
-            ? [driveData.eligibleCourses]
-            : [],
-        eligibility: driveData.eligibilityCriteria || "Not Specified",
-        eligibilityCriteria: driveData.eligibilityCriteria || "Not Specified",
-        attachment: driveData.attachment || "Not Specified",
-        source: sourceData?.source || "Not Specified",
-        isActive: true,
-      };
-
-      const jobRes = await addJob(jobPayload);
-      if (jobRes.error) {
-        addMsg("assistant", `Company "${companyName}" was created, but the drive failed: ${jobRes.error}`);
-      } else {
-        const newDrive = {
-          id: jobRes.data?.id,
-          title: jobPayload.title,
-          companyId: newCompanyId,
-          companyName,
-        };
-        setLastCreatedDrive(newDrive);
-        await refreshData();
-        addMsg(
-          "assistant",
-          `Company "${companyName}" and drive "${jobPayload.title}" created successfully!\n\n• Company ID: ${newCompanyId}\n• Drive ID: ${jobRes.data?.id}\n\nBoth are now visible in Placement Hub.`
-        );
-      }
       return;
     }
   }
@@ -1519,6 +1740,294 @@ export default function AdminAssistant({ onClose }) {
               </div>
             </div>
           ))}
+
+          {/* ─────────────────────────────────────────────────── */}
+          {/* POD DRAFT: Editable Preview Before Firebase Write     */}
+          {/* PRD §16, §31, §32: All fields editable, clean draft */}
+          {/* ─────────────────────────────────────────────────── */}
+          {podDraft && (
+            <div className="pod-draft-card glass-panel animate-fade-in">
+              <div className="pod-draft-header">
+                <span className="pod-draft-label">
+                  {podDraft.mode === "company_only" && "New Company Preview"}
+                  {podDraft.mode === "drive_only" && `New Drive for ${podDraft.existingCompanyName}`}
+                  {podDraft.mode === "company_and_drive" && "New Company + Drive Preview"}
+                </span>
+                <span className="pod-draft-sub">Edit fields below or type commands (e.g. "Change CTC to 12 LPA")</span>
+              </div>
+
+              {/* Company fields */}
+              {(podDraft.mode === "company_and_drive" || podDraft.mode === "company_only") && (
+                <div className="pod-draft-section">
+                  <div className="pod-draft-section-title">Company</div>
+                  <div className="pod-draft-field">
+                    <label>Company Name</label>
+                    <input
+                      type="text"
+                      value={podDraft.company.name}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, company: { ...p.company, name: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Industry</label>
+                    <input
+                      type="text"
+                      value={podDraft.company.industry}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, company: { ...p.company, industry: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Organisation Size</label>
+                    <input
+                      type="text"
+                      value={podDraft.company.organisationSize}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, company: { ...p.company, organisationSize: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Description</label>
+                    <textarea
+                      value={podDraft.company.description}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, company: { ...p.company, description: e.target.value } }))}
+                      rows={2}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Logo URL</label>
+                    <input
+                      type="text"
+                      value={podDraft.company.logoUrl}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, company: { ...p.company, logoUrl: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Drive fields */}
+              {podDraft.mode !== "company_only" && (
+                <div className="pod-draft-section">
+                  <div className="pod-draft-section-title">Drive</div>
+                  <div className="pod-draft-field">
+                    <label>Position / Title</label>
+                    <input
+                      type="text"
+                      value={podDraft.drive.title}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, title: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-row">
+                    <div className="pod-draft-field">
+                      <label>CTC / Package</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.ctc}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, ctc: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                    <div className="pod-draft-field">
+                      <label>Stipend</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.stipend}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, stipend: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                  </div>
+                  <div className="pod-draft-row">
+                    <div className="pod-draft-field">
+                      <label>Employment Type</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.employmentType}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, employmentType: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                    <div className="pod-draft-field">
+                      <label>Location</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.location}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, location: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Description</label>
+                    <textarea
+                      value={podDraft.drive.description}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, description: e.target.value } }))}
+                      rows={2}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Eligibility Criteria</label>
+                    <input
+                      type="text"
+                      value={podDraft.drive.eligibilityCriteria}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, eligibilityCriteria: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="pod-draft-row">
+                    <div className="pod-draft-field">
+                      <label>Registration Opens</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.registrationOpensAt}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, registrationOpensAt: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                    <div className="pod-draft-field">
+                      <label>Registration Closes</label>
+                      <input
+                        type="text"
+                        value={podDraft.drive.registrationClosesAt}
+                        onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, registrationClosesAt: e.target.value } }))}
+                        disabled={busy}
+                      />
+                    </div>
+                  </div>
+                  <div className="pod-draft-field">
+                    <label>Other Benefits</label>
+                    <input
+                      type="text"
+                      value={podDraft.drive.otherBenefits}
+                      onChange={(e) => setPodDraft((p) => ({ ...p, drive: { ...p.drive, otherBenefits: e.target.value } }))}
+                      disabled={busy}
+                    />
+                  </div>
+
+                  {/* Eligible Courses — editable list */}
+                  <div className="pod-draft-field">
+                    <label>Eligible Courses</label>
+                    {(podDraft.drive.eligibleCourses || []).length === 0 && (
+                      <div className="pod-draft-courses-empty">No courses specified</div>
+                    )}
+                    {(podDraft.drive.eligibleCourses || []).map((course, idx) => (
+                      <div key={idx} className="pod-draft-course-row">
+                        <input
+                          type="text"
+                          value={course}
+                          onChange={(e) => updatePodDraftCourse(idx, e.target.value)}
+                          disabled={busy}
+                          className="pod-draft-course-input"
+                        />
+                        <button
+                          type="button"
+                          className="pod-draft-course-remove"
+                          onClick={() => removePodDraftCourse(idx)}
+                          disabled={busy}
+                          title="Remove course"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    <div className="pod-draft-course-add">
+                      <input
+                        type="text"
+                        placeholder="Add a course..."
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addPodDraftCourse(e.target.value);
+                            e.target.value = "";
+                          }
+                        }}
+                        disabled={busy}
+                        className="pod-draft-course-add-input"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Attachment — manual PDF upload only */}
+                  <div className="pod-draft-field">
+                    <label>Attachment</label>
+                    <input
+                      ref={podDraftFileRef}
+                      type="file"
+                      accept=".pdf"
+                      onChange={handlePodDraftPdfSelect}
+                      style={{ display: "none" }}
+                    />
+                    {podDraftPdf ? (
+                      <div className="pod-draft-pdf-preview">
+                        <span className="pod-draft-pdf-name">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, flexShrink: 0 }}>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                          {podDraftPdf.name}
+                        </span>
+                        <div className="pod-draft-pdf-actions">
+                          <button
+                            type="button"
+                            className="pod-draft-pdf-btn"
+                            onClick={() => podDraftFileRef.current?.click()}
+                            disabled={busy}
+                          >
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            className="pod-draft-pdf-btn pod-draft-pdf-btn--remove"
+                            onClick={removePodDraftPdf}
+                            disabled={busy}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="pod-draft-pdf-upload"
+                        onClick={() => podDraftFileRef.current?.click()}
+                        disabled={busy}
+                      >
+                        + Upload PDF
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Source info */}
+              {podDraft.source?.source && (
+                <div className="pod-draft-source">Source: {podDraft.source.source}</div>
+              )}
+
+              {/* Actions */}
+              <div className="pod-draft-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => { setPodDraft(null); setPodDraftPdf(null); addMsg("assistant", "Draft cancelled."); }}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handlePodDraftConfirm}
+                  disabled={busy}
+                >
+                  Confirm & Add
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* In-chat confirmation card */}
           {pendingConfirmation && (
@@ -1586,7 +2095,7 @@ export default function AdminAssistant({ onClose }) {
             ref={inputRef}
             type="text"
             className="admin-asst-input"
-            placeholder="Ask anything... (e.g. 'Show all companies', 'Add a drive for eQ')"
+            placeholder="Ask anything... (e.g. 'Add a drive for NVIDIA', 'Change CTC to 14 LPA')"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={busy}

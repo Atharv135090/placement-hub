@@ -725,16 +725,123 @@
   color: #94a3b8;
 }
 
-.isc-action-icon-btn:hover {
+.isc-action-icon-btn:hover,
+.isc-action-icon-btn.active {
   background: #f8fafc;
   color: #0f172a;
   border-color: #cbd5e1;
 }
 
-[data-theme="dark"] .isc-action-icon-btn:hover {
+[data-theme="dark"] .isc-action-icon-btn:hover,
+[data-theme="dark"] .isc-action-icon-btn.active {
   background: #182030;
   color: #f8fafc;
   border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Local 3-dot Dropdown Menu */
+.isc-menu-anchor {
+  position: relative;
+  display: inline-block;
+}
+
+.isc-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  padding: 6px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+[data-theme="dark"] .isc-dropdown-menu {
+  background: #161c2b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.isc-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .isc-dropdown-item {
+  color: #cbd5e1;
+}
+
+.isc-dropdown-item:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .isc-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.isc-dropdown-item svg {
+  color: #64748b;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.isc-dropdown-item:hover svg {
+  color: #0f172a;
+}
+
+[data-theme="dark"] .isc-dropdown-item:hover svg {
+  color: #f8fafc;
+}
+
+.isc-dropdown-divider {
+  height: 1px;
+  background: rgba(226, 232, 240, 0.8);
+  margin: 4px 6px;
+}
+
+[data-theme="dark"] .isc-dropdown-divider {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.isc-dropdown-item--danger {
+  color: #ef4444;
+}
+
+.isc-dropdown-item--danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.isc-dropdown-item--danger svg {
+  color: #ef4444;
+}
+
+.isc-dropdown-item--danger:hover svg {
+  color: #dc2626;
+}
+
+[data-theme="dark"] .isc-dropdown-item--danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
 }
 
 /* Chat History Body with subtle watermark */

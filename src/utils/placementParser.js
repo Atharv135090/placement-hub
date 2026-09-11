@@ -104,6 +104,10 @@ export function parseLabelAwareText(text = "") {
         if (courses.length > 0) {
           result.eligibleCourses = result.eligibleCourses ? [...result.eligibleCourses, ...courses] : courses;
         }
+      } else if (curr.field === "attachment") {
+        let cleanAttachment = extractedVal.replace(/\s+source\b.*$/i, "").trim();
+        if (!cleanAttachment || cleanAttachment.toLowerCase() === "not specified") cleanAttachment = "Not Specified";
+        if (!result[curr.field]) result[curr.field] = cleanAttachment;
       } else if (!result[curr.field]) {
         result[curr.field] = extractedVal;
       }
@@ -356,6 +360,11 @@ function extractFieldsByBoundary(text, allowedKeys) {
         if (courses.length > 0) {
           result.eligibleCourses = result.eligibleCourses ? [...result.eligibleCourses, ...courses] : courses;
         }
+      } else if (curr.key === "attachment") {
+        // Sanitize attachment — never let SOURCE contaminate attachment
+        let cleanAttachment = value.replace(/\s+source\b.*$/i, "").trim();
+        if (!cleanAttachment || cleanAttachment.toLowerCase() === "not specified") cleanAttachment = "Not Specified";
+        if (!result[curr.key]) result[curr.key] = cleanAttachment;
       } else if (!result[curr.key]) {
         result[curr.key] = value;
       }

@@ -335,3 +335,316 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────── */
+/* POD DRAFT: Editable Preview Card                         */
+/* ─────────────────────────────────────────────────────── */
+.pod-draft-card {
+  margin: 12px 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+}
+
+.pod-draft-header {
+  margin-bottom: 12px;
+}
+
+.pod-draft-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+  display: block;
+}
+
+.pod-draft-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+}
+
+.pod-draft-section {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.pod-draft-section-title {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.pod-draft-field {
+  margin-bottom: 8px;
+}
+
+.pod-draft-field:last-child {
+  margin-bottom: 0;
+}
+
+.pod-draft-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pod-draft-field input,
+.pod-draft-field textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.pod-draft-field input:focus,
+.pod-draft-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pod-draft-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pod-draft-source {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.pod-draft-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+[data-theme="light"] .pod-draft-card {
+  background: #f8fafc;
+  border-color: var(--accent);
+}
+
+[data-theme="light"] .pod-draft-section {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .pod-draft-field input,
+[data-theme="light"] .pod-draft-field textarea {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ─── ELIGIBLE COURSES LIST ──────────────────────────────── */
+.pod-draft-courses-empty {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+.pod-draft-course-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.pod-draft-course-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.pod-draft-course-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pod-draft-course-remove {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.pod-draft-course-remove:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.pod-draft-course-add {
+  margin-top: 4px;
+}
+
+.pod-draft-course-add-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.pod-draft-course-add-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.pod-draft-course-add-input::placeholder {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+[data-theme="light"] .pod-draft-course-input {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .pod-draft-course-remove:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+[data-theme="light"] .pod-draft-course-add-input {
+  color: #0f172a;
+}
+
+/* ─── PDF UPLOAD ─────────────────────────────────────────── */
+.pod-draft-pdf-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pod-draft-pdf-upload:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pod-draft-pdf-upload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pod-draft-pdf-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pod-draft-pdf-name {
+  display: flex;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pod-draft-pdf-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.pod-draft-pdf-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pod-draft-pdf-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.pod-draft-pdf-btn--remove:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+[data-theme="light"] .pod-draft-pdf-upload:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .pod-draft-pdf-preview {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .pod-draft-pdf-name {
+  color: #0f172a;
+}
+

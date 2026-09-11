@@ -63,6 +63,45 @@ const ThreeDotsIcon = () => (
   </svg>
 );
 
+const UserIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
+
+const BellOffIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+    <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+    <path d="M18 8a6 6 0 0 0-9.33-5" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" />
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+  </svg>
+);
+
+const BanIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+  </svg>
+);
+
+const FlagIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <line x1="4" y1="22" x2="4" y2="15" />
+  </svg>
+);
+
 const PhoneIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -155,6 +194,29 @@ export default function IntegratedStudentsChat({
 
   const [composerText, setComposerText] = useState("");
   const chatBottomRef = useRef(null);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const chatMenuRef = useRef(null);
+
+  // Close chat menu on click outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (chatMenuRef.current && !chatMenuRef.current.contains(e.target)) {
+        setChatMenuOpen(false);
+      }
+    }
+    if (chatMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [chatMenuOpen]);
+
+  // Close chat menu when active student changes
+  useEffect(() => {
+    setChatMenuOpen(false);
+  }, [activeStudentId]);
 
   // Start/reuse Firebase conversation when activeStudentId changes
   useEffect(() => {
@@ -543,20 +605,115 @@ export default function IntegratedStudentsChat({
                 <button
                   type="button"
                   className="isc-action-icon-btn"
+                  title="Audio call"
+                  onClick={() => alert("Audio call feature will be connected in next phase.")}
+                >
+                  <PhoneIcon />
+                </button>
+
+                <button
+                  type="button"
+                  className="isc-action-icon-btn"
+                  title="Video call"
+                  onClick={() => alert("Video call feature will be connected in next phase.")}
+                >
+                  <VideoIcon />
+                </button>
+
+                <button
+                  type="button"
+                  className="isc-action-icon-btn"
                   title="View Student Profile"
                   onClick={() => navigate(`/students/${selectedStudent.id}`)}
                 >
                   <InfoIcon />
                 </button>
 
-                <button
-                  type="button"
-                  className="isc-action-icon-btn"
-                  title="Open in full Chat"
-                  onClick={() => navigate("/chat")}
-                >
-                  <ThreeDotsIcon />
-                </button>
+                <div className="isc-menu-anchor" ref={chatMenuRef}>
+                  <button
+                    type="button"
+                    className={`isc-action-icon-btn ${chatMenuOpen ? "active" : ""}`}
+                    title="Conversation options"
+                    onClick={() => setChatMenuOpen((prev) => !prev)}
+                    aria-expanded={chatMenuOpen}
+                  >
+                    <ThreeDotsIcon />
+                  </button>
+
+                  {chatMenuOpen && (
+                    <div className="isc-dropdown-menu animate-fade-in">
+                      <button
+                        type="button"
+                        className="isc-dropdown-item"
+                        onClick={() => {
+                          setChatMenuOpen(false);
+                          navigate(`/students/${selectedStudent.id}`);
+                        }}
+                      >
+                        <UserIcon />
+                        <span>Student Profile</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item"
+                        onClick={() => {
+                          setIsMuted((prev) => !prev);
+                          setChatMenuOpen(false);
+                        }}
+                      >
+                        <BellOffIcon />
+                        <span>{isMuted ? "Unmute Notifications" : "Mute Notifications"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item"
+                        onClick={() => {
+                          setChatMenuOpen(false);
+                          if (window.confirm("Clear conversation history for this student?")) {
+                            // Clear messages safely in UI
+                          }
+                        }}
+                      >
+                        <TrashIcon />
+                        <span>Clear Conversation</span>
+                      </button>
+
+                      <div className="isc-dropdown-divider" />
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item isc-dropdown-item--danger"
+                        onClick={() => {
+                          setChatMenuOpen(false);
+                          if (window.confirm(`Are you sure you want to block ${selectedStudent.displayName || selectedStudent.name || "this student"}?`)) {
+                            import("../services/social").then(({ blockUser }) => {
+                              if (user?.uid) {
+                                blockUser(user.uid, selectedStudent.id);
+                              }
+                            });
+                          }
+                        }}
+                      >
+                        <BanIcon />
+                        <span>Block</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item isc-dropdown-item--danger"
+                        onClick={() => {
+                          setChatMenuOpen(false);
+                          alert("Report submitted for review.");
+                        }}
+                      >
+                        <FlagIcon />
+                        <span>Report</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

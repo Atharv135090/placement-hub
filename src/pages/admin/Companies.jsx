@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { getCompanies, addCompany, updateCompany, deleteCompany, getAllApplications } from "../../services/firestore";
 import Modal from "../../components/Modal";
 import CompanyLogo from "../../components/CompanyLogo";
@@ -208,6 +209,7 @@ function formatCompanyWebsite(c) {
 }
 
 export default function AdminCompanies() {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -225,6 +227,7 @@ export default function AdminCompanies() {
 
   // UI Interactive States
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [applicantsTarget, setApplicantsTarget] = useState(null);
@@ -235,11 +238,14 @@ export default function AdminCompanies() {
 
   const menuRef = useRef(null);
 
-  // Close 3-dots menu on outside click
+  // Close 3-dots menu and add dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setOpenMenuId(null);
+      }
+      if (!e.target.closest('.ac-add-btn-wrap')) {
+        setAddMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -490,11 +496,23 @@ export default function AdminCompanies() {
             </div>
           </div>
 
-          {/* + Add Company button */}
-          <button className="ac-btn-add-company" onClick={openAdd}>
-            <PlusIcon />
-            <span>Add Company</span>
-          </button>
+          {/* + Add Company dropdown */}
+          <div className="ac-add-btn-wrap">
+            <button className="ac-btn-add-company" onClick={() => setAddMenuOpen((v) => !v)}>
+              <PlusIcon />
+              <span>Add Company</span>
+            </button>
+            {addMenuOpen && (
+              <div className="ac-add-dropdown">
+                <button onClick={() => { setAddMenuOpen(false); openAdd(); }}>
+                  Add Manually
+                </button>
+                <button onClick={() => { setAddMenuOpen(false); navigate("/admin/chatbot"); }}>
+                  Add from POD.ai
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -595,10 +613,22 @@ export default function AdminCompanies() {
               : "Add your first company to kick off placement drives and build your company database."}
           </p>
           {!search && (
-            <button className="ac-btn-add-company" onClick={openAdd}>
-              <PlusIcon />
-              <span>Add Company</span>
-            </button>
+            <div className="ac-add-btn-wrap">
+              <button className="ac-btn-add-company" onClick={() => setAddMenuOpen((v) => !v)}>
+                <PlusIcon />
+                <span>Add Company</span>
+              </button>
+              {addMenuOpen && (
+                <div className="ac-add-dropdown">
+                  <button onClick={() => { setAddMenuOpen(false); openAdd(); }}>
+                    Add Manually
+                  </button>
+                  <button onClick={() => { setAddMenuOpen(false); navigate("/admin/chatbot"); }}>
+                    Add from POD.ai
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       ) : (
