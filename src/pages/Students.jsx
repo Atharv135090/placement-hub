@@ -138,6 +138,10 @@ export default function Students() {
     try {
       const status = followStatuses[studentId];
       if (status === "accepted") {
+        if (!window.confirm("Are you sure you want to unfollow this student?")) {
+          setFollowLoading((prev) => ({ ...prev, [studentId]: false }));
+          return;
+        }
         await unfollowUser(user.uid, studentId);
       } else if (status === "pending") {
         await cancelFollowRequest(user.uid, studentId);

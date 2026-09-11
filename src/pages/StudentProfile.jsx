@@ -105,10 +105,18 @@ export default function StudentProfile() {
     setFollowLoading(true);
     try {
       if (followStatus === "accepted") {
+        if (!window.confirm("Are you sure you want to unfollow this student?")) {
+          setFollowLoading(false);
+          return;
+        }
         await unfollowUser(user.uid, studentId);
       } else if (followStatus === "pending") {
         await cancelFollowRequest(user.uid, studentId);
       } else if (incomingFollowStatus === "accepted") {
+        if (!window.confirm("Are you sure you want to remove this follower?")) {
+          setFollowLoading(false);
+          return;
+        }
         await removeFollower(user.uid, studentId);
       } else if (incomingFollowStatus === "pending") {
         await acceptFollowRequest(studentId, user.uid);
