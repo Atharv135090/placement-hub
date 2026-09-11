@@ -692,18 +692,6 @@ export default function Students() {
                     )}
                   </button>
 
-                  {(!isPrivate || isFollowing) && (
-                    <button
-                      className="btn student-action-btn btn-chat-state"
-                      onClick={() => handleStartChat(s.id)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                      <span>Chat</span>
-                    </button>
-                  )}
-
                   <button
                     className="btn student-view-profile-btn"
                     onClick={() => navigate(`/students/${s.id}`)}
