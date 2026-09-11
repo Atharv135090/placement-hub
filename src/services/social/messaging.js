@@ -59,14 +59,35 @@ export async function getOrCreateConversation(uid1, uid2) {
     if (blocked.data) return { data: null, error: "blocked" };
 
     const convId = getConversationId(uid1, uid2);
-    await setDoc(doc(db, "conversations", convId), {
-      participants: [uid1, uid2],
-      lastMessage: null,
-      lastMessageAt: null,
-      unread1: 0,
-      unread2: 0,
-      createdAt: serverTimestamp(),
-    }, { merge: true });
+    const convRef = doc(db, "conversations", convId);
+    const convSnap = await getDoc(convRef);
+
+    if (convSnap.exists()) {
+      // Conversation exists — ensure both users are participants
+      const data = convSnap.data();
+      const participants = data.participants || [];
+      if (!participants.includes(uid1)) {
+        // User was removed (e.g. after Delete Chat) — re-add them and reset for a fresh start
+        await setDoc(convRef, {
+          participants: [uid1, uid2],
+          lastMessage: null,
+          lastMessageAt: null,
+          unread1: 0,
+          unread2: 0,
+          createdAt: serverTimestamp(),
+        });
+      }
+    } else {
+      // New conversation — create it
+      await setDoc(convRef, {
+        participants: [uid1, uid2],
+        lastMessage: null,
+        lastMessageAt: null,
+        unread1: 0,
+        unread2: 0,
+        createdAt: serverTimestamp(),
+      });
+    }
     return { data: { id: convId }, error: null };
   } catch (error) {
     return handleSocialError(error);
