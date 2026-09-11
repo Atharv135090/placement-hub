@@ -382,8 +382,7 @@ export default function Chat() {
     return availableUsers.filter((u) => {
       const name = (u.displayName || u.name || "").toLowerCase();
       const branch = (u.branch || "").toLowerCase();
-      const email = (u.email || "").toLowerCase();
-      return name.includes(q) || branch.includes(q) || email.includes(q);
+      return name.includes(q) || branch.includes(q);
     });
   }, [availableUsers, contactSearch]);
 
@@ -856,7 +855,7 @@ export default function Chat() {
             <SearchIcon />
             <input
               type="text"
-              placeholder="Search students by name, branch, email..."
+              placeholder="Search students by name or branch..."
               value={contactSearch}
               onChange={(e) => setContactSearch(e.target.value)}
               className="msg-modal-search-input"

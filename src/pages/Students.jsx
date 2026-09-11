@@ -89,7 +89,6 @@ export default function Students() {
       const matchSearch =
         !q ||
         (s.displayName || "").toLowerCase().includes(q) ||
-        (s.email || "").toLowerCase().includes(q) ||
         (s.branch || "").toLowerCase().includes(q) ||
         (Array.isArray(s.skills) && s.skills.some((sk) => sk.toLowerCase().includes(q)));
 
@@ -356,7 +355,7 @@ export default function Students() {
           <input
             type="text"
             className="students-search-box"
-            placeholder="Search by name, email, skills, or branch..."
+            placeholder="Search by name, skills, or branch..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -588,9 +587,6 @@ export default function Students() {
                   >
                     {s.displayName || "Student"}
                   </div>
-                  <div className="student-email-text" title={s.email || ""}>
-                    {s.email || "No email available"}
-                  </div>
                 </div>
 
                 {/* Details Row: Year, Branch, Location */}
@@ -695,6 +691,18 @@ export default function Students() {
                       </>
                     )}
                   </button>
+
+                  {(!isPrivate || isFollowing) && (
+                    <button
+                      className="btn student-action-btn btn-chat-state"
+                      onClick={() => handleStartChat(s.id)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span>Chat</span>
+                    </button>
+                  )}
 
                   <button
                     className="btn student-view-profile-btn"

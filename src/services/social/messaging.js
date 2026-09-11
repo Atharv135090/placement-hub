@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment, limit } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
@@ -9,8 +9,48 @@ import {
   decryptMessageE2EE,
 } from "../../utils/crypto";
 
+const MAX_MESSAGES = 50;
+const INACTIVE_DAYS = 4;
+
 function getConversationId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
+}
+
+export async function cleanupConversationMessages(conversationId) {
+  try {
+    const msgQuery = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("createdAt", "asc")
+    );
+    const snapshot = await getDocs(msgQuery);
+    const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (messages.length <= MAX_MESSAGES) {
+      const convSnap = await getDoc(doc(db, "conversations", conversationId));
+      if (!convSnap.exists()) return;
+      const convData = convSnap.data();
+      const lastActivityAt = convData.lastActivityAt;
+      if (!lastActivityAt) return;
+
+      const lastMs = lastActivityAt.toMillis ? lastActivityAt.toMillis() : new Date(lastActivityAt).getTime();
+      const nowMs = Date.now();
+      const daysSinceInactive = (nowMs - lastMs) / (1000 * 60 * 60 * 24);
+
+      if (daysSinceInactive >= INACTIVE_DAYS && messages.length > 2) {
+        const halfCount = Math.floor(messages.length / 2);
+        const toDelete = messages.slice(0, halfCount);
+        await Promise.all(toDelete.map((m) => deleteDoc(doc(db, "messages", m.id))));
+      }
+      return;
+    }
+
+    const excessCount = messages.length - MAX_MESSAGES;
+    const toDelete = messages.slice(0, excessCount);
+    await Promise.all(toDelete.map((m) => deleteDoc(doc(db, "messages", m.id))));
+  } catch (error) {
+    console.error("cleanupConversationMessages error:", error);
+  }
 }
 
 export async function getOrCreateConversation(uid1, uid2) {
@@ -76,8 +116,11 @@ export async function sendMessage(conversationId, senderId, encryptedText, parti
     await updateDoc(doc(db, "conversations", conversationId), {
       lastMessage: encryptedText,
       lastMessageAt: serverTimestamp(),
+      lastActivityAt: serverTimestamp(),
       [unreadField]: increment(1),
     });
+
+    cleanupConversationMessages(conversationId).catch(() => {});
 
     return { data: { id: msgRef.id }, error: null };
   } catch (error) {
@@ -86,6 +129,8 @@ export async function sendMessage(conversationId, senderId, encryptedText, parti
 }
 
 export function subscribeToMessages(conversationId, callback) {
+  cleanupConversationMessages(conversationId).catch(() => {});
+
   const q = query(
     collection(db, "messages"),
     where("conversationId", "==", conversationId),

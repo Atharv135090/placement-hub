@@ -2,7 +2,9 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
+import { subscribeToFollowers, subscribeToFollowing, subscribeToPendingFollowRequests, blockUser, reportUser } from "../services/social";
 import UserAvatar from "./UserAvatar";
+import Modal from "./Modal";
 import "./IntegratedStudentsChat.css";
 
 // ─── SVG ICONS ──────────────────────────────────────────────
@@ -199,10 +201,19 @@ export default function IntegratedStudentsChat({
   const [isMuted, setIsMuted] = useState(false);
   const chatMenuRef = useRef(null);
 
-  const pendingRequestsCount = useMemo(
-    () => Object.values(followStatuses).filter((s) => s === "incoming_pending").length,
-    [followStatuses]
-  );
+  const [followersList, setFollowersList] = useState([]);
+  const [followingList, setFollowingList] = useState([]);
+  const [requestsList, setRequestsList] = useState([]);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
+
+  const followersCount = followersList.length;
+  const followingCount = followingList.length;
+  const pendingRequestsCount = requestsList.length;
 
   // Close chat menu on click outside
   useEffect(() => {
@@ -223,6 +234,16 @@ export default function IntegratedStudentsChat({
   useEffect(() => {
     setChatMenuOpen(false);
   }, [activeStudentId]);
+
+  // Realtime subscriptions for followers, following, requests
+  useEffect(() => {
+    if (!user?.uid) return;
+    let unsub1, unsub2, unsub3;
+    unsub1 = subscribeToFollowers(user.uid, (list) => setFollowersList(list || []));
+    unsub2 = subscribeToFollowing(user.uid, (list) => setFollowingList(list || []));
+    unsub3 = subscribeToPendingFollowRequests(user.uid, (list) => setRequestsList(list || []));
+    return () => { unsub1?.(); unsub2?.(); unsub3?.(); };
+  }, [user?.uid]);
 
   // Start/reuse Firebase conversation when activeStudentId changes
   useEffect(() => {
@@ -282,15 +303,26 @@ export default function IntegratedStudentsChat({
       list = list.filter((s) => s.id !== currentUser.uid);
     }
 
+    // Tab filter
+    if (activeTab === "followers") {
+      const followerIds = new Set(followersList.map((f) => f.id));
+      list = list.filter((s) => followerIds.has(s.id));
+    } else if (activeTab === "following") {
+      const followingIds = new Set(followingList.map((f) => f.id));
+      list = list.filter((s) => followingIds.has(s.id));
+    } else if (activeTab === "requests") {
+      const requestIds = new Set(requestsList.map((r) => r.id));
+      list = list.filter((s) => requestIds.has(s.id));
+    }
+
     // Text search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter((s) => {
         const name = (s.displayName || s.name || "").toLowerCase();
-        const email = (s.email || "").toLowerCase();
         const branch = (s.branch || "").toLowerCase();
         const skills = Array.isArray(s.skills) ? s.skills.join(" ").toLowerCase() : "";
-        return name.includes(q) || email.includes(q) || branch.includes(q) || skills.includes(q);
+        return name.includes(q) || branch.includes(q) || skills.includes(q);
       });
     }
 
@@ -314,7 +346,7 @@ export default function IntegratedStudentsChat({
     }
 
     return list;
-  }, [students, currentUser?.uid, searchQuery, branchFilter, yearFilter, sortBy, selectedStudent]);
+  }, [students, currentUser?.uid, searchQuery, branchFilter, yearFilter, sortBy, selectedStudent, activeTab, followersList, followingList, requestsList]);
 
   // Unique branches & years
   const branches = useMemo(() => {
@@ -335,6 +367,25 @@ export default function IntegratedStudentsChat({
     return "online";
   }
 
+  async function handleSubmitReport() {
+    if (!reportReason || !user?.uid || !selectedStudent?.id || reportSubmitting) return;
+    setReportSubmitting(true);
+    try {
+      await reportUser(user.uid, selectedStudent.id, reportReason, reportDetails);
+      setReportSent(true);
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportSent(false);
+        setReportReason("");
+        setReportDetails("");
+      }, 2000);
+    } catch (err) {
+      console.error("Report error:", err);
+    } finally {
+      setReportSubmitting(false);
+    }
+  }
+
   return (
     <div className="isc-workspace-wrapper animate-fade-in">
       {/* ═══════════════════════════════════════════════════════════════
@@ -352,19 +403,6 @@ export default function IntegratedStudentsChat({
               <p className="isc-main-subtitle">Connect with students, collaborate and grow together.</p>
             </div>
           </div>
-
-          <button
-            type="button"
-            className="isc-new-msg-btn"
-            onClick={() => {
-              if (filteredStudents.length > 0) {
-                onSelectStudent(filteredStudents[0].id);
-              }
-            }}
-          >
-            <PlusEditIcon />
-            <span>New Message</span>
-          </button>
         </div>
 
         {/* Tabs */}
@@ -379,13 +417,13 @@ export default function IntegratedStudentsChat({
             className={`isc-tab-btn ${activeTab === "followers" ? "active" : ""}`}
             onClick={() => setActiveTab("followers")}
           >
-            My Followers
+            My Followers <span className="isc-tab-badge">{followersCount}</span>
           </button>
           <button
             className={`isc-tab-btn ${activeTab === "following" ? "active" : ""}`}
             onClick={() => setActiveTab("following")}
           >
-            Following
+            Following <span className="isc-tab-badge">{followingCount}</span>
           </button>
           <button
             className={`isc-tab-btn ${activeTab === "requests" ? "active" : ""}`}
@@ -508,8 +546,6 @@ export default function IntegratedStudentsChat({
                       </span>
                     </div>
 
-                    <p className="isc-row-email">{s.email || "student@placementhub.edu"}</p>
-
                     <div className="isc-row-badges">
                       <span className="isc-badge-pill">
                         {s.role === "admin" || s.role === "owner" ? "Admin" : "Student"}
@@ -593,10 +629,6 @@ export default function IntegratedStudentsChat({
                     </span>
                   </div>
 
-                  <p className="isc-chat-user-email">
-                    {selectedStudent.email || ""}
-                  </p>
-
                   <div className="isc-chat-user-tags">
                     <span className="isc-chat-tag">
                       {selectedStudent.role === "admin" || selectedStudent.role === "owner" ? "Admin" : "Student"}
@@ -608,24 +640,6 @@ export default function IntegratedStudentsChat({
 
               {/* Action Buttons */}
               <div className="isc-chat-header-actions">
-                <button
-                  type="button"
-                  className="isc-action-icon-btn"
-                  title="Audio call"
-                  onClick={() => alert("Audio call feature will be connected in next phase.")}
-                >
-                  <PhoneIcon />
-                </button>
-
-                <button
-                  type="button"
-                  className="isc-action-icon-btn"
-                  title="Video call"
-                  onClick={() => alert("Video call feature will be connected in next phase.")}
-                >
-                  <VideoIcon />
-                </button>
-
                 <button
                   type="button"
                   className="isc-action-icon-btn"
@@ -691,14 +705,13 @@ export default function IntegratedStudentsChat({
                       <button
                         type="button"
                         className="isc-dropdown-item isc-dropdown-item--danger"
-                        onClick={() => {
+                        onClick={async () => {
                           setChatMenuOpen(false);
-                          if (window.confirm(`Are you sure you want to block ${selectedStudent.displayName || selectedStudent.name || "this student"}?`)) {
-                            import("../services/social").then(({ blockUser }) => {
-                              if (user?.uid) {
-                                blockUser(user.uid, selectedStudent.id);
-                              }
-                            });
+                          if (!user?.uid || !selectedStudent?.id) return;
+                          try {
+                            await blockUser(user.uid, selectedStudent.id);
+                          } catch (err) {
+                            console.error("Block error:", err);
                           }
                         }}
                       >
@@ -711,7 +724,7 @@ export default function IntegratedStudentsChat({
                         className="isc-dropdown-item isc-dropdown-item--danger"
                         onClick={() => {
                           setChatMenuOpen(false);
-                          alert("Report submitted for review.");
+                          setShowReportModal(true);
                         }}
                       >
                         <FlagIcon />
@@ -833,6 +846,59 @@ export default function IntegratedStudentsChat({
           </>
         )}
       </section>
+
+      <Modal open={showReportModal} onClose={() => { setShowReportModal(false); setReportSent(false); setReportReason(""); setReportDetails(""); }} title={`Report ${selectedStudent?.displayName || "Student"}`}>
+        {reportSent ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <p style={{ fontWeight: 600, color: "#10b981" }}>Report submitted. Thank you.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>Reason</label>
+              <select
+                className="input-field"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.1)", fontSize: "0.88rem" }}
+              >
+                <option value="">Select a reason...</option>
+                <option value="spam">Spam</option>
+                <option value="harassment">Harassment</option>
+                <option value="fake_profile">Fake Profile</option>
+                <option value="inappropriate">Inappropriate Content</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#475569", display: "block", marginBottom: 6 }}>Details (optional)</label>
+              <textarea
+                className="input-field"
+                rows="3"
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Provide any additional details..."
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.1)", fontSize: "0.88rem", resize: "vertical" }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => { setShowReportModal(false); setReportReason(""); setReportDetails(""); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSubmitReport}
+                disabled={!reportReason || reportSubmitting}
+              >
+                {reportSubmitting ? "Submitting..." : "Submit Report"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -302,7 +302,7 @@ export default function StudentProfile() {
           </div>
           <div className="sp-hero-info">
             <h1 className="sp-name">{profile.displayName || "Student"}</h1>
-            <p className="sp-email">{profile.email}</p>
+            {isOwnProfile && <p className="sp-email">{profile.email}</p>}
             {profile.branch && <span className="sp-tag">{profile.branch}</span>}
             {profile.graduationYear && <span className="sp-tag">Class of {profile.graduationYear}</span>}
             {profile.college && <span className="sp-tag">{profile.college}</span>}

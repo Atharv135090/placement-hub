@@ -116,11 +116,11 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       return { data: null, error: convRes.error };
     }
 
-    const warningText = `[WARNING] ${warningMessage.trim()}`;
+    const msgText = `[ADMIN] ${message.trim()}`;
     const msgRes = await sendAdminChatMessage(
       convRes.data.id,
       adminId,
-      warningText,
+      msgText,
       [adminId, targetUserId]
     );
     if (msgRes.error) {
