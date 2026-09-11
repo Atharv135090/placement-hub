@@ -3,16 +3,12 @@ import {
   doc,
   getDocs,
   deleteDoc,
+  updateDoc,
   query,
   where,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { functions, db } from "../../config/firebase";
+import { db } from "../../config/firebase";
 import { COMPANIES, JOBS, APPLICATIONS, ANNOUNCEMENTS, handleFirestoreError } from "./helpers";
-
-const callAdminLogoutUser = httpsCallable(functions, "adminLogoutUser");
-const callAdminDeleteUser = httpsCallable(functions, "adminDeleteUser");
-const callAdminBlockUser = httpsCallable(functions, "adminBlockUser");
 
 export async function deleteAllCompanies() {
   try {
@@ -68,7 +64,10 @@ export async function deleteAllAnnouncements() {
 
 export async function adminLogoutUser(userId) {
   try {
-    await callAdminLogoutUser({ userId });
+    await updateDoc(doc(db, "users", userId), {
+      forceLogout: true,
+      forceLogoutAt: new Date().toISOString(),
+    });
     return { data: { success: true }, error: null };
   } catch (error) {
     return { data: null, error: error.message || "Failed to logout user" };
@@ -77,7 +76,31 @@ export async function adminLogoutUser(userId) {
 
 export async function adminDeleteUser(userId) {
   try {
-    await callAdminDeleteUser({ userId });
+    await updateDoc(doc(db, "users", userId), {
+      forceLogout: true,
+      forceLogoutAt: new Date().toISOString(),
+      accountDeleted: true,
+      deletedAt: new Date().toISOString(),
+    });
+
+    const collectionsToDelete = ["applications", "follows", "blocks", "notifications"];
+    for (const col of collectionsToDelete) {
+      const snap = await getDocs(query(collection(db, col), where("userId", "==", userId)));
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, col, d.id));
+      }
+    }
+
+    const sentNotifSnap = await getDocs(query(collection(db, "notifications"), where("senderId", "==", userId)));
+    for (const d of sentNotifSnap.docs) {
+      await deleteDoc(doc(db, "notifications", d.id));
+    }
+
+    const convSnap = await getDocs(query(collection(db, "conversations"), where("participants", "array-contains", userId)));
+    for (const d of convSnap.docs) {
+      await deleteDoc(doc(db, "conversations", d.id));
+    }
+
     return { data: { success: true }, error: null };
   } catch (error) {
     return { data: null, error: error.message || "Failed to delete user" };
@@ -86,7 +109,12 @@ export async function adminDeleteUser(userId) {
 
 export async function adminBlockUser(userId, blocked) {
   try {
-    await callAdminBlockUser({ userId, blocked });
+    await updateDoc(doc(db, "users", userId), {
+      blocked: blocked,
+      blockedAt: blocked ? new Date().toISOString() : null,
+      forceLogout: blocked,
+      forceLogoutAt: blocked ? new Date().toISOString() : null,
+    });
     return { data: { success: true, blocked }, error: null };
   } catch (error) {
     return { data: null, error: error.message || "Failed to update block state" };

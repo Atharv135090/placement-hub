@@ -1,7 +1,6 @@
 import { collection, doc, addDoc, getDoc, getDocs, updateDoc, query, orderBy, serverTimestamp, where } from "firebase/firestore";
-import { db, storage, functions } from "../../config/firebase";
+import { db, storage } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
 import { handleSocialError, mapDocs } from "./helpers";
 
 export async function reportUser(reporterId, reportedId, reason, details = "", evidenceUrls = []) {
@@ -91,9 +90,31 @@ export async function getModerationsByReport(reportId) {
 
 export async function sendAdminMessage(reportId, targetUserId, message) {
   try {
-    const fn = httpsCallable(functions, "adminSendMessage");
-    const result = await fn({ reportId, targetUserId, message });
-    return { data: result.data, error: null };
+    const { getAuth } = await import("firebase/auth");
+    const adminId = getAuth().currentUser?.uid;
+    if (!adminId) return { data: null, error: "Not authenticated" };
+
+    await addDoc(collection(db, "moderations"), {
+      reportId,
+      targetUserId,
+      adminId,
+      action: "message",
+      message: message.trim(),
+      createdAt: new Date().toISOString(),
+    });
+
+    await addDoc(collection(db, "notifications"), {
+      title: "Message from Placement Hub Admin",
+      message: message.trim(),
+      type: "admin_message",
+      link: null,
+      targetUserId,
+      senderId: adminId,
+      readBy: [],
+      createdAt: new Date().toISOString(),
+    });
+
+    return { data: { success: true }, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
@@ -101,9 +122,34 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
 
 export async function sendAdminWarning(reportId, targetUserId, reason, warningMessage) {
   try {
-    const fn = httpsCallable(functions, "adminSendWarning");
-    const result = await fn({ reportId, targetUserId, reason, warningMessage });
-    return { data: result.data, error: null };
+    const { getAuth } = await import("firebase/auth");
+    const adminId = getAuth().currentUser?.uid;
+    if (!adminId) return { data: null, error: "Not authenticated" };
+
+    await addDoc(collection(db, "moderations"), {
+      reportId,
+      targetUserId,
+      adminId,
+      action: "warning",
+      reason: reason || "",
+      message: warningMessage.trim(),
+      createdAt: new Date().toISOString(),
+    });
+
+    await updateDoc(doc(db, "reports", reportId), { status: "reviewing" });
+
+    await addDoc(collection(db, "notifications"), {
+      title: "Warning from Placement Hub Admin",
+      message: `You have received a warning: ${warningMessage.trim()}`,
+      type: "admin_warning",
+      link: null,
+      targetUserId,
+      senderId: adminId,
+      readBy: [],
+      createdAt: new Date().toISOString(),
+    });
+
+    return { data: { success: true }, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
@@ -111,9 +157,38 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
 
 export async function adminUpdateReport(reportId, status, { resolutionNote, dismissedReason } = {}) {
   try {
-    const fn = httpsCallable(functions, "adminUpdateReport");
-    const result = await fn({ reportId, status, resolutionNote, dismissedReason });
-    return { data: result.data, error: null };
+    const { getAuth } = await import("firebase/auth");
+    const adminId = getAuth().currentUser?.uid;
+    if (!adminId) return { data: null, error: "Not authenticated" };
+
+    const updateData = { status };
+    const now = new Date().toISOString();
+
+    if (status === "resolved") {
+      updateData.resolvedBy = adminId;
+      updateData.resolvedAt = now;
+      updateData.resolutionNote = resolutionNote || "";
+    } else if (status === "dismissed") {
+      updateData.dismissedBy = adminId;
+      updateData.dismissedAt = now;
+      updateData.dismissedReason = dismissedReason || "";
+    }
+
+    await updateDoc(doc(db, "reports", reportId), updateData);
+
+    const reportSnap = await getDoc(doc(db, "reports", reportId));
+    const reportedId = reportSnap.exists() ? reportSnap.data().reportedId : "";
+
+    await addDoc(collection(db, "moderations"), {
+      reportId,
+      targetUserId: reportedId,
+      adminId,
+      action: `status_${status}`,
+      reason: status === "resolved" ? resolutionNote : dismissedReason || "",
+      createdAt: now,
+    });
+
+    return { data: { success: true }, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
