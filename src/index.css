@@ -1,64 +1,64 @@
 :root, [data-theme="dark"] {
-  /* Surface colors — Obsidian / Charcoal */
-  --bg-void:            #07080b;
-  --bg-deep:            #0c0e14;
-  --bg-base:            #10131a;
-  --bg-surface:         #131722;
-  --bg-elevated:        #181d2a;
-  --bg-hover:           #1f2537;
-  --bg-card:            rgba(15, 18, 26, 0.76);
-  --bg-card-hover:      rgba(22, 26, 38, 0.88);
+  /* Surface colors — Rich Navy / Charcoal Atmosphere */
+  --bg-void:            #090d16;
+  --bg-deep:            #0e1320;
+  --bg-base:            #121827;
+  --bg-surface:         #161e30;
+  --bg-elevated:        #1c263b;
+  --bg-hover:           #243049;
+  --bg-card:            rgba(22, 30, 48, 0.8);
+  --bg-card-hover:      rgba(30, 41, 64, 0.9);
 
   /* Cinematic Glass Surfaces */
-  --glass-bg:           rgba(15, 18, 26, 0.72);
-  --glass-bg-heavy:     rgba(11, 13, 20, 0.92);
-  --glass-border:       rgba(255, 255, 255, 0.08);
-  --glass-border-light: rgba(255, 255, 255, 0.04);
-  --glass-border-hover: rgba(239, 68, 68, 0.35);
-  --glass-blur:         16px;
+  --glass-bg:           rgba(20, 27, 44, 0.76);
+  --glass-bg-heavy:     rgba(13, 17, 27, 0.92);
+  --glass-border:       rgba(255, 255, 255, 0.11);
+  --glass-border-light: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(244, 63, 94, 0.4);
+  --glass-blur:         18px;
   --glass-blur-heavy:   28px;
 
   /* Premium Red Glass Accent */
-  --red-glass:          rgba(239, 68, 68, 0.06);
-  --red-glass-border:   rgba(239, 68, 68, 0.18);
-  --red-glass-glow:     rgba(239, 68, 68, 0.12);
+  --red-glass:          rgba(244, 63, 94, 0.08);
+  --red-glass-border:   rgba(244, 63, 94, 0.22);
+  --red-glass-glow:     rgba(244, 63, 94, 0.16);
 
   /* Primary Accent — Refined Red */
-  --accent:             #ef4444;
-  --accent-light:       #f87171;
-  --accent-dim:         #dc2626;
-  --accent-subtle:      rgba(239, 68, 68, 0.12);
-  --accent-glow:        rgba(239, 68, 68, 0.32);
-  --accent-border:      rgba(239, 68, 68, 0.45);
+  --accent:             #f43f5e;
+  --accent-light:       #fb7185;
+  --accent-dim:         #e11d48;
+  --accent-subtle:      rgba(244, 63, 94, 0.14);
+  --accent-glow:        rgba(244, 63, 94, 0.35);
+  --accent-border:      rgba(244, 63, 94, 0.48);
 
   /* Supportive Palette */
   --emerald:            #10b981;
-  --emerald-subtle:     rgba(16, 185, 129, 0.14);
+  --emerald-subtle:     rgba(16, 185, 129, 0.16);
   --amber:              #f59e0b;
-  --amber-subtle:       rgba(245, 158, 11, 0.14);
+  --amber-subtle:       rgba(245, 158, 11, 0.16);
   --blue:               #3b82f6;
-  --blue-subtle:        rgba(59, 130, 246, 0.14);
-  --rose:               #ef4444;
-  --rose-subtle:        rgba(239, 68, 68, 0.14);
+  --blue-subtle:        rgba(59, 130, 246, 0.16);
+  --rose:               #f43f5e;
+  --rose-subtle:        rgba(244, 63, 94, 0.16);
 
   /* Typography */
-  --text-primary:       #f8fafc;
-  --text-secondary:     #94a3b8;
-  --text-muted:         #64748b;
-  --text-inverse:       #07080b;
+  --text-primary:       #ffffff;
+  --text-secondary:     #cbd5e1;
+  --text-muted:         #94a3b8;
+  --text-inverse:       #090d16;
 
   /* Borders & Shadows */
-  --border:             rgba(255, 255, 255, 0.07);
-  --border-subtle:      rgba(255, 255, 255, 0.04);
-  --border-hover:       rgba(239, 68, 68, 0.35);
+  --border:             rgba(255, 255, 255, 0.09);
+  --border-subtle:      rgba(255, 255, 255, 0.05);
+  --border-hover:       rgba(244, 63, 94, 0.4);
 
-  --shadow-sm:          0 2px 10px rgba(0, 0, 0, 0.4);
-  --shadow-md:          0 6px 24px rgba(0, 0, 0, 0.55);
-  --shadow-lg:          0 12px 48px rgba(0, 0, 0, 0.7);
-  --shadow-red-glow:    0 0 24px rgba(239, 68, 68, 0.25);
+  --shadow-sm:          0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-md:          0 6px 24px rgba(0, 0, 0, 0.6);
+  --shadow-lg:          0 12px 48px rgba(0, 0, 0, 0.75);
+  --shadow-red-glow:    0 0 24px rgba(244, 63, 94, 0.28);
 
-  --hero-bg:            linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(15, 18, 26, 0.95) 50%, #07080b 100%);
-  --motto-bg:           linear-gradient(180deg, rgba(239, 68, 68, 0.12) 0%, #0c0e14 100%);
+  --hero-bg:            linear-gradient(135deg, rgba(244, 63, 94, 0.18) 0%, rgba(20, 27, 44, 0.95) 50%, #090d16 100%);
+  --motto-bg:           linear-gradient(180deg, rgba(244, 63, 94, 0.14) 0%, #0e1320 100%);
 }
 
 [data-theme="light"] {

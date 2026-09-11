@@ -356,7 +356,12 @@ export default function Chat() {
     if (!input.trim() || sending || !activeConversation?.id) return;
     const textToSend = input.trim();
     setInput("");
-    await sendChatMessage(activeConversation.id, textToSend);
+    try {
+      await sendChatMessage(activeConversation.id, textToSend);
+    } catch (err) {
+      console.error("Message send failed:", err);
+      setInput(textToSend);
+    }
     inputRef.current?.focus();
   }
 

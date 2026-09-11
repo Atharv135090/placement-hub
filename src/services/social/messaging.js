@@ -123,30 +123,26 @@ export async function getConversations(userId) {
 }
 
 export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2) {
-  try {
-    const msgRef = await addDoc(collection(db, "messages"), {
-      conversationId,
-      senderId,
-      encryptedText,
-      messageVersion,
-      createdAt: serverTimestamp(),
-      read: false,
-    });
+  const msgRef = await addDoc(collection(db, "messages"), {
+    conversationId,
+    senderId,
+    encryptedText,
+    messageVersion,
+    createdAt: serverTimestamp(),
+    read: false,
+  });
 
-    const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
-    await updateDoc(doc(db, "conversations", conversationId), {
-      lastMessage: encryptedText,
-      lastMessageAt: serverTimestamp(),
-      lastActivityAt: serverTimestamp(),
-      [unreadField]: increment(1),
-    });
+  const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
+  await updateDoc(doc(db, "conversations", conversationId), {
+    lastMessage: encryptedText,
+    lastMessageAt: serverTimestamp(),
+    lastActivityAt: serverTimestamp(),
+    [unreadField]: increment(1),
+  });
 
-    cleanupConversationMessages(conversationId).catch(() => {});
+  cleanupConversationMessages(conversationId).catch(() => {});
 
-    return { data: { id: msgRef.id }, error: null };
-  } catch (error) {
-    return handleSocialError(error);
-  }
+  return { data: { id: msgRef.id }, error: null };
 }
 
 export function subscribeToMessages(conversationId, callback) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./AtsChecker.css";
 
 // ── SVG ICONS ──
@@ -60,6 +60,41 @@ const CheckIcon = () => (
   </svg>
 );
 
+const BellIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+
+const UsersIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const BuildingIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11" />
+  </svg>
+);
+
+const RocketIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-3.05 11a22.35 22.35 0 0 1-3.95 2z" />
+  </svg>
+);
+
 const FEATURES = [
   {
     id: "ai",
@@ -76,7 +111,7 @@ const FEATURES = [
   {
     id: "keywords",
     title: "Keyword Matching",
-    description: "Precision gap analysis comparing candidate resumes against top hiring company criteria.",
+    description: "Precision gap analysis comparing candidate resumes against top hiring criteria.",
     icon: <TagSearchIcon />,
   },
   {
@@ -89,13 +124,115 @@ const FEATURES = [
 
 export default function AtsChecker() {
   const [activeHighlight, setActiveHighlight] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewPhase, setPreviewPhase] = useState(1); // 1: Scanning, 2: Analysis, 3: Score, 4: Final
+  const [animScore, setAnimScore] = useState(0);
+  const [notified, setNotified] = useState(false);
+
+  // Mouse Parallax state
+  const [parallax, setParallax] = useState({ x: 0, y: 0 });
+  const containerRef = useRef(null);
+  const isReducedMotion = useRef(false);
+
+  useEffect(() => {
+    isReducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  function handleMouseMove(e) {
+    if (isReducedMotion.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const normX = (e.clientX - centerX) / (rect.width / 2);
+    const normY = (e.clientY - centerY) / (rect.height / 2);
+    setParallax({ x: Math.max(-1, Math.min(1, normX)), y: Math.max(-1, Math.min(1, normY)) });
+  }
+
+  function handleMouseLeave() {
+    setParallax({ x: 0, y: 0 });
+  }
+
+  // Watch Preview modal phase sequence controller
+  useEffect(() => {
+    let timer1, timer2, timer3, scoreInterval;
+
+    if (showPreviewModal) {
+      setPreviewPhase(1);
+      setAnimScore(0);
+
+      // Phase 1 -> Phase 2 (after 2.5s)
+      timer1 = setTimeout(() => {
+        setPreviewPhase(2);
+      }, 2600);
+
+      // Phase 2 -> Phase 3 (after 5s)
+      timer2 = setTimeout(() => {
+        setPreviewPhase(3);
+
+        // Animate score from 0 to 98
+        let current = 0;
+        const targets = [0, 24, 51, 73, 86, 98];
+        let step = 0;
+        scoreInterval = setInterval(() => {
+          if (step < targets.length) {
+            setAnimScore(targets[step]);
+            step++;
+          } else {
+            clearInterval(scoreInterval);
+          }
+        }, 300);
+      }, 5400);
+
+      // Phase 3 -> Phase 4 (after 8.5s)
+      timer3 = setTimeout(() => {
+        setPreviewPhase(4);
+      }, 9000);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearInterval(scoreInterval);
+    };
+  }, [showPreviewModal]);
+
+  function handleWatchAgain() {
+    setPreviewPhase(1);
+    setAnimScore(0);
+    // Restart animation flow manually
+    setTimeout(() => setPreviewPhase(2), 2600);
+    setTimeout(() => {
+      setPreviewPhase(3);
+      let step = 0;
+      const targets = [0, 24, 51, 73, 86, 98];
+      const interval = setInterval(() => {
+        if (step < targets.length) {
+          setAnimScore(targets[step]);
+          step++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 300);
+    }, 5400);
+    setTimeout(() => setPreviewPhase(4), 9000);
+  }
 
   return (
-    <div className="ats-workspace animate-fade-in">
+    <div className="ats-workspace animate-fade-in" ref={containerRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
       {/* Ambient background glows */}
-      <div className="ats-ambient-glow ats-ambient-glow--pink" />
-      <div className="ats-ambient-glow ats-ambient-glow--purple" />
-      <div className="ats-ambient-glow ats-ambient-glow--cyan" />
+      <div
+        className="ats-ambient-glow ats-ambient-glow--pink"
+        style={{ transform: `translate3d(${parallax.x * -18}px, ${parallax.y * -14}px, 0)` }}
+      />
+      <div
+        className="ats-ambient-glow ats-ambient-glow--purple"
+        style={{ transform: `translate3d(${parallax.x * 20}px, ${parallax.y * 16}px, 0)` }}
+      />
+      <div
+        className="ats-ambient-glow ats-ambient-glow--cyan"
+        style={{ transform: `translate3d(${parallax.x * -12}px, ${parallax.y * 10}px, 0)` }}
+      />
 
       <div className="ats-container">
         {/* Grand Showcase Card */}
@@ -134,6 +271,54 @@ export default function AtsChecker() {
                 improvement, and help you stand out in placement applications.
               </p>
 
+              {/* Action Buttons: Notify Me & Watch Preview */}
+              <div className="ats-cta-group">
+                <button
+                  type="button"
+                  className={`ats-btn-primary ${notified ? "notified" : ""}`}
+                  onClick={() => setNotified(!notified)}
+                >
+                  <BellIcon />
+                  <span>{notified ? "Notifications Enabled ✓" : "Notify Me"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="ats-btn-preview glass"
+                  onClick={() => setShowPreviewModal(true)}
+                >
+                  <PlayIcon />
+                  <span>Watch Preview</span>
+                </button>
+              </div>
+
+              {/* Trusted by Future Talent Metrics */}
+              <div className="ats-metrics-row">
+                <div className="ats-metric-item">
+                  <span className="ats-metric-icon"><UsersIcon /></span>
+                  <div>
+                    <strong className="ats-metric-value">10K+</strong>
+                    <span className="ats-metric-label">Students</span>
+                  </div>
+                </div>
+                <div className="ats-metric-divider" />
+                <div className="ats-metric-item">
+                  <span className="ats-metric-icon"><BuildingIcon /></span>
+                  <div>
+                    <strong className="ats-metric-value">50+</strong>
+                    <span className="ats-metric-label">Companies</span>
+                  </div>
+                </div>
+                <div className="ats-metric-divider" />
+                <div className="ats-metric-item">
+                  <span className="ats-metric-icon"><RocketIcon /></span>
+                  <div>
+                    <strong className="ats-metric-value">3x</strong>
+                    <span className="ats-metric-label">Better Shortlists</span>
+                  </div>
+                </div>
+              </div>
+
               {/* 4 Feature Highlight Cards */}
               <div className="ats-features-grid">
                 {FEATURES.map((item) => {
@@ -144,12 +329,15 @@ export default function AtsChecker() {
                       className={`ats-feature-card glass ${isHovered ? "active" : ""}`}
                       onMouseEnter={() => setActiveHighlight(item.id)}
                       onMouseLeave={() => setActiveHighlight(null)}
+                      onClick={() => setShowPreviewModal(true)}
+                      role="button"
+                      tabIndex={0}
                     >
                       <div className="ats-feature-icon-box">{item.icon}</div>
                       <div className="ats-feature-info">
                         <div className="ats-feature-title-row">
                           <h4 className="ats-feature-title">{item.title}</h4>
-                          <span className="ats-feature-tag">Preview</span>
+                          <span className="ats-feature-tag">PREVIEW →</span>
                         </div>
                         <p className="ats-feature-desc">{item.description}</p>
                       </div>
@@ -163,7 +351,10 @@ export default function AtsChecker() {
             <div className="ats-visual-col">
               <div className="ats-visual-stage">
                 {/* Background Rotating Telemetry Gyroscope */}
-                <div className="ats-gyro-container">
+                <div
+                  className="ats-gyro-container"
+                  style={{ transform: `translate3d(${parallax.x * -8}px, ${parallax.y * -6}px, 0)` }}
+                >
                   <svg className="ats-gyro-ring" viewBox="0 0 200 200">
                     <circle cx="100" cy="100" r="90" stroke="currentColor" strokeWidth="1" strokeDasharray="6 6" fill="none" opacity="0.25" />
                     <circle cx="100" cy="100" r="75" stroke="currentColor" strokeWidth="1" strokeDasharray="12 4" fill="none" opacity="0.35" />
@@ -176,10 +367,11 @@ export default function AtsChecker() {
                 </div>
 
                 {/* Floating Holographic HUD Resume Document */}
-                <div className="ats-hud-resume glass-heavy">
-                  {/* Animated Vertical Scanning Laser */}
+                <div
+                  className="ats-hud-resume glass-heavy"
+                  style={{ transform: `translate3d(${parallax.x * -18}px, ${parallax.y * -14}px, 0)` }}
+                >
                   <div className="ats-scan-laser" />
-
                   <div className="ats-resume-header">
                     <span className="ats-resume-doc-badge">YOUR RESUME</span>
                     <span className="ats-resume-doc-chip">PDF • ATS READY</span>
@@ -202,7 +394,10 @@ export default function AtsChecker() {
                 </div>
 
                 {/* Floating Holographic ATS Score Gauge */}
-                <div className="ats-hud-score-card glass-heavy">
+                <div
+                  className="ats-hud-score-card glass-heavy"
+                  style={{ transform: `translate3d(${parallax.x * 22}px, ${parallax.y * 16}px, 0)` }}
+                >
                   <div className="ats-score-radial-box">
                     <svg className="ats-score-svg" viewBox="0 0 80 80">
                       <circle cx="40" cy="40" r="34" className="ats-radial-bg" />
@@ -228,8 +423,11 @@ export default function AtsChecker() {
                   </div>
                 </div>
 
-                {/* SVJ Automotive Visual Treatment (Light & Dark theme responsive) */}
-                <div className="ats-car-wrapper">
+                {/* SVJ Automotive Visual Treatment */}
+                <div
+                  className="ats-car-wrapper"
+                  style={{ transform: `translate3d(${parallax.x * 12}px, ${parallax.y * 8}px, 0)` }}
+                >
                   <img
                     src="/assets/ats/ats_svj_dark.jpg"
                     alt="Aventador SVJ Cyber Visual"
@@ -240,52 +438,246 @@ export default function AtsChecker() {
                     alt="Aventador SVJ Studio Visual"
                     className="ats-car-img ats-car-img--light"
                   />
-
-                  {/* Aerodynamic glowing red badge overlay */}
                   <div className="ats-svj-floating-badge">SVJ</div>
                 </div>
 
-                {/* Orbital Neon Ribbon with Slogan */}
-                <div className="ats-orbital-ribbon-box">
-                  <svg className="ats-ribbon-svg" viewBox="0 0 450 180" fill="none">
-                    <defs>
-                      <linearGradient id="neonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#ff2e74" stopOpacity="0.8" />
-                        <stop offset="50%" stopColor="#e11d48" stopOpacity="1" />
-                        <stop offset="100%" stopColor="#00f0ff" stopOpacity="0.8" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      id="ribbonPath"
-                      d="M 20 120 C 80 170, 360 170, 430 90 C 450 60, 380 20, 260 20"
-                      stroke="url(#neonGradient)"
-                      strokeWidth="2.5"
-                      strokeDasharray="6 3"
-                      className="ats-ribbon-path"
-                    />
-                  </svg>
-                  <div className="ats-ribbon-slogan">SAME YOU. A STRONGER RESUME.</div>
+                {/* Vertical Tagline overlay */}
+                <div className="ats-vertical-tagline">
+                  SAME YOU. A STRONGER RESUME.
                 </div>
+
+                {/* Stage Ground Glow */}
+                <div className="ats-stage-glow-ring" />
               </div>
             </div>
           </div>
 
-          {/* ── BOTTOM BANNER: COMING SOON & ITALIAN TRICOLOR ── */}
-          <div className="ats-footer-banner">
-            <div className="ats-footer-line" />
-            <div className="ats-footer-center">
+          {/* ── BOTTOM BANNER: COMING SOON & COUNTDOWN ── */}
+          <div className="ats-footer-banner glass">
+            <div className="ats-footer-left">
               <div className="ats-cs-spaced">C O M I N G &nbsp; S O O N</div>
               <div className="ats-cs-sub">HIGHER OPPORTUNITIES AHEAD</div>
-              <div className="ats-tricolor-strip">
-                <span className="ats-tri-green" />
-                <span className="ats-tri-white" />
-                <span className="ats-tri-red" />
+              <div className="ats-progress-track">
+                <div className="ats-progress-bar" />
               </div>
             </div>
-            <div className="ats-footer-line" />
+
+            <div className="ats-footer-countdown">
+              <div className="ats-count-block">
+                <span className="ats-count-num">00</span>
+                <span className="ats-count-label">DAYS</span>
+              </div>
+              <div className="ats-count-block">
+                <span className="ats-count-num">00</span>
+                <span className="ats-count-label">HOURS</span>
+              </div>
+              <div className="ats-count-block">
+                <span className="ats-count-num">00</span>
+                <span className="ats-count-label">MINUTES</span>
+              </div>
+              <div className="ats-count-block">
+                <span className="ats-count-num">00</span>
+                <span className="ats-count-label">SECONDS</span>
+              </div>
+            </div>
+
+            <div className="ats-footer-right">
+              <span className="ats-footer-tagline">THE FUTURE IS CLOSER THAN YOU THINK.</span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          WATCH PREVIEW EXPERIENCE — FULLSCREEN GLASS OVERLAY MODAL
+         ═══════════════════════════════════════════════════════════════ */}
+      {showPreviewModal && (
+        <div className="ats-preview-overlay glass-heavy animate-fade-in" onClick={() => setShowPreviewModal(false)}>
+          <div className="ats-preview-modal glass-heavy" onClick={(e) => e.stopPropagation()}>
+            {/* Ambient Background Particles / Glows */}
+            <div className="ats-modal-glow ats-modal-glow--pink" />
+            <div className="ats-modal-glow ats-modal-glow--cyan" />
+
+            {/* Modal Header */}
+            <div className="ats-modal-header">
+              <div className="ats-modal-brand">
+                <span className="ats-modal-badge">PREVIEW DEMO</span>
+                <span className="ats-modal-title">FUTURE ATS ANALYSIS</span>
+              </div>
+
+              <div className="ats-modal-phase-stepper">
+                <button
+                  type="button"
+                  className={`ats-step-pill ${previewPhase === 1 ? "active" : ""}`}
+                  onClick={() => setPreviewPhase(1)}
+                >
+                  1. Scan
+                </button>
+                <button
+                  type="button"
+                  className={`ats-step-pill ${previewPhase === 2 ? "active" : ""}`}
+                  onClick={() => setPreviewPhase(2)}
+                >
+                  2. Analysis
+                </button>
+                <button
+                  type="button"
+                  className={`ats-step-pill ${previewPhase === 3 ? "active" : ""}`}
+                  onClick={() => setPreviewPhase(3)}
+                >
+                  3. Score
+                </button>
+                <button
+                  type="button"
+                  className={`ats-step-pill ${previewPhase === 4 ? "active" : ""}`}
+                  onClick={() => setPreviewPhase(4)}
+                >
+                  4. Final
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="ats-modal-close-btn"
+                onClick={() => setShowPreviewModal(false)}
+                title="Close preview"
+                aria-label="Close preview"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body: Phase Content */}
+            <div className="ats-modal-body">
+              {/* PHASE 1: SCANNING */}
+              {previewPhase === 1 && (
+                <div className="ats-phase-wrap animate-fade-in">
+                  <div className="ats-scanner-stage">
+                    <div className="ats-scanner-doc glass-heavy">
+                      <div className="ats-laser-beam" />
+
+                      <div className="ats-doc-header">
+                        <div className="ats-doc-title">RESUME_PROFILE_2026.PDF</div>
+                        <span className="ats-doc-status">SCANNING IN PROGRESS...</span>
+                      </div>
+
+                      <div className="ats-doc-content-mock">
+                        <div className="ats-doc-line ats-doc-line--h1" />
+                        <div className="ats-doc-line ats-doc-line--h2" />
+                        <div className="ats-doc-grid">
+                          <div className="ats-doc-card">EXPERIENCE</div>
+                          <div className="ats-doc-card">EDUCATION</div>
+                          <div className="ats-doc-card">PROJECTS</div>
+                          <div className="ats-doc-card">SKILLS</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="ats-scan-checklist">
+                      <div className="ats-scan-check-row active">
+                        <span className="ats-scan-check-icon">✓</span>
+                        <span>RESUME STRUCTURE</span>
+                      </div>
+                      <div className="ats-scan-check-row active">
+                        <span className="ats-scan-check-icon">✓</span>
+                        <span>KEYWORD MATCH</span>
+                      </div>
+                      <div className="ats-scan-check-row active">
+                        <span className="ats-scan-check-icon">✓</span>
+                        <span>CONTENT QUALITY</span>
+                      </div>
+                      <div className="ats-scan-check-row active">
+                        <span className="ats-scan-check-icon">✓</span>
+                        <span>ATS COMPATIBILITY</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PHASE 2: ANALYSIS */}
+              {previewPhase === 2 && (
+                <div className="ats-phase-wrap animate-fade-in">
+                  <div className="ats-analysis-stage">
+                    <div className="ats-analysis-card glass animate-slide-up">
+                      <div className="ats-analysis-icon"><BrainIcon /></div>
+                      <h4>AI ANALYSIS</h4>
+                      <p>Evaluating phrasing, structural clarity, and technical relevance against top tech firms.</p>
+                      <div className="ats-mini-bar-track"><div className="ats-mini-bar-fill" style={{ width: "92%" }} /></div>
+                    </div>
+
+                    <div className="ats-analysis-card glass animate-slide-up" style={{ animationDelay: "0.15s" }}>
+                      <div className="ats-analysis-icon"><TagSearchIcon /></div>
+                      <h4>KEYWORD MATCH</h4>
+                      <p>Matching candidate skills against 50+ corporate recruiter criteria.</p>
+                      <div className="ats-mini-bar-track"><div className="ats-mini-bar-fill" style={{ width: "95%" }} /></div>
+                    </div>
+
+                    <div className="ats-analysis-card glass animate-slide-up" style={{ animationDelay: "0.3s" }}>
+                      <div className="ats-analysis-icon"><TargetIcon /></div>
+                      <h4>ATS OPTIMIZATION</h4>
+                      <p>Pre-flight compliance testing matching modern corporate tracking systems.</p>
+                      <div className="ats-mini-bar-track"><div className="ats-mini-bar-fill" style={{ width: "98%" }} /></div>
+                    </div>
+
+                    <div className="ats-analysis-card glass animate-slide-up" style={{ animationDelay: "0.45s" }}>
+                      <div className="ats-analysis-icon"><TrendChartIcon /></div>
+                      <h4>ACTIONABLE INSIGHTS</h4>
+                      <p>Targeted recommendations to boost interview shortlisting confidence.</p>
+                      <div className="ats-mini-bar-track"><div className="ats-mini-bar-fill" style={{ width: "90%" }} /></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PHASE 3: SCORE RING */}
+              {previewPhase === 3 && (
+                <div className="ats-phase-wrap animate-fade-in">
+                  <div className="ats-score-stage">
+                    <div className="ats-big-score-ring">
+                      <svg className="ats-big-ring-svg" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r="70" className="ats-big-ring-bg" />
+                        <circle cx="80" cy="80" r="70" className="ats-big-ring-fill" strokeDashoffset={440 - (440 * animScore) / 100} />
+                      </svg>
+                      <div className="ats-big-score-text">
+                        <span className="ats-big-score-num">{animScore}</span>
+                        <span className="ats-big-score-sub">ATS SCORE</span>
+                      </div>
+                    </div>
+
+                    <div className="ats-score-proof-list">
+                      <div className="ats-proof-item"><CheckIcon /> <span>ATS Friendly</span></div>
+                      <div className="ats-proof-item"><CheckIcon /> <span>Strong Keyword Match</span></div>
+                      <div className="ats-proof-item"><CheckIcon /> <span>Clear Structure</span></div>
+                      <div className="ats-proof-item"><CheckIcon /> <span>Actionable Insights</span></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PHASE 4: FINAL */}
+              {previewPhase === 4 && (
+                <div className="ats-phase-wrap animate-fade-in">
+                  <div className="ats-final-stage">
+                    <div className="ats-final-badge">YOUR RESUME</div>
+                    <h2 className="ats-final-title">READY FOR BETTER OPPORTUNITIES</h2>
+                    <p className="ats-final-slogan">"Same You. A Stronger Resume."</p>
+
+                    <div className="ats-final-cta-row">
+                      <button type="button" className="ats-btn-preview glass" onClick={handleWatchAgain}>
+                        Watch Again
+                      </button>
+                      <button type="button" className="ats-btn-primary" onClick={() => setShowPreviewModal(false)}>
+                        Close Preview
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

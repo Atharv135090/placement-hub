@@ -335,11 +335,23 @@ export default function StudentProfile() {
         {!isOwnProfile && (
           <div className="sp-hero-actions">
             <button
-              className={`btn ${followStatus === "accepted" ? "btn-ghost" : incomingFollowStatus === "pending" ? "btn-primary" : "btn-primary"}`}
+              className={`btn ${
+                followStatus === "accepted" || incomingFollowStatus === "accepted"
+                  ? "btn-following-state"
+                  : followStatus === "pending"
+                  ? "btn-requested-state"
+                  : "btn-follow-state"
+              }`}
               onClick={handleFollow}
               disabled={blocked || followLoading}
             >
-              {getFollowLabel()}
+              {followStatus === "accepted" || incomingFollowStatus === "accepted"
+                ? "↗ Following"
+                : followStatus === "pending"
+                ? "Requested"
+                : incomingFollowStatus === "pending"
+                ? "Accept Request"
+                : "Follow"}
             </button>
             {incomingFollowStatus === "pending" && (
               <button

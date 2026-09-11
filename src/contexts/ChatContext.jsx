@@ -152,9 +152,18 @@ export function ChatProvider({ children }) {
     try {
       const otherId = activeConversation?.participants?.find((p) => p !== uid)
         || activeConversation?.otherUser?.id;
-      if (!otherId) return;
+      if (!otherId) {
+        console.error("sendChatMessage: Could not determine other user ID", activeConversation);
+        return;
+      }
       const { encryptedText, messageVersion } = await encryptMessage(text, uid, otherId);
-      await sendMessage(conversationId, uid, encryptedText, activeConversation?.participants, messageVersion);
+      const result = await sendMessage(conversationId, uid, encryptedText, activeConversation?.participants, messageVersion);
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      console.error("sendChatMessage failed:", err);
+      throw err;
     } finally {
       setSending(false);
     }
