@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { logOut } from "../services/auth";
+import { subscribeToNotifications } from "../services/firestore";
 import PlacementLogo from "./PlacementLogo";
 import UserAvatar from "./UserAvatar";
 import "./AdminLayout.css";
@@ -81,6 +82,13 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [adminNotifications, setAdminNotifications] = useState([]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToNotifications(user.uid, setAdminNotifications);
+    return () => unsub?.();
+  }, [user?.uid]);
 
   const toggle = useCallback(() => setCollapsed((c) => !c), []);
 
@@ -94,7 +102,7 @@ export default function AdminLayout() {
     navigate("/login");
   }
 
-  const displayName = profile?.displayName || user?.displayName || "Atharv Shinde";
+  const displayName = profile?.displayName || user?.displayName || "Admin";
 
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useState(null);
@@ -181,7 +189,7 @@ export default function AdminLayout() {
             {!collapsed && (
               <div className="admin-user-info">
                 <span className="admin-user-name">{displayName}</span>
-                <span className="admin-user-role">Owner</span>
+                <span className="admin-user-role">{profile?.role === "owner" ? "Owner" : "Admin"}</span>
               </div>
             )}
             {!collapsed && (
@@ -270,12 +278,14 @@ export default function AdminLayout() {
             </button>
 
             {/* Notification Bell with Badge 3 */}
-            <button className="admin-header-btn admin-bell-btn" title="Notifications">
+            <button className="admin-header-btn admin-bell-btn" title="Notifications" onClick={() => navigate("/profile")}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span className="admin-bell-badge">3</span>
+              {adminNotifications.length > 0 && (
+                <span className="admin-bell-badge">{adminNotifications.length}</span>
+              )}
             </button>
 
             {/* User Avatar Chip */}

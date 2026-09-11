@@ -317,19 +317,19 @@ export default function Settings() {
       const uid = user.uid;
 
       const followSnap1 = await getDocs(query(collection(db, "follows"), where("fromUserId", "==", uid)));
-      followSnap1.forEach(async (d) => await deleteDoc(doc(db, "follows", d.id)));
+      await Promise.all(followSnap1.docs.map((d) => deleteDoc(doc(db, "follows", d.id))));
 
       const followSnap2 = await getDocs(query(collection(db, "follows"), where("toUserId", "==", uid)));
-      followSnap2.forEach(async (d) => await deleteDoc(doc(db, "follows", d.id)));
+      await Promise.all(followSnap2.docs.map((d) => deleteDoc(doc(db, "follows", d.id))));
 
       const blockSnap1 = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", uid)));
-      blockSnap1.forEach(async (d) => await deleteDoc(doc(db, "blocks", d.id)));
+      await Promise.all(blockSnap1.docs.map((d) => deleteDoc(doc(db, "blocks", d.id))));
 
       const blockSnap2 = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", uid)));
-      blockSnap2.forEach(async (d) => await deleteDoc(doc(db, "blocks", d.id)));
+      await Promise.all(blockSnap2.docs.map((d) => deleteDoc(doc(db, "blocks", d.id))));
 
       const notifSnap = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", uid)));
-      notifSnap.forEach(async (d) => await deleteDoc(doc(db, "notifications", d.id)));
+      await Promise.all(notifSnap.docs.map((d) => deleteDoc(doc(db, "notifications", d.id))));
 
       await deleteDoc(doc(db, "users", uid));
 
@@ -463,7 +463,7 @@ export default function Settings() {
               </span>
             </div>
 
-            <div className="hero-email-text">{user?.email || "student@college.edu"}</div>
+            <div className="hero-email-text">{user?.email || "No email"}</div>
 
             <div className="hero-meta-pills-row">
               {location && (
@@ -687,7 +687,7 @@ export default function Settings() {
 
           <button
             className="seg-tab-btn"
-            onClick={() => navigate("/notifications")}
+            onClick={() => navigate("/profile")}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -767,7 +767,7 @@ export default function Settings() {
                       className="glass-text-input"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Atharv Shinde"
+                      placeholder="e.g. John Doe"
                     />
                   </div>
                 </div>

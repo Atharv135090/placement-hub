@@ -145,10 +145,11 @@ export default function Students() {
         await acceptFollowRequest(studentId, user.uid);
         createNotification({
           title: "Follow Request Accepted",
-          message: `You are now connected.`,
-          type: "follow",
-          link: `/students/${studentId}`,
+          message: `${user.displayName || "Someone"} accepted your follow request.`,
+          type: "follow_accepted",
+          link: `/students/${user.uid}`,
           targetUserId: studentId,
+          senderId: user.uid,
         }).catch(() => {});
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
@@ -176,6 +177,7 @@ export default function Students() {
               type: "follow",
               link: `/students/${user.uid}`,
               targetUserId: studentId,
+              senderId: user.uid,
             }).catch(() => {});
           }
         }

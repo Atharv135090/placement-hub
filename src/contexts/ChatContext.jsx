@@ -65,17 +65,37 @@ export function ChatProvider({ children }) {
     const res = await getOrCreateConversation(uid, otherUserId);
     if (res.error) return null;
     const convId = res.data.id;
-    const convSnap = await import("firebase/firestore").then((mod) =>
-      import("../config/firebase").then((fb) =>
-        mod.getDoc(mod.doc(fb.db, "conversations", convId))
-      )
-    );
-    if (convSnap.exists()) {
-      const convData = { id: convSnap.id, ...convSnap.data() };
+    try {
+      const { getDoc, doc } = await import("firebase/firestore");
+      const { db } = await import("../config/firebase");
+      const otherSnap = await getDoc(doc(db, "users", otherUserId));
+      const otherUser = otherSnap.exists()
+        ? { id: otherUserId, ...otherSnap.data() }
+        : { id: otherUserId };
+      const convData = {
+        id: convId,
+        participants: [uid, otherUserId],
+        lastMessage: null,
+        lastMessageAt: null,
+        unread1: 0,
+        unread2: 0,
+        otherUser,
+      };
+      setActiveConversation(convData);
+      return convData;
+    } catch {
+      const convData = {
+        id: convId,
+        participants: [uid, otherUserId],
+        lastMessage: null,
+        lastMessageAt: null,
+        unread1: 0,
+        unread2: 0,
+        otherUser: { id: otherUserId },
+      };
       setActiveConversation(convData);
       return convData;
     }
-    return null;
   }, [uid]);
 
   const sendChatMessage = useCallback(async (conversationId, text) => {

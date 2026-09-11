@@ -116,8 +116,8 @@ export default function Chat() {
   const [contactSearch, setContactSearch] = useState("");
   const [loadingContacts, setLoadingContacts] = useState(false);
 
-  // UI Action Feedback (Step 1 placeholder notice)
-  const [actionNotice, setActionNotice] = useState(null);
+  // Conversation action state
+  const [showConvMenu, setShowConvMenu] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -173,13 +173,15 @@ export default function Chat() {
       return;
     }
     const otherId = activeConversation.participants?.find((p) => p !== user?.uid);
-    if (otherId) {
-      import("../services/social").then(({ getStudentProfile }) => {
-        getStudentProfile(otherId).then((res) => {
-          if (res.data) setPartnerProfile(res.data);
-        });
+    if (!otherId) return;
+    let cancelled = false;
+    import("../services/social").then(({ getStudentProfile }) => {
+      if (cancelled) return;
+      getStudentProfile(otherId).then((res) => {
+        if (!cancelled && res.data) setPartnerProfile(res.data);
       });
-    }
+    });
+    return () => { cancelled = true; };
   }, [activeConversation, conversations, user?.uid]);
 
   const activePartner = partnerProfile || activeConversation?.otherUser;
@@ -247,7 +249,7 @@ export default function Chat() {
     }
 
     if (filterTab === "students") {
-      result = result.filter((c) => !c.otherUser?.role || c.otherUser?.role === "student");
+      result = result.filter((c) => !c.otherUser?.role || c.otherUser?.role === "student" || c.otherUser?.role === "owner");
     } else if (filterTab === "recruiters") {
       result = result.filter((c) => c.otherUser?.role === "recruiter" || c.otherUser?.role === "admin");
     } else if (filterTab === "companies") {
@@ -478,8 +480,8 @@ export default function Chat() {
                   <button
                     type="button"
                     className="msg-action-icon-btn"
-                    title="Audio call"
-                    onClick={() => setActionNotice("Audio call feature will be connected in next phase.")}
+                    title="View Profile"
+                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
                   >
                     <PhoneIcon />
                   </button>
@@ -487,8 +489,8 @@ export default function Chat() {
                   <button
                     type="button"
                     className="msg-action-icon-btn"
-                    title="Video call"
-                    onClick={() => setActionNotice("Video call feature will be connected in next phase.")}
+                    title="View Profile"
+                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
                   >
                     <VideoIcon />
                   </button>
@@ -502,14 +504,39 @@ export default function Chat() {
                     <InfoIcon />
                   </button>
 
-                  <button
-                    type="button"
-                    className="msg-action-icon-btn"
-                    title="Conversation options"
-                    onClick={() => setActionNotice("Conversation options: mute, clear, block.")}
-                  >
-                    <ThreeDotsIcon />
-                  </button>
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      className="msg-action-icon-btn"
+                      title="Conversation options"
+                      onClick={() => setShowConvMenu(!showConvMenu)}
+                    >
+                      <ThreeDotsIcon />
+                    </button>
+                    {showConvMenu && (
+                      <div className="msg-conv-menu" style={{
+                        position: "absolute", right: 0, top: "100%", zIndex: 100,
+                        background: "var(--surface, #1e1e2e)", border: "1px solid var(--border, #333)",
+                        borderRadius: 8, padding: "4px 0", minWidth: 160,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.3)"
+                      }}>
+                        <button
+                          className="msg-conv-menu-item"
+                          style={{ display: "block", width: "100%", padding: "8px 14px", background: "none", border: "none", color: "var(--text, #e0e0e0)", textAlign: "left", cursor: "pointer", fontSize: "0.85rem" }}
+                          onClick={() => { setShowConvMenu(false); navigate(`/students/${activePartner?.id || ""}`); }}
+                        >
+                          View Profile
+                        </button>
+                        <button
+                          className="msg-conv-menu-item"
+                          style={{ display: "block", width: "100%", padding: "8px 14px", background: "none", border: "none", color: "#ef4444", textAlign: "left", cursor: "pointer", fontSize: "0.85rem" }}
+                          onClick={() => { setShowConvMenu(false); navigate("/chat"); }}
+                        >
+                          Leave Conversation
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -567,7 +594,8 @@ export default function Chat() {
                     type="button"
                     className="msg-composer-tool-btn"
                     title="Attach file"
-                    onClick={() => setActionNotice("File attachments will be supported in Step 2.")}
+                    disabled
+                    style={{ opacity: 0.4, cursor: "not-allowed" }}
                   >
                     <PaperclipIcon />
                   </button>
@@ -646,10 +674,10 @@ export default function Chat() {
                     </span>
                     <span className="msg-modal-contact-sub">
                       {contact.branch ? `${contact.branch} • ` : ""}
-                      {contact.role === "admin" || contact.role === "owner" ? "Placement Admin" : "Student"}
+                      {contact.role === "admin" || contact.role === "owner" ? "Admin" : "Student"}
                     </span>
                   </div>
-                  <button type="button" className="msg-modal-chat-btn">
+                  <button type="button" className="msg-modal-chat-btn" onClick={() => handleSelectContact(contact)}>
                     Chat
                   </button>
                 </div>
@@ -659,19 +687,6 @@ export default function Chat() {
         </div>
       </Modal>
 
-      {/* ─── ACTION NOTICE MODAL (Step 1 placeholder) ─────────────── */}
-      <Modal open={!!actionNotice} onClose={() => setActionNotice(null)} title="Notification">
-        <div style={{ padding: "10px 0" }}>
-          <p style={{ fontSize: "0.9rem", color: "var(--text-secondary, #64748b)", margin: 0 }}>
-            {actionNotice}
-          </p>
-          <div className="modal-actions" style={{ marginTop: 20 }}>
-            <button type="button" className="modal-btn modal-btn--primary" onClick={() => setActionNotice(null)}>
-              Got it
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -183,7 +183,7 @@ export default function Assistant() {
   const firstName =
     profile?.name?.split(" ")[0] ||
     user?.displayName?.split(" ")[0] ||
-    "Atharv";
+    "Student";
 
   // Automatic quote rotation every 7 seconds without immediate repetition
   useEffect(() => {

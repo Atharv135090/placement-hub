@@ -209,7 +209,7 @@ export default function AppShell() {
                   {profile?.displayName || user?.displayName || "Student"}
                 </span>
                 <span className="sidebar-user-email">
-                  {isAdmin ? "Admin" : (profile?.role || user?.email || "")}
+                  {profile?.role === "owner" ? "Owner" : profile?.role === "admin" ? "Admin" : (profile?.role || user?.email || "")}
                 </span>
               </div>
             )}

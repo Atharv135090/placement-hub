@@ -134,10 +134,9 @@ export default function Analytics() {
 
         {/* Right Range Selector & Quote */}
         <div className="an-header-right">
-          <div className="an-date-selector">
+          <div className="an-date-selector" style={{ cursor: "default" }}>
             <span className="an-cal-icon">📅</span>
             <span className="an-date-text">{dateRange}</span>
-            <span className="an-select-arrow">▾</span>
           </div>
           <div className="an-header-quote-block">
             <p className="an-header-quote">"Data turns effort into direction."</p>
@@ -293,9 +292,8 @@ export default function Analytics() {
                 <p className="an-panel-sub">From application to offer — see where you stand.</p>
               </div>
             </div>
-            <div className="an-panel-select-pill">
+            <div className="an-panel-select-pill" style={{ cursor: "default" }}>
               <span>{funnelPeriod}</span>
-              <span className="an-select-arrow">▾</span>
             </div>
           </div>
 
@@ -389,9 +387,8 @@ export default function Analytics() {
                 <p className="an-panel-sub">Your application activity over time.</p>
               </div>
             </div>
-            <div className="an-panel-select-pill">
+            <div className="an-panel-select-pill" style={{ cursor: "default" }}>
               <span>{trendRange}</span>
-              <span className="an-select-arrow">▾</span>
             </div>
           </div>
 

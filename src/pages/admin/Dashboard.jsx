@@ -99,7 +99,7 @@ export default function AdminDashboard() {
 
   // Admin first name
   const adminFirstName = useMemo(() => {
-    const full = profile?.displayName || user?.displayName || "Atharv";
+    const full = profile?.displayName || user?.displayName || "Admin";
     return full.split(" ")[0];
   }, [profile, user]);
 
@@ -368,10 +368,9 @@ export default function AdminDashboard() {
             </div>
 
             <div className="adm-chart-filter-wrap">
-              <button className="adm-chart-pill-btn">
+              <button className="adm-chart-pill-btn" style={{ cursor: "default" }}>
                 <span className="adm-calendar-icon">📅</span>
                 <span>Last 6 Months</span>
-                <span className="adm-caret">▾</span>
               </button>
             </div>
           </div>
@@ -699,7 +698,7 @@ export default function AdminDashboard() {
             ) : (
               recentUsers.map((u) => {
                 const uName = u.displayName || u.name || "Student";
-                const uEmail = u.email || "student@example.com";
+                const uEmail = u.email || "No email";
                 const role = u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : "Student";
 
                 return (

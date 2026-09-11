@@ -47,6 +47,8 @@ export default function StudentProfile() {
   const [reportSent, setReportSent] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState("");
 
   const isOwnProfile = user?.uid === studentId;
 
@@ -108,6 +110,14 @@ export default function StudentProfile() {
         await cancelFollowRequest(user.uid, studentId);
       } else if (incomingFollowStatus === "pending") {
         await acceptFollowRequest(studentId, user.uid);
+        createNotification({
+          title: "Follow Request Accepted",
+          message: `${user.displayName || "Someone"} accepted your follow request.`,
+          type: "follow_accepted",
+          link: `/students/${user.uid}`,
+          targetUserId: studentId,
+          senderId: user.uid,
+        }).catch(() => {});
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
         if (error === "blocked") {
@@ -121,6 +131,7 @@ export default function StudentProfile() {
             type: "follow",
             link: `/students/${user.uid}`,
             targetUserId: studentId,
+            senderId: user.uid,
           }).catch(() => {});
         }
       }
@@ -150,10 +161,11 @@ export default function StudentProfile() {
     await acceptFollowRequest(fromId, user.uid);
     createNotification({
       title: "Follow Request Accepted",
-      message: `You are now connected.`,
-      type: "follow",
-      link: `/students/${fromId}`,
+      message: `${user.displayName || "Someone"} accepted your follow request.`,
+      type: "follow_accepted",
+      link: `/students/${user.uid}`,
       targetUserId: fromId,
+      senderId: user.uid,
     }).catch(() => {});
   }
 
@@ -213,11 +225,23 @@ export default function StudentProfile() {
   }
 
   async function handleStartChat() {
-    if (blocked) return;
+    if (blocked || chatLoading) return;
     const canChat = profile?.profileVisibility === "public" || followStatus === "accepted";
     if (!canChat) return;
-    const conv = await startConversation(studentId);
-    if (conv) navigate("/chat");
+    setChatLoading(true);
+    setChatError("");
+    try {
+      const conv = await startConversation(studentId);
+      if (conv) {
+        navigate("/chat");
+      } else {
+        setChatError("Could not start conversation.");
+      }
+    } catch (err) {
+      setChatError("Error: " + err.message);
+    } finally {
+      setChatLoading(false);
+    }
   }
 
   const canViewDetails = useMemo(() => {
@@ -310,9 +334,12 @@ export default function StudentProfile() {
               </button>
             )}
             {canChat && (
-              <button className="btn btn-primary" onClick={handleStartChat}>
-                Message
+              <button className="btn btn-primary" onClick={handleStartChat} disabled={chatLoading}>
+                {chatLoading ? "Opening..." : "Message"}
               </button>
+            )}
+            {chatError && (
+              <div style={{ color: "#ef4444", fontSize: "0.8rem", marginTop: 4 }}>{chatError}</div>
             )}
             {!isOwnProfile && (
               <>

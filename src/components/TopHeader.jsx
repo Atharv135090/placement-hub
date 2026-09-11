@@ -23,10 +23,10 @@ export default function TopHeader() {
   const profileRef = useRef(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const unsub = subscribeToNotifications(user.uid, setNotifications);
     return () => unsub?.();
-  }, [user]);
+  }, [user?.uid]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -171,7 +171,12 @@ export default function TopHeader() {
                   <p className="notif-empty">No new notifications</p>
                 ) : (
                   notifications.map((n) => (
-                    <div key={n.id} className="notif-item" onClick={() => { handleMarkRead(n.id); if (n.link) navigate(n.link); setPanelOpen(false); }}>
+                    <div key={n.id} className="notif-item" onClick={() => {
+                      handleMarkRead(n.id);
+                      const target = n.link || (n.senderId ? `/students/${n.senderId}` : null);
+                      if (target) navigate(target);
+                      setPanelOpen(false);
+                    }}>
                       <div className="notif-item-dot" />
                       <div className="notif-item-content">
                         <strong>{n.title}</strong>

@@ -418,13 +418,8 @@ export default function Companies() {
           {/* Footer Bar: Count and Pagination matching reference */}
           <div className="comps-footer-bar">
             <span className="comps-footer-count">
-              Showing {filtered.length} {filtered.length === 1 ? "company" : "companies"}
+              {filtered.length} {filtered.length === 1 ? "company" : "companies"}
             </span>
-            <div className="comps-pagination">
-              <button type="button" className="comps-page-nav" disabled>‹</button>
-              <button type="button" className="comps-page-num active">1</button>
-              <button type="button" className="comps-page-nav" disabled>›</button>
-            </div>
           </div>
         </>
       ) : (

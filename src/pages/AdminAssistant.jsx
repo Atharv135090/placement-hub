@@ -246,7 +246,7 @@ export default function AdminAssistant({ onClose }) {
 
         // PRD §9: Validate companyName doesn't contain field headers
         if (!validateCompanyName(companyName)) {
-          addMsg("assistant", "The company name appears to contain field labels instead of a clean name. Please provide just the company name (e.g. \"Company Name: Zensar Technologies\").");
+          addMsg("assistant", "The company name appears to contain field labels instead of a clean name. Please provide just the company name (e.g. \"Acme Corp\").");
           return;
         }
 
