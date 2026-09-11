@@ -29,6 +29,7 @@ export {
   subscribeToPendingFollowRequests,
   subscribeToFollowStatus,
   subscribeToAllFollowStatuses,
+  rebuildFollowerCounts,
 } from "./follows";
 
 // Blocks

@@ -252,6 +252,39 @@ export function subscribeToPendingFollowRequests(userId, callback) {
   });
 }
 
+export async function rebuildFollowerCounts() {
+  try {
+    const snapshot = await getDocs(collection(db, "follows"));
+    const followingCounts = {};
+    const followersCounts = {};
+
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.status !== "accepted") continue;
+      const { fromUserId, toUserId } = data;
+      if (fromUserId && toUserId) {
+        followingCounts[fromUserId] = (followingCounts[fromUserId] || 0) + 1;
+        followersCounts[toUserId] = (followersCounts[toUserId] || 0) + 1;
+      }
+    }
+
+    const allUserIds = new Set([...Object.keys(followingCounts), ...Object.keys(followersCounts)]);
+    const batch = [];
+    for (const uid of allUserIds) {
+      batch.push(
+        updateDoc(doc(db, "users", uid), {
+          followingCount: followingCounts[uid] || 0,
+          followersCount: followersCounts[uid] || 0,
+        }).catch(() => {})
+      );
+    }
+    await Promise.all(batch);
+    return { error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
 export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
   const docIdOut = `${fromUserId}_${toUserId}`;
   const docIdIn = `${toUserId}_${fromUserId}`;

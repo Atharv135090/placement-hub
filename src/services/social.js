@@ -30,6 +30,7 @@ export {
   subscribeToPendingFollowRequests,
   subscribeToFollowStatus,
   subscribeToAllFollowStatuses,
+  rebuildFollowerCounts,
 } from "./social/follows";
 
 // Blocks

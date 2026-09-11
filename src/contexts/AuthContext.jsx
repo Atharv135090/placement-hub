@@ -7,7 +7,7 @@ import { db } from "../config/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
-import { setUserOnline, setUserOffline } from "../services/social";
+import { setUserOnline, setUserOffline, rebuildFollowerCounts } from "../services/social";
 
 const AuthContext = createContext(null);
 
@@ -135,6 +135,11 @@ export function AuthProvider({ children }) {
       setUserOffline(user.uid);
     };
   }, [user?.uid]);
+
+  // One-time rebuild of denormalized follower/following counts from follows collection
+  useEffect(() => {
+    rebuildFollowerCounts().catch(() => {});
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, profile, loading, setProfile, blockedMessage, setBlockedMessage }}>
