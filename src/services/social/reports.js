@@ -1,6 +1,7 @@
-import { collection, doc, addDoc, getDoc, getDocs, updateDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
-import { db, storage } from "../../config/firebase";
+import { collection, doc, addDoc, getDoc, getDocs, updateDoc, query, orderBy, serverTimestamp, where } from "firebase/firestore";
+import { db, storage, functions } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 import { handleSocialError, mapDocs } from "./helpers";
 
 export async function reportUser(reporterId, reportedId, reason, details = "", evidenceUrls = []) {
@@ -59,6 +60,60 @@ export async function updateReportStatus(reportId, status) {
   try {
     await updateDoc(doc(db, "reports", reportId), { status });
     return { data: { id: reportId }, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function getModerationHistory(reportedUserId) {
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "reports"), orderBy("createdAt", "desc"))
+    );
+    const allReports = mapDocs(snapshot);
+    const userReports = allReports.filter((r) => r.reportedId === reportedUserId);
+    return { data: userReports, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function getModerationsByReport(reportId) {
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, "moderations"), where("reportId", "==", reportId), orderBy("createdAt", "desc"))
+    );
+    return { data: mapDocs(snapshot), error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function sendAdminMessage(reportId, targetUserId, message) {
+  try {
+    const fn = httpsCallable(functions, "adminSendMessage");
+    const result = await fn({ reportId, targetUserId, message });
+    return { data: result.data, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function sendAdminWarning(reportId, targetUserId, reason, warningMessage) {
+  try {
+    const fn = httpsCallable(functions, "adminSendWarning");
+    const result = await fn({ reportId, targetUserId, reason, warningMessage });
+    return { data: result.data, error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function adminUpdateReport(reportId, status, { resolutionNote, dismissedReason } = {}) {
+  try {
+    const fn = httpsCallable(functions, "adminUpdateReport");
+    const result = await fn({ reportId, status, resolutionNote, dismissedReason });
+    return { data: result.data, error: null };
   } catch (error) {
     return handleSocialError(error);
   }

@@ -42,6 +42,11 @@ export {
   uploadReportEvidence,
   getAllReports,
   updateReportStatus,
+  getModerationHistory,
+  getModerationsByReport,
+  sendAdminMessage,
+  sendAdminWarning,
+  adminUpdateReport,
 } from "./social/reports";
 
 // Messaging

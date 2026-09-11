@@ -402,6 +402,199 @@ exports.adminBlockUser = onCall(async (request) => {
   return { success: true, blocked };
 });
 
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 7: adminSendMessage
+// Sends an official admin moderation message to a user
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminSendMessage = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can send moderation messages.");
+  }
+
+  const { reportId, targetUserId, message } = request.data || {};
+  if (!reportId || typeof reportId !== "string") {
+    throw new HttpsError("invalid-argument", "reportId is required.");
+  }
+  if (!targetUserId || typeof targetUserId !== "string") {
+    throw new HttpsError("invalid-argument", "targetUserId is required.");
+  }
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "message is required.");
+  }
+
+  const targetSnap = await db.collection("users").doc(targetUserId).get();
+  if (!targetSnap.exists) {
+    throw new HttpsError("not-found", "Target user not found.");
+  }
+
+  const reportSnap = await db.collection("reports").doc(reportId).get();
+  if (!reportSnap.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  const adminId = request.auth.uid;
+  const now = new Date().toISOString();
+
+  const moderationRef = await db.collection("moderations").add({
+    reportId,
+    targetUserId,
+    adminId,
+    action: "message",
+    message: message.trim(),
+    createdAt: now,
+  });
+
+  await db.collection("notifications").add({
+    title: "Message from Placement Hub Admin",
+    message: message.trim(),
+    type: "admin_message",
+    link: null,
+    targetUserId,
+    senderId: adminId,
+    readBy: [],
+    createdAt: now,
+  });
+
+  logger.info(`Admin ${adminId} sent moderation message to ${targetUserId} for report ${reportId}`);
+
+  return { success: true, moderationId: moderationRef.id };
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 8: adminSendWarning
+// Sends an official warning to a user with moderation record
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminSendWarning = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can send warnings.");
+  }
+
+  const { reportId, targetUserId, reason, warningMessage } = request.data || {};
+  if (!reportId || typeof reportId !== "string") {
+    throw new HttpsError("invalid-argument", "reportId is required.");
+  }
+  if (!targetUserId || typeof targetUserId !== "string") {
+    throw new HttpsError("invalid-argument", "targetUserId is required.");
+  }
+  if (!warningMessage || typeof warningMessage !== "string" || warningMessage.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "warningMessage is required.");
+  }
+
+  const targetSnap = await db.collection("users").doc(targetUserId).get();
+  if (!targetSnap.exists) {
+    throw new HttpsError("not-found", "Target user not found.");
+  }
+
+  const reportSnap = await db.collection("reports").doc(reportId).get();
+  if (!reportSnap.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  const adminId = request.auth.uid;
+  const now = new Date().toISOString();
+
+  const moderationRef = await db.collection("moderations").add({
+    reportId,
+    targetUserId,
+    adminId,
+    action: "warning",
+    reason: reason || "",
+    message: warningMessage.trim(),
+    createdAt: now,
+  });
+
+  await db.collection("reports").doc(reportId).set(
+    { status: "reviewing" },
+    { merge: true }
+  );
+
+  await db.collection("notifications").add({
+    title: "Warning from Placement Hub Admin",
+    message: `You have received a warning: ${warningMessage.trim()}`,
+    type: "admin_warning",
+    link: null,
+    targetUserId,
+    senderId: adminId,
+    readBy: [],
+    createdAt: now,
+  });
+
+  logger.info(`Admin ${adminId} sent warning to ${targetUserId} for report ${reportId}`);
+
+  return { success: true, moderationId: moderationRef.id };
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 9: adminUpdateReport
+// Updates report status with metadata (resolve/dismiss with notes)
+// ═══════════════════════════════════════════════════════════════
+
+exports.adminUpdateReport = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "owner" && callerRole !== "admin") {
+    throw new HttpsError("permission-denied", "Only admin or owner can update reports.");
+  }
+
+  const { reportId, status, resolutionNote, dismissedReason } = request.data || {};
+  if (!reportId || typeof reportId !== "string") {
+    throw new HttpsError("invalid-argument", "reportId is required.");
+  }
+  if (!status || !["reviewing", "resolved", "dismissed"].includes(status)) {
+    throw new HttpsError("invalid-argument", "status must be reviewing, resolved, or dismissed.");
+  }
+
+  const reportSnap = await db.collection("reports").doc(reportId).get();
+  if (!reportSnap.exists) {
+    throw new HttpsError("not-found", "Report not found.");
+  }
+
+  const adminId = request.auth.uid;
+  const now = new Date().toISOString();
+
+  const updateData = { status };
+
+  if (status === "resolved") {
+    updateData.resolvedBy = adminId;
+    updateData.resolvedAt = now;
+    updateData.resolutionNote = resolutionNote || "";
+  } else if (status === "dismissed") {
+    updateData.dismissedBy = adminId;
+    updateData.dismissedAt = now;
+    updateData.dismissedReason = dismissedReason || "";
+  }
+
+  await db.collection("reports").doc(reportId).set(updateData, { merge: true });
+
+  const moderationRef = await db.collection("moderations").add({
+    reportId,
+    targetUserId: reportSnap.data().reportedId,
+    adminId,
+    action: `status_${status}`,
+    reason: status === "resolved" ? resolutionNote : dismissedReason || "",
+    createdAt: now,
+  });
+
+  logger.info(`Admin ${adminId} updated report ${reportId} to ${status}`);
+
+  return { success: true, moderationId: moderationRef.id };
+});
+
 exports.chat = onCall(
   {
     timeoutSeconds: 60,

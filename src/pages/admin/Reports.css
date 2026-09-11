@@ -672,6 +672,376 @@
   color: #9ca3af;
 }
 
+/* ─── DETAIL: USER ACTIONS ───────────────────────────────── */
+.ar-detail-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ar-blocked-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ─── DETAIL: EVIDENCE MESSAGE ───────────────────────────── */
+.ar-detail-evidence-message {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.ar-evidence-msg-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ar-evidence-msg-sender {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ar-evidence-msg-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.ar-evidence-msg-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── DETAIL: MODERATION HISTORY ─────────────────────────── */
+.ar-moderation-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ar-history-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.ar-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+
+.ar-history-reason {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ar-history-sep {
+  color: var(--text-muted);
+}
+
+.ar-history-status {
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.ar-history-date {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── DETAIL: ACTIONS TAKEN ──────────────────────────────── */
+.ar-moderation-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ar-moderation-action-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ar-action-type {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.ar-action-message {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ar-action-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── DETAIL: ACTION BUTTONS ─────────────────────────────── */
+.ar-detail-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ar-detail-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.ar-detail-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ar-detail-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ar-detail-action-btn--message {
+  border-color: rgba(59, 130, 246, 0.2);
+  color: var(--blue);
+}
+
+.ar-detail-action-btn--message:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.ar-detail-action-btn--warning {
+  border-color: rgba(234, 179, 8, 0.2);
+  color: var(--amber);
+}
+
+.ar-detail-action-btn--warning:hover {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.ar-detail-action-btn--block {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.ar-detail-action-btn--block:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ar-detail-action-btn--unblock {
+  border-color: rgba(16, 185, 129, 0.2);
+  color: var(--emerald);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.ar-detail-action-btn--unblock:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ─── DETAIL: DANGER ZONE ────────────────────────────────── */
+.ar-detail-danger {
+  border-top: 1px solid rgba(239, 68, 68, 0.15);
+  padding-top: 16px;
+}
+
+.ar-detail-label--danger {
+  color: var(--red);
+}
+
+/* ─── DETAIL: LOADING / EMPTY ────────────────────────────── */
+.ar-detail-loading,
+.ar-detail-empty {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 8px 0;
+  margin: 0;
+}
+
+/* ─── MODAL CONTENT ──────────────────────────────────────── */
+.ar-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ar-modal-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.ar-modal-desc--center {
+  text-align: center;
+}
+
+.ar-modal-desc--small {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.ar-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ar-modal-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ar-modal-input {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+
+.ar-modal-input:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.ar-modal-textarea {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color var(--transition);
+}
+
+.ar-modal-textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.ar-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ar-modal-cancel {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.ar-modal-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.ar-modal-submit {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--blue);
+  color: white;
+  transition: all var(--transition);
+}
+
+.ar-modal-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.ar-modal-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ar-modal-submit--warning {
+  background: var(--amber);
+  color: #000;
+}
+
+.ar-modal-submit--warning:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
+}
+
+.ar-modal-submit--danger {
+  background: var(--red);
+}
+
+.ar-modal-submit--danger:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.ar-modal-danger-icon {
+  display: flex;
+  justify-content: center;
+  color: var(--red);
+  margin-bottom: 8px;
+}
+
 /* ─── RESPONSIVE ────────────────────────────────────────── */
 @media (max-width: 1100px) {
   .ar-stats-row { display: none; }

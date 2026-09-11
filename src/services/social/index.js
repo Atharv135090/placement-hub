@@ -41,6 +41,11 @@ export {
   uploadReportEvidence,
   getAllReports,
   updateReportStatus,
+  getModerationHistory,
+  getModerationsByReport,
+  sendAdminMessage,
+  sendAdminWarning,
+  adminUpdateReport,
 } from "./reports";
 
 // Messaging
