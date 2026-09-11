@@ -957,3 +957,48 @@
     padding: 10px 14px;
   }
 }
+
+/* ─── ADMIN MESSAGE STYLES ────────────────────────────────── */
+.msg-icon-badge--admin {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+}
+
+.msg-main-subtitle--admin {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+
+.msg-bubble--admin {
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.msg-bubble--warning {
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.msg-warning-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.msg-bubble--warning .msg-bubble-text {
+  color: #fca5a5;
+}
+
+.msg-bubble--admin .msg-bubble-text {
+  color: #93c5fd;
+}

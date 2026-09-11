@@ -116,10 +116,11 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       return { data: null, error: convRes.error };
     }
 
+    const warningText = `[WARNING] ${warningMessage.trim()}`;
     const msgRes = await sendAdminChatMessage(
       convRes.data.id,
       adminId,
-      message.trim(),
+      warningText,
       [adminId, targetUserId]
     );
     if (msgRes.error) {
@@ -141,7 +142,7 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       title: "Message from Placement Hub Admin",
       message: message.trim(),
       type: "admin_message",
-      link: `/admin/chat/${targetUserId}`,
+      link: `/chat?adminConv=${convRes.data.id}`,
       targetUserId,
       senderId: adminId,
       readBy: [],
@@ -183,7 +184,7 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       title: "Warning from Placement Hub Admin",
       message: `You have received a warning: ${warningMessage.trim()}`,
       type: "admin_warning",
-      link: null,
+      link: `/chat?adminConv=${convRes.data.id}`,
       targetUserId,
       senderId: adminId,
       readBy: [],

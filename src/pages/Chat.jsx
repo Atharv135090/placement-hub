@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
-import { getAllStudents } from "../services/social";
+import { db } from "../config/firebase";
+import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import Modal from "../components/Modal";
 import "./Chat.css";
@@ -95,6 +97,7 @@ const BackArrowIcon = () => (
 export default function Chat() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     conversations,
     activeConversation,
@@ -110,6 +113,15 @@ export default function Chat() {
   const [filterTab, setFilterTab] = useState("all");
   const [convSearch, setConvSearch] = useState("");
 
+  // Admin conversation state
+  const adminConvId = searchParams.get("adminConv");
+  const [adminMode, setAdminMode] = useState(false);
+  const [adminConv, setAdminConv] = useState(null);
+  const [adminMessages, setAdminMessages] = useState([]);
+  const [adminSending, setAdminSending] = useState(false);
+  const [adminInput, setAdminInput] = useState("");
+  const [adminPartner, setAdminPartner] = useState(null);
+
   // New Message Modal State
   const [newMsgModalOpen, setNewMsgModalOpen] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -121,6 +133,82 @@ export default function Chat() {
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const adminMsgEndRef = useRef(null);
+
+  // Activate admin mode when ?adminConv param is present
+  useEffect(() => {
+    if (!adminConvId || !user?.uid) {
+      setAdminMode(false);
+      return;
+    }
+    setAdminMode(true);
+    setActiveConversation(null);
+
+    async function loadAdminConv() {
+      const convSnap = await getDoc(doc(db, "adminConversations", adminConvId));
+      if (convSnap.exists()) {
+        const convData = convSnap.data();
+        setAdminConv({ id: adminConvId, ...convData });
+        const otherId = convData.participants?.find((p) => p !== user.uid);
+        if (otherId) {
+          const userSnap = await getDoc(doc(db, "users", otherId));
+          if (userSnap.exists()) {
+            setAdminPartner({ id: otherId, ...userSnap.data() });
+          }
+        }
+        markAdminConversationRead(adminConvId, user.uid);
+      }
+    }
+    loadAdminConv();
+
+    const unsub = subscribeToAdminMessages(adminConvId, (msgs) => {
+      setAdminMessages(msgs);
+    });
+
+    return () => {
+      unsub();
+      setAdminMode(false);
+      setAdminConv(null);
+      setAdminMessages([]);
+      setAdminPartner(null);
+    };
+  }, [adminConvId, user?.uid, setActiveConversation]);
+
+  // Auto-scroll admin messages
+  useEffect(() => {
+    adminMsgEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [adminMessages]);
+
+  async function handleAdminSend() {
+    if (!adminInput.trim() || adminSending || !adminConv) return;
+    setAdminSending(true);
+    const text = adminInput.trim();
+    setAdminInput("");
+    await sendAdminChatMessage(adminConv.id, user.uid, text, adminConv.participants);
+    setAdminSending(false);
+    adminMsgEndRef.current?.focus?.();
+  }
+
+  function handleAdminKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAdminSend();
+    }
+  }
+
+  function exitAdminMode() {
+    setSearchParams({});
+    setAdminMode(false);
+    setAdminConv(null);
+    setAdminMessages([]);
+    setAdminPartner(null);
+  }
+
+  function formatAdminTime(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -298,6 +386,131 @@ export default function Chat() {
       return name.includes(q) || branch.includes(q) || email.includes(q);
     });
   }, [availableUsers, contactSearch]);
+
+  // ─── ADMIN MESSAGE VIEW ─────────────────────────────────────
+  if (adminMode && adminConv) {
+    return (
+      <div className="msg-page-wrapper animate-fade-in">
+        <div className="msg-page-header">
+          <div className="msg-title-block">
+            <button className="msg-back-to-list-btn" onClick={exitAdminMode} title="Back to chat">
+              <BackArrowIcon />
+            </button>
+            <div className="msg-icon-badge msg-icon-badge--admin">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="msg-main-title">
+                {adminPartner?.displayName || "Admin"}
+              </h1>
+              <p className="msg-main-subtitle msg-main-subtitle--admin">Placement Hub Admin</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="msg-card-container">
+          <section className="msg-chat-panel" style={{ flex: 1 }}>
+            <div className="msg-active-header">
+              <button className="msg-back-to-list-btn" onClick={exitAdminMode} title="Back">
+                <BackArrowIcon />
+              </button>
+              <div className="msg-active-user-meta">
+                <div className="msg-active-avatar-wrap">
+                  <UserAvatar
+                    user={{ uid: adminPartner?.id }}
+                    profile={adminPartner}
+                    style={{ width: 44, height: 44 }}
+                  />
+                </div>
+                <div className="msg-active-name-col">
+                  <h3 className="msg-active-name">{adminPartner?.displayName || "Admin"}</h3>
+                  <span className="msg-active-status-text">
+                    <span className="msg-status-circle" /> Placement Hub Admin
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="msg-history-body">
+              <div className="msg-date-divider">
+                <span className="msg-date-pill">Admin Messages</span>
+              </div>
+
+              {adminMessages.length === 0 ? (
+                <div className="msg-empty-thread">
+                  <p className="msg-thread-prompt">No messages yet.</p>
+                </div>
+              ) : (
+                adminMessages.map((m) => {
+                  const isSent = m.senderId === user?.uid;
+                  const isWarning = m.isAdminMessage && m.text?.startsWith("[WARNING]");
+                  const displayText = isWarning ? m.text.replace("[WARNING]", "").trim() : m.text;
+                  const timeStr = formatAdminTime(m.createdAt);
+
+                  return (
+                    <div key={m.id} className={`msg-bubble-row ${isSent ? "sent" : "received"}`}>
+                      {!isSent && (
+                        <div className="msg-bubble-avatar">
+                          <UserAvatar
+                            user={{ uid: adminPartner?.id }}
+                            profile={adminPartner}
+                            style={{ width: 34, height: 34 }}
+                          />
+                        </div>
+                      )}
+
+                      <div className={`msg-bubble-box ${isSent ? "sent" : "received"} ${isWarning ? "msg-bubble--warning" : "msg-bubble--admin"}`}>
+                        {isWarning && (
+                          <div className="msg-warning-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                            <span>Warning</span>
+                          </div>
+                        )}
+                        <p className="msg-bubble-text">{displayText}</p>
+                        <div className="msg-bubble-footer">
+                          <span className="msg-bubble-time">{timeStr}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={adminMsgEndRef} />
+            </div>
+
+            <div className="msg-composer-outer">
+              <div className="msg-composer-capsule">
+                <input
+                  type="text"
+                  className="msg-composer-input"
+                  placeholder="Type a message..."
+                  value={adminInput}
+                  onChange={(e) => setAdminInput(e.target.value)}
+                  onKeyDown={handleAdminKeyDown}
+                  disabled={adminSending}
+                />
+                <button
+                  type="button"
+                  className="msg-composer-send-btn"
+                  onClick={handleAdminSend}
+                  disabled={!adminInput.trim() || adminSending}
+                  title="Send message"
+                >
+                  <SendAirplaneIcon />
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="msg-page-wrapper animate-fade-in">
