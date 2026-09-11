@@ -189,6 +189,13 @@ service cloud.firestore {
       allow update: if isOwnerOrAdmin() || hasAdminRole();
     }
 
+    // ─── MODERATIONS ──────────────────────────────────────────
+
+    match /moderations/{moderationId} {
+      allow read: if isOwnerOrAdmin() || hasAdminRole();
+      allow create: if isOwnerOrAdmin() || hasAdminRole();
+    }
+
     // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────
 
     match /{document=**} {

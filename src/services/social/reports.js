@@ -37,16 +37,26 @@ export async function getAllReports() {
     const snapshot = await getDocs(
       query(collection(db, "reports"), orderBy("createdAt", "desc"))
     );
-    const reports = mapDocs(snapshot);
+    const reports = mapDocs(snapshot).slice(0, 200);
     const enriched = await Promise.all(
       reports.map(async (r) => {
-        const reporterSnap = await getDoc(doc(db, "users", r.reporterId));
-        const reportedSnap = await getDoc(doc(db, "users", r.reportedId));
-        return {
-          ...r,
-          reporterName: reporterSnap.exists() ? reporterSnap.data().displayName || "Unknown" : "Deleted User",
-          reportedName: reportedSnap.exists() ? reportedSnap.data().displayName || "Unknown" : "Deleted User",
-        };
+        try {
+          const [reporterSnap, reportedSnap] = await Promise.all([
+            getDoc(doc(db, "users", r.reporterId)),
+            getDoc(doc(db, "users", r.reportedId)),
+          ]);
+          return {
+            ...r,
+            reporterName: reporterSnap.exists() ? reporterSnap.data().displayName || "Unknown" : "Deleted User",
+            reportedName: reportedSnap.exists() ? reportedSnap.data().displayName || "Unknown" : "Deleted User",
+          };
+        } catch (e) {
+          return {
+            ...r,
+            reporterName: "Unknown",
+            reportedName: "Unknown",
+          };
+        }
       })
     );
     return { data: enriched, error: null };
@@ -92,9 +102,14 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
   try {
     const { getAuth } = await import("firebase/auth");
     const adminId = getAuth().currentUser?.uid;
-    if (!adminId) return { data: null, error: "Not authenticated" };
+    if (!adminId) {
+      console.error("sendAdminMessage: No authenticated user");
+      return { data: null, error: "Not authenticated" };
+    }
 
-    await addDoc(collection(db, "moderations"), {
+    console.log("sendAdminMessage:", { reportId, targetUserId, adminId });
+
+    const modRef = await addDoc(collection(db, "moderations"), {
       reportId,
       targetUserId,
       adminId,
@@ -102,8 +117,9 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       message: message.trim(),
       createdAt: new Date().toISOString(),
     });
+    console.log("Moderation doc created:", modRef.id);
 
-    await addDoc(collection(db, "notifications"), {
+    const notifRef = await addDoc(collection(db, "notifications"), {
       title: "Message from Placement Hub Admin",
       message: message.trim(),
       type: "admin_message",
@@ -113,9 +129,11 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       readBy: [],
       createdAt: new Date().toISOString(),
     });
+    console.log("Notification doc created:", notifRef.id);
 
     return { data: { success: true }, error: null };
   } catch (error) {
+    console.error("sendAdminMessage FAILED:", error.code, error.message);
     return handleSocialError(error);
   }
 }
@@ -124,7 +142,12 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
   try {
     const { getAuth } = await import("firebase/auth");
     const adminId = getAuth().currentUser?.uid;
-    if (!adminId) return { data: null, error: "Not authenticated" };
+    if (!adminId) {
+      console.error("sendAdminWarning: No authenticated user");
+      return { data: null, error: "Not authenticated" };
+    }
+
+    console.log("sendAdminWarning:", { reportId, targetUserId, adminId, reason });
 
     await addDoc(collection(db, "moderations"), {
       reportId,
@@ -149,8 +172,10 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       createdAt: new Date().toISOString(),
     });
 
+    console.log("sendAdminWarning: success");
     return { data: { success: true }, error: null };
   } catch (error) {
+    console.error("sendAdminWarning FAILED:", error.code, error.message);
     return handleSocialError(error);
   }
 }
@@ -159,7 +184,12 @@ export async function adminUpdateReport(reportId, status, { resolutionNote, dism
   try {
     const { getAuth } = await import("firebase/auth");
     const adminId = getAuth().currentUser?.uid;
-    if (!adminId) return { data: null, error: "Not authenticated" };
+    if (!adminId) {
+      console.error("adminUpdateReport: No authenticated user");
+      return { data: null, error: "Not authenticated" };
+    }
+
+    console.log("adminUpdateReport:", { reportId, status, adminId });
 
     const updateData = { status };
     const now = new Date().toISOString();
@@ -188,8 +218,10 @@ export async function adminUpdateReport(reportId, status, { resolutionNote, dism
       createdAt: now,
     });
 
+    console.log("adminUpdateReport: success");
     return { data: { success: true }, error: null };
   } catch (error) {
+    console.error("adminUpdateReport FAILED:", error.code, error.message);
     return handleSocialError(error);
   }
 }

@@ -151,16 +151,17 @@ export default function AdminReports() {
       );
       setFeedback("Report status updated.");
     } else {
-      setFeedback("Failed to update status.");
+      console.error("Status update error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setUpdatingStatus(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleSendMessage() {
     if (!messageText.trim() || !detailReport) return;
     setSendingMessage(true);
-    const { error } = await sendAdminMessage(
+    const { data, error } = await sendAdminMessage(
       detailReport.id,
       detailReport.reportedId,
       messageText.trim()
@@ -172,10 +173,11 @@ export default function AdminReports() {
       const moderationsRes = await getModerationsByReport(detailReport.id);
       setModerations(moderationsRes.data || []);
     } else {
-      setFeedback("Failed to send message.");
+      console.error("Message send error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setSendingMessage(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleSendWarning() {
@@ -207,10 +209,11 @@ export default function AdminReports() {
       setModerationHistory(historyRes.data || []);
       setModerations(moderationsRes.data || []);
     } else {
-      setFeedback("Failed to send warning.");
+      console.error("Warning send error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setSendingWarning(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleResolve() {
@@ -234,10 +237,11 @@ export default function AdminReports() {
       const moderationsRes = await getModerationsByReport(detailReport.id);
       setModerations(moderationsRes.data || []);
     } else {
-      setFeedback("Failed to resolve report.");
+      console.error("Resolve error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setResolving(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleDismiss() {
@@ -261,10 +265,11 @@ export default function AdminReports() {
       const moderationsRes = await getModerationsByReport(detailReport.id);
       setModerations(moderationsRes.data || []);
     } else {
-      setFeedback("Failed to dismiss report.");
+      console.error("Dismiss error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setDismissing(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleBlockUser() {
@@ -285,10 +290,11 @@ export default function AdminReports() {
       const moderationsRes = await getModerationsByReport(detailReport.id);
       setModerations(moderationsRes.data || []);
     } else {
-      setFeedback("Failed to block user.");
+      console.error("Block error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setBlocking(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   async function handleUnblockUser() {
@@ -307,10 +313,11 @@ export default function AdminReports() {
         prev ? { ...prev, reportedBlocked: false } : prev
       );
     } else {
-      setFeedback("Failed to unblock user.");
+      console.error("Unblock error:", error);
+      setFeedback(`Failed: ${error}`);
     }
     setBlocking(false);
-    setTimeout(() => setFeedback(""), 3000);
+    setTimeout(() => setFeedback(""), 5000);
   }
 
   function getActionLabel(type) {
