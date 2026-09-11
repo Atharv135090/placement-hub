@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import LogoFallback from "../components/LogoFallback";
 import "./AddCompany.css";
@@ -16,10 +17,27 @@ const INITIAL_STATE = {
 
 export default function AddCompany() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { addNewCompany } = usePlacementData();
   const [form, setForm] = useState(INITIAL_STATE);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const isAdmin = profile?.role === "admin" || profile?.role === "owner";
+
+  if (profile && !isAdmin) {
+    return (
+      <div className="add-company-page animate-fade-in">
+        <div className="add-company-card glass" style={{ textAlign: "center", padding: "60px 20px" }}>
+          <h2 style={{ color: "var(--text-primary)", marginBottom: 8 }}>Access Restricted</h2>
+          <p style={{ color: "var(--text-muted)" }}>Only admins can add companies.</p>
+          <button className="btn btn-primary" onClick={() => navigate("/companies")} style={{ marginTop: 16 }}>
+            Back to Companies
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));

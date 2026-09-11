@@ -1,11 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import CompanyLogo from "../components/CompanyLogo";
 import "./Companies.css";
 
 export default function Companies() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin" || profile?.role === "owner";
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
 
@@ -185,18 +188,20 @@ export default function Companies() {
             </button>
           </div>
 
-          <button
-            type="button"
-            className="comps-add-company-btn"
-            onClick={() => navigate("/companies/new")}
-            title="Add New Company"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Add Company</span>
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="comps-add-company-btn"
+              onClick={() => navigate("/companies/new")}
+              title="Add New Company"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Add Company</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -298,13 +303,15 @@ export default function Companies() {
           <div className="comps-empty-icon">🏢</div>
           <h3>No companies yet</h3>
           <p>Add your first company to start tracking placement opportunities.</p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => navigate("/companies/new")}
-          >
-            + Add Company
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/companies/new")}
+            >
+              + Add Company
+            </button>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="comps-empty-state glass">

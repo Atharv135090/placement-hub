@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { usePrivateControl } from "../contexts/PrivateControlContext";
 import "./PrivateControlPanel.css";
 
-const PRIVATE_ACTIONS = [
+const PRIVATE_ACTIONS_ADMIN = [
   {
     id: "add_company",
     label: "Add Company",
@@ -11,6 +12,9 @@ const PRIVATE_ACTIONS = [
     description: "Add a new company",
     path: "/companies/new",
   },
+];
+
+const PRIVATE_ACTIONS_ALL = [
   {
     id: "add_attachment",
     label: "Add Attachment",
@@ -29,10 +33,16 @@ const PRIVATE_ACTIONS = [
 
 export default function PrivateControlPanel() {
   const { isPrivateMode, showControlPanel, exitPrivateMode, toggleControlPanel } = usePrivateControl();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [minimized, setMinimized] = useState(false);
 
   if (!isPrivateMode) return null;
+
+  const isAdmin = profile?.role === "admin" || profile?.role === "owner";
+  const actions = isAdmin
+    ? [...PRIVATE_ACTIONS_ADMIN, ...PRIVATE_ACTIONS_ALL]
+    : PRIVATE_ACTIONS_ALL;
 
   function handleAction(action) {
     if (action.path) {
@@ -80,7 +90,7 @@ export default function PrivateControlPanel() {
 
           {!minimized && (
             <div className="pcp-panel-body">
-              {PRIVATE_ACTIONS.map((action) => (
+              {actions.map((action) => (
                 <button
                   key={action.id}
                   className="pcp-action-card"

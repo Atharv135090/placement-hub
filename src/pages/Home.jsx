@@ -321,12 +321,14 @@ export default function Home() {
                 <p className="empty-comp-sub">
                   When the Admin/Owner adds a company, it will automatically appear here.
                 </p>
-                <button
-                  className="btn btn-primary btn-empty-action"
-                  onClick={() => navigate("/companies/new")}
-                >
-                  + Add Company
-                </button>
+                {(profile?.role === "admin" || profile?.role === "owner") && (
+                  <button
+                    className="btn btn-primary btn-empty-action"
+                    onClick={() => navigate("/companies/new")}
+                  >
+                    + Add Company
+                  </button>
+                )}
               </div>
             ) : (
               <div className="companies-cards-grid">
