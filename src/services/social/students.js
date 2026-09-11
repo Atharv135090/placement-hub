@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, updateDoc, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 
@@ -54,4 +54,43 @@ export async function updateStudentProfile(userId, updates) {
   } catch (error) {
     return handleSocialError(error);
   }
+}
+
+// ─── PRESENCE ────────────────────────────────────────────────
+export async function setUserOnline(userId) {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      online: true,
+      lastSeenAt: serverTimestamp(),
+    });
+    return { error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export async function setUserOffline(userId) {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      online: false,
+      lastSeenAt: serverTimestamp(),
+    });
+    return { error: null };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+export function subscribeToUserPresence(userId, callback) {
+  return onSnapshot(doc(db, "users", userId), (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      callback({ online: data.online || false, lastSeenAt: data.lastSeenAt || null });
+    } else {
+      callback({ online: false, lastSeenAt: null });
+    }
+  }, (error) => {
+    console.error("subscribeToUserPresence error:", error);
+    callback({ online: false, lastSeenAt: null });
+  });
 }

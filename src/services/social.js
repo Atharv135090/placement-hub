@@ -8,6 +8,9 @@ export {
   getAllStudents,
   subscribeToStudents,
   updateStudentProfile,
+  setUserOnline,
+  setUserOffline,
+  subscribeToUserPresence,
 } from "./social/students";
 
 // Follows

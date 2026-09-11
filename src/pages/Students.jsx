@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import {
@@ -13,6 +13,7 @@ import {
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
+import IntegratedStudentsChat from "../components/IntegratedStudentsChat";
 import "./Students.css";
 
 export default function Students() {
@@ -201,7 +202,7 @@ export default function Students() {
   async function handleStartChat(studentId) {
     setActiveMenuId(null);
     try {
-      navigate(`/chat?student=${studentId}`);
+      setSearchParams({ chat: studentId });
     } catch (err) {
       console.error("Chat error:", err);
     }
@@ -229,6 +230,22 @@ export default function Students() {
     } catch (err) {
       console.error("Block error:", err);
     }
+  }
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isChatMode = searchParams.has("chat") || searchParams.has("message");
+  const chatStudentId = searchParams.get("chat") || searchParams.get("message");
+
+  if (isChatMode) {
+    return (
+      <IntegratedStudentsChat
+        activeStudentId={chatStudentId}
+        onSelectStudent={(id) => setSearchParams({ chat: id })}
+        students={students}
+        currentUser={user}
+        followStatuses={followStatuses}
+      />
+    );
   }
 
   // Format graduation year into clean student tag

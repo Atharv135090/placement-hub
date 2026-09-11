@@ -4,7 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import { db } from "../config/firebase";
-import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead } from "../services/social";
+import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import Modal from "../components/Modal";
 import "./Chat.css";
@@ -27,19 +27,6 @@ const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" />
     <path d="m21 21-4.3-4.3" />
-  </svg>
-);
-
-const PhoneIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-  </svg>
-);
-
-const VideoIcon = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m22 8-6 4 6 4V8Z" />
-    <rect width="14" height="12" x="2" y="6" rx="2" ry="2" />
   </svg>
 );
 
@@ -122,6 +109,9 @@ export default function Chat() {
   const [adminInput, setAdminInput] = useState("");
   const [adminPartner, setAdminPartner] = useState(null);
 
+  // Partner presence state
+  const [partnerPresence, setPartnerPresence] = useState({ online: false, lastSeenAt: null });
+
   // New Message Modal State
   const [newMsgModalOpen, setNewMsgModalOpen] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
@@ -196,6 +186,34 @@ export default function Chat() {
     }
     selectStudent();
   }, [searchParams, user?.uid, activeConversation?.otherUser?.id, startConversation, setActiveConversation, setSearchParams]);
+
+  // Subscribe to active conversation partner's presence
+  useEffect(() => {
+    if (!activeConversation?.otherUser?.id) return;
+    const unsub = subscribeToUserPresence(activeConversation.otherUser.id, setPartnerPresence);
+    return () => unsub();
+  }, [activeConversation?.otherUser?.id]);
+
+  function formatLastSeen(lastSeenAt) {
+    if (!lastSeenAt) return "";
+    const d = lastSeenAt.toDate ? lastSeenAt.toDate() : new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Last seen just now";
+    if (diffMin < 60) return `Last seen ${diffMin} min ago`;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const seenDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (today.getTime() === seenDay.getTime()) {
+      return `Last seen today at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (seenDay.getTime() === yesterday.getTime()) {
+      return `Last seen yesterday at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    return `Last seen ${d.toLocaleDateString()}`;
+  }
 
   // Auto-scroll admin messages
   useEffect(() => {
@@ -704,8 +722,8 @@ export default function Chat() {
                     <h3 className="msg-active-name">
                       {activePartner?.displayName || activePartner?.name || "Student"}
                     </h3>
-                    <span className="msg-active-status-text">
-                      <span className="msg-status-circle" /> Online
+                    <span className={`msg-active-status-text ${partnerPresence.online ? "online" : "offline"}`}>
+                      <span className="msg-status-circle" /> {partnerPresence.online ? "Online" : formatLastSeen(partnerPresence.lastSeenAt)}
                     </span>
                   </div>
                 </div>
@@ -716,24 +734,6 @@ export default function Chat() {
                     type="button"
                     className="msg-action-icon-btn"
                     title="View Profile"
-                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
-                  >
-                    <PhoneIcon />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="msg-action-icon-btn"
-                    title="View Profile"
-                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
-                  >
-                    <VideoIcon />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="msg-action-icon-btn"
-                    title="View Profile Info"
                     onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
                   >
                     <InfoIcon />

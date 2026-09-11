@@ -7,6 +7,9 @@ export {
   getAllStudents,
   subscribeToStudents,
   updateStudentProfile,
+  setUserOnline,
+  setUserOffline,
+  subscribeToUserPresence,
 } from "./students";
 
 // Follows

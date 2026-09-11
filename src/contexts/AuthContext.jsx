@@ -7,6 +7,7 @@ import { db } from "../config/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
+import { setUserOnline, setUserOffline } from "../services/social";
 
 const AuthContext = createContext(null);
 
@@ -107,6 +108,32 @@ export function AuthProvider({ children }) {
       }
     }, () => {});
     return () => unsub();
+  }, [user?.uid]);
+
+  // Presence: set online on mount, offline on unmount, update on visibility change
+  useEffect(() => {
+    if (!user?.uid) return;
+    setUserOnline(user.uid);
+
+    function handleVisibility() {
+      if (document.visibilityState === "visible") {
+        setUserOnline(user.uid);
+      } else {
+        setUserOffline(user.uid);
+      }
+    }
+
+    function handleBeforeUnload() {
+      setUserOffline(user.uid);
+    }
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      setUserOffline(user.uid);
+    };
   }, [user?.uid]);
 
   return (

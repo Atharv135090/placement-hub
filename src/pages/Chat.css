@@ -524,12 +524,20 @@
   gap: 4px;
 }
 
+.msg-active-status-text.offline {
+  color: #9ca3af;
+}
+
 .msg-status-circle {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #16a34a;
   display: inline-block;
+}
+
+.msg-active-status-text.offline .msg-status-circle {
+  background: #9ca3af;
 }
 
 /* Header Action Icons */

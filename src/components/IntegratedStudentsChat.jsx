@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
-import { subscribeToFollowers, subscribeToFollowing, subscribeToPendingFollowRequests, blockUser, reportUser } from "../services/social";
+import { subscribeToFollowers, subscribeToFollowing, subscribeToPendingFollowRequests, blockUser, reportUser, subscribeToUserPresence } from "../services/social";
 import UserAvatar from "./UserAvatar";
 import Modal from "./Modal";
 import "./IntegratedStudentsChat.css";
@@ -104,19 +104,6 @@ const FlagIcon = () => (
   </svg>
 );
 
-const PhoneIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-  </svg>
-);
-
-const VideoIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="23 7 16 12 23 17 23 7" />
-    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-  </svg>
-);
-
 const InfoIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -211,6 +198,8 @@ export default function IntegratedStudentsChat({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
 
+  const [partnerPresence, setPartnerPresence] = useState({ online: false, lastSeenAt: null });
+
   const followersCount = followersList.length;
   const followingCount = followingList.length;
   const pendingRequestsCount = requestsList.length;
@@ -271,6 +260,34 @@ export default function IntegratedStudentsChat({
       || activeConversation?.otherUser
       || { id: activeStudentId };
   }, [students, activeStudentId, activeConversation?.otherUser]);
+
+  // Subscribe to selected student's presence
+  useEffect(() => {
+    if (!selectedStudent?.id) return;
+    const unsub = subscribeToUserPresence(selectedStudent.id, setPartnerPresence);
+    return () => unsub();
+  }, [selectedStudent?.id]);
+
+  function formatLastSeen(lastSeenAt) {
+    if (!lastSeenAt) return "";
+    const d = lastSeenAt.toDate ? lastSeenAt.toDate() : new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Last seen just now";
+    if (diffMin < 60) return `Last seen ${diffMin} min ago`;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const seenDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (today.getTime() === seenDay.getTime()) {
+      return `Last seen today at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (seenDay.getTime() === yesterday.getTime()) {
+      return `Last seen yesterday at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    return `Last seen ${d.toLocaleDateString()}`;
+  }
 
   // Format Firebase timestamp for display
   function formatMessageTime(date) {
@@ -611,7 +628,7 @@ export default function IntegratedStudentsChat({
                   <UserAvatar
                     user={{ uid: selectedStudent.id }}
                     profile={selectedStudent}
-                    style={{ width: 52, height: 52 }}
+                    style={{ width: 48, height: 48 }}
                   />
                 ) : (
                   <div className="isc-chat-header-avatar">
@@ -624,21 +641,21 @@ export default function IntegratedStudentsChat({
                     <h3 className="isc-chat-user-name">
                       {selectedStudent.displayName || selectedStudent.name || "Student"}
                     </h3>
-                    <span className="isc-status-indicator online">
-                      <span className="isc-status-dot" /> Online
+                    <span className={`isc-status-indicator ${partnerPresence.online ? "online" : "offline"}`}>
+                      <span className="isc-status-dot" />
+                      {partnerPresence.online ? "Online" : formatLastSeen(partnerPresence.lastSeenAt)}
                     </span>
                   </div>
 
                   <div className="isc-chat-user-tags">
-                    <span className="isc-chat-tag">
+                    <span className="isc-chat-tag admin-badge">
                       {selectedStudent.role === "admin" || selectedStudent.role === "owner" ? "Admin" : "Student"}
                     </span>
-                    <span className="isc-chat-tag">Member since Sep 2025</span>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: Only Info and 3-dot menu */}
               <div className="isc-chat-header-actions">
                 <button
                   type="button"
