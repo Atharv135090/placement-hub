@@ -67,12 +67,19 @@ const ReportsIcon = () => (
   </svg>
 );
 
+const MessagesIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 const ADMIN_NAV = [
   { to: "/admin",           icon: DashboardIcon, label: "Dashboard",         end: true },
   { to: "/admin/chatbot",   icon: ChatbotIcon,   label: "Admin Assistant" },
   { to: "/admin/analytics", icon: AnalyticsIcon, label: "Website Analytics" },
   { to: "/admin/users",     icon: UsersIcon,     label: "Users" },
   { to: "/admin/reports",   icon: ReportsIcon,   label: "Reports" },
+  { to: "/admin/chat",      icon: MessagesIcon,  label: "Messages" },
   { to: "/admin/companies", icon: CompaniesIcon, label: "Companies" },
 ];
 

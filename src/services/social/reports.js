@@ -2,6 +2,7 @@ import { collection, doc, addDoc, getDoc, getDocs, updateDoc, query, orderBy, se
 import { db, storage } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { handleSocialError, mapDocs } from "./helpers";
+import { getOrCreateAdminConversation, sendAdminChatMessage } from "./adminMessaging";
 
 export async function reportUser(reporterId, reportedId, reason, details = "", evidenceUrls = []) {
   try {
@@ -109,29 +110,46 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
 
     console.log("sendAdminMessage:", { reportId, targetUserId, adminId });
 
-    const modRef = await addDoc(collection(db, "moderations"), {
+    const convRes = await getOrCreateAdminConversation(adminId, targetUserId);
+    if (convRes.error) {
+      console.error("Failed to create conversation:", convRes.error);
+      return { data: null, error: convRes.error };
+    }
+
+    const msgRes = await sendAdminChatMessage(
+      convRes.data.id,
+      adminId,
+      message.trim(),
+      [adminId, targetUserId]
+    );
+    if (msgRes.error) {
+      console.error("Failed to send chat message:", msgRes.error);
+      return { data: null, error: msgRes.error };
+    }
+
+    await addDoc(collection(db, "moderations"), {
       reportId,
       targetUserId,
       adminId,
       action: "message",
       message: message.trim(),
+      conversationId: convRes.data.id,
       createdAt: new Date().toISOString(),
     });
-    console.log("Moderation doc created:", modRef.id);
 
-    const notifRef = await addDoc(collection(db, "notifications"), {
+    await addDoc(collection(db, "notifications"), {
       title: "Message from Placement Hub Admin",
       message: message.trim(),
       type: "admin_message",
-      link: null,
+      link: `/admin/chat/${targetUserId}`,
       targetUserId,
       senderId: adminId,
       readBy: [],
       createdAt: new Date().toISOString(),
     });
-    console.log("Notification doc created:", notifRef.id);
 
-    return { data: { success: true }, error: null };
+    console.log("sendAdminMessage: success, conversation:", convRes.data.id);
+    return { data: { success: true, conversationId: convRes.data.id }, error: null };
   } catch (error) {
     console.error("sendAdminMessage FAILED:", error.code, error.message);
     return handleSocialError(error);

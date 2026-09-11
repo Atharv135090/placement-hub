@@ -60,3 +60,13 @@ export {
   encryptMessage,
   decryptMessage,
 } from "./social/messaging";
+
+// Admin Messaging
+export {
+  getOrCreateAdminConversation,
+  sendAdminChatMessage,
+  getAdminConversations,
+  subscribeToAdminMessages,
+  subscribeToAdminConversations,
+  markAdminConversationRead,
+} from "./social/adminMessaging";
