@@ -157,6 +157,7 @@ export default function Chat() {
 
   // Conversation action state
   const [showConvMenu, setShowConvMenu] = useState(false);
+  const convMenuRef = useRef(null);
 
   // Emoji picker state
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -195,6 +196,19 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const adminMsgEndRef = useRef(null);
+
+  // Close conversation menu on click outside
+  useEffect(() => {
+    if (!showConvMenu) return;
+    function handleClick(e) {
+      if (convMenuRef.current && !convMenuRef.current.contains(e.target)) {
+        setShowConvMenu(false);
+        setShowDisappearingPopup(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showConvMenu]);
 
   // Activate admin mode when ?adminConv param is present
   useEffect(() => {
@@ -334,12 +348,14 @@ export default function Chat() {
     }
   }, [activeConversation?.id, messages.length, markRead]);
 
-  // Auto-select first conversation on load
+  // Auto-select first conversation on load (desktop only — mobile shows conversation list first)
   useEffect(() => {
-    if (!activeConversation && !selectedDiscoverUser && conversations.length > 0 && !adminMode) {
+    const hasStudentParam = searchParams.get("student");
+    const isMobile = window.innerWidth <= 768;
+    if (!activeConversation && !selectedDiscoverUser && conversations.length > 0 && !adminMode && !hasStudentParam && !isMobile) {
       setActiveConversation(conversations[0]);
     }
-  }, [conversations, activeConversation, selectedDiscoverUser, adminMode, setActiveConversation]);
+  }, [conversations, activeConversation, selectedDiscoverUser, adminMode, setActiveConversation, searchParams.get("student")]);
 
   // Subscribe to all users for Discover mode
   useEffect(() => {
@@ -1242,7 +1258,7 @@ export default function Chat() {
                     <InfoIcon />
                   </button>
 
-                  <div style={{ position: "relative" }}>
+                  <div ref={convMenuRef} style={{ position: "relative" }}>
                     <button
                       type="button"
                       className="msg-action-icon-btn"
@@ -1253,6 +1269,13 @@ export default function Chat() {
                     </button>
                     {showConvMenu && (
                       <div className="msg-conv-menu">
+                        <button
+                          className="msg-conv-menu-item"
+                          onClick={() => { setShowConvMenu(false); navigate(`/students/${activePartner?.id || ""}`); }}
+                        >
+                          View Profile
+                        </button>
+                        <div className="msg-conv-menu-divider" />
                         <button
                           className="msg-conv-menu-item"
                           onClick={handleCloseChat}
