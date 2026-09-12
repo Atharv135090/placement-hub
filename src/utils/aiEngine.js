@@ -6,7 +6,7 @@ let genAI = null;
 let model = null;
 
 function isValidGeminiKey(key) {
-  return key && key.startsWith("AIzaSy") && key.length > 30;
+  return typeof key === "string" && key.trim().length > 10;
 }
 
 export function isAIConfigured() {

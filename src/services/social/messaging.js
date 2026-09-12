@@ -99,18 +99,19 @@ export async function getConversations(userId) {
     const q1 = query(collection(db, "conversations"), where("participants", "array-contains", userId));
     const snapshot = await getDocs(q1);
     const convs = mapDocs(snapshot);
-    const enriched = await Promise.all(
+    const enriched = (await Promise.all(
       convs.map(async (c) => {
-        const otherId = c.participants.find((p) => p !== userId);
+        const otherId = c.participants?.find((p) => p !== userId);
+        if (!otherId) return null;
         const otherSnap = await getDoc(doc(db, "users", otherId));
         const otherProfile = otherSnap.exists() ? otherSnap.data() : {};
         return {
           ...c,
           otherUser: { id: otherId, ...otherProfile },
-          unreadCount: c.participants[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
+          unreadCount: c.participants?.[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
         };
       })
-    );
+    )).filter(Boolean);
     enriched.sort((a, b) => {
       const aTime = a.lastMessageAt?.toMillis?.() || 0;
       const bTime = b.lastMessageAt?.toMillis?.() || 0;
@@ -187,7 +188,7 @@ export function subscribeToConversations(userId, callback) {
   let generation = 0;
   return onSnapshot(q, (snapshot) => {
     const convs = mapDocs(snapshot);
-    const otherIds = [...new Set(convs.map((c) => c.participants.find((p) => p !== userId)))];
+    const otherIds = [...new Set(convs.map((c) => c.participants?.find((p) => p !== userId)).filter(Boolean))];
     const gen = ++generation;
     if (otherIds.length === 0) {
       callback([]);
@@ -203,13 +204,14 @@ export function subscribeToConversations(userId, callback) {
       const profileMap = {};
       profiles.forEach((p) => { profileMap[p.id] = p; });
       const enriched = convs.map((c) => {
-        const otherId = c.participants.find((p) => p !== userId);
+        const otherId = c.participants?.find((p) => p !== userId);
+        if (!otherId) return null;
         return {
           ...c,
           otherUser: profileMap[otherId] || { id: otherId },
-          unreadCount: c.participants[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
+          unreadCount: c.participants?.[0] === userId ? (c.unread1 || 0) : (c.unread2 || 0),
         };
-      });
+      }).filter(Boolean);
       enriched.sort((a, b) => {
         const aTime = a.lastMessageAt?.toMillis?.() || 0;
         const bTime = b.lastMessageAt?.toMillis?.() || 0;

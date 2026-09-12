@@ -262,28 +262,44 @@ export default function Chat() {
     };
   }, [adminConvId, user?.uid, setActiveConversation]);
 
-  // Handle ?student= param — auto-select conversation or discover profile
+  // Handle ?student= param — auto-select conversation or chat window
   useEffect(() => {
     if (!user?.uid) return;
     const studentId = searchParams.get("student");
     if (!studentId) return;
-    if (activeConversation?.otherUser?.id === studentId || selectedDiscoverUser?.id === studentId) {
+    if (activeConversation?.otherUser?.id === studentId) {
       setSearchParams({});
       return;
     }
     async function selectStudent() {
       try {
+        const { getStudentProfile } = await import("../services/social");
+        const profileRes = await getStudentProfile(studentId);
+        if (!profileRes.data) return;
+        const targetUser = profileRes.data;
+        const otherUserObj = {
+          id: targetUser.id,
+          displayName: targetUser.displayName || targetUser.name || "Student",
+          photoUrl: targetUser.photoUrl,
+          role: targetUser.role || "student",
+          branch: targetUser.branch,
+        };
         const status = followStatuses[studentId];
         if (status === "accepted") {
           const conv = await startConversation(studentId);
           if (conv) {
-            setActiveConversation(conv);
+            setActiveConversation({ ...conv, otherUser: otherUserObj });
           }
         } else {
-          const { getStudentProfile } = await import("../services/social");
-          const profileRes = await getStudentProfile(studentId);
-          if (profileRes.data) {
-            setSelectedDiscoverUser(profileRes.data);
+          const existingConv = conversations.find((c) => c.otherUser?.id === studentId);
+          if (existingConv) {
+            setActiveConversation(existingConv);
+          } else {
+            setActiveConversation({
+              id: null,
+              otherUser: otherUserObj,
+              participants: [user.uid, studentId],
+            });
           }
         }
       } catch (err) {
@@ -292,7 +308,7 @@ export default function Chat() {
       setSearchParams({});
     }
     selectStudent();
-  }, [searchParams.get("student"), user?.uid, startConversation, setActiveConversation, setSearchParams, followStatuses, selectedDiscoverUser]);
+  }, [searchParams.get("student"), user?.uid, startConversation, setActiveConversation, setSearchParams, followStatuses, conversations]);
 
   // Subscribe to active conversation partner's presence
   useEffect(() => {
@@ -396,6 +412,48 @@ export default function Chat() {
     return () => unsub?.();
   }, [user?.uid]);
 
+  // Auto-create conversation when relationship becomes mutual and no conversation exists yet
+  useEffect(() => {
+    if (!activeConversation?.id && activeConversation?.otherUser?.id && user?.uid) {
+      const otherId = activeConversation.otherUser.id;
+      const status = followStatuses[otherId];
+      if (status === "accepted") {
+        startConversation(otherId).then((conv) => {
+          if (conv) {
+            setActiveConversation((prev) => ({ ...prev, id: conv.id }));
+          }
+        }).catch((err) => {
+          console.error("Auto-create conversation failed:", err);
+        });
+      }
+    }
+  }, [followStatuses, activeConversation?.otherUser?.id, activeConversation?.id, user?.uid, startConversation, setActiveConversation]);
+
+  // DEBUG: When a user is selected, do a direct Firestore read to cross-check
+  useEffect(() => {
+    if (!user?.uid || !selectedDiscoverUser?.id) return;
+    const myId = user.uid;
+    const otherId = selectedDiscoverUser.id;
+    const outDocId = `${myId}_${otherId}`;
+    const inDocId = `${otherId}_${myId}`;
+    async function debugRead() {
+      try {
+        const [outSnap, inSnap] = await Promise.all([
+          getDoc(doc(db, "follows", outDocId)),
+          getDoc(doc(db, "follows", inDocId)),
+        ]);
+        console.log("[FOLLOW_DEBUG] DIRECT READ for", selectedDiscoverUser.displayName || otherId, ":", {
+          outgoing: { docId: outDocId, exists: outSnap.exists(), data: outSnap.exists() ? outSnap.data() : null },
+          incoming: { docId: inDocId, exists: inSnap.exists(), data: inSnap.exists() ? inSnap.data() : null },
+          subscriptionMerged: followStatuses[otherId],
+        });
+      } catch (e) {
+        console.error("[FOLLOW_DEBUG] DIRECT READ ERROR:", e);
+      }
+    }
+    debugRead();
+  }, [user?.uid, selectedDiscoverUser?.id, followStatuses[selectedDiscoverUser?.id]]);
+
   // Load available users for the New Message modal (excluding logged-in user)
   useEffect(() => {
     if (!newMsgModalOpen) return;
@@ -450,11 +508,26 @@ export default function Chat() {
 
   // Send message handler
   async function handleSend() {
-    if (!input.trim() || sending || !activeConversation?.id) return;
+    if (!input.trim() || sending || !activeConversation?.otherUser?.id) return;
+    let convId = activeConversation.id;
+    if (!convId) {
+      try {
+        const conv = await startConversation(activeConversation.otherUser.id);
+        if (conv) {
+          convId = conv.id;
+          setActiveConversation((prev) => ({ ...prev, id: conv.id }));
+        } else {
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to create conversation:", err);
+        return;
+      }
+    }
     const textToSend = input.trim();
     setInput("");
     try {
-      await sendChatMessage(activeConversation.id, textToSend);
+      await sendChatMessage(convId, textToSend);
     } catch (err) {
       console.error("Message send failed:", err);
       setInput(textToSend);
@@ -483,7 +556,22 @@ export default function Chat() {
 
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
-    if (!file || !activeConversation?.id) return;
+    if (!file || !activeConversation?.otherUser?.id) return;
+    let convId = activeConversation.id;
+    if (!convId) {
+      try {
+        const conv = await startConversation(activeConversation.otherUser.id);
+        if (conv) {
+          convId = conv.id;
+          setActiveConversation((prev) => ({ ...prev, id: conv.id }));
+        } else {
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to create conversation for upload:", err);
+        return;
+      }
+    }
     e.target.value = "";
 
     // Validate blocked types
@@ -511,7 +599,7 @@ export default function Chat() {
     setUploadProgress(0);
 
     try {
-      const storagePath = `chat_attachments/${activeConversation.id}/${Date.now()}_${file.name}`;
+      const storagePath = `chat_attachments/${convId}/${Date.now()}_${file.name}`;
       const storageRef = ref(storage, storagePath);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -538,7 +626,7 @@ export default function Chat() {
         storagePath,
       };
 
-      await sendChatMessage(activeConversation.id, JSON.stringify(attachmentData));
+      await sendChatMessage(convId, JSON.stringify(attachmentData));
     } catch (err) {
       console.error("File upload error:", err);
       alert("Failed to upload file. Please try again.");
@@ -670,8 +758,6 @@ export default function Chat() {
 
   async function handleMessageDiscoverUser(targetUser) {
     if (!user?.uid) return;
-    const status = followStatuses[targetUser.id];
-    if (status !== "accepted") return;
     const otherUserObj = {
       id: targetUser.id,
       displayName: targetUser.displayName || targetUser.name || "Student",
@@ -679,15 +765,29 @@ export default function Chat() {
       role: targetUser.role || "student",
       branch: targetUser.branch,
     };
-    try {
-      const conv = await startConversation(targetUser.id);
-      if (conv) {
-        setActiveConversation({ ...conv, otherUser: otherUserObj });
-        setSelectedDiscoverUser(null);
+    const status = followStatuses[targetUser.id];
+    if (status === "accepted") {
+      try {
+        const conv = await startConversation(targetUser.id);
+        if (conv) {
+          setActiveConversation({ ...conv, otherUser: otherUserObj });
+        }
+      } catch (err) {
+        console.error("Error starting chat:", err);
       }
-    } catch (err) {
-      console.error("Error starting chat:", err);
+    } else {
+      const existingConv = conversations.find((c) => c.otherUser?.id === targetUser.id);
+      if (existingConv) {
+        setActiveConversation(existingConv);
+      } else {
+        setActiveConversation({
+          id: null,
+          otherUser: otherUserObj,
+          participants: [user.uid, targetUser.id],
+        });
+      }
     }
+    setSelectedDiscoverUser(null);
   }
 
   // Format message timestamp: 08:48 PM
@@ -786,12 +886,6 @@ export default function Chat() {
 
   // Start new conversation from modal
   async function handleSelectContact(contact) {
-    const status = followStatuses[contact.id];
-    if (status !== "accepted") {
-      setNewMsgModalOpen(false);
-      setSelectedDiscoverUser(contact);
-      return;
-    }
     setNewMsgModalOpen(false);
     const otherUserObj = {
       id: contact.id,
@@ -800,14 +894,30 @@ export default function Chat() {
       role: contact.role || "student",
       branch: contact.branch,
     };
-    try {
-      const conv = await startConversation(contact.id);
-      if (conv) {
-        setActiveConversation({ ...conv, otherUser: otherUserObj });
+    const status = followStatuses[contact.id];
+    if (status === "accepted") {
+      try {
+        const conv = await startConversation(contact.id);
+        if (conv) {
+          setActiveConversation({ ...conv, otherUser: otherUserObj });
+          setPartnerProfile(otherUserObj);
+        }
+      } catch (err) {
+        console.error("Error starting chat:", err);
+      }
+    } else {
+      const existingConv = conversations.find((c) => c.otherUser?.id === contact.id);
+      if (existingConv) {
+        setActiveConversation(existingConv);
+        setPartnerProfile(otherUserObj);
+      } else {
+        setActiveConversation({
+          id: null,
+          otherUser: otherUserObj,
+          participants: [user.uid, contact.id],
+        });
         setPartnerProfile(otherUserObj);
       }
-    } catch (err) {
-      console.error("Error starting chat:", err);
     }
   }
 
@@ -1086,13 +1196,8 @@ export default function Chat() {
                   key={u.id}
                   className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
                   onClick={() => {
-                    if (status === "accepted") {
-                      setSelectedDiscoverUser(null);
-                      handleMessageDiscoverUser(u);
-                    } else {
-                      setActiveConversation(null);
-                      setSelectedDiscoverUser(u);
-                    }
+                    setSelectedDiscoverUser(null);
+                    handleMessageDiscoverUser(u);
                   }}
                 >
                   <div className="msg-conv-avatar-wrap">
@@ -1150,114 +1255,8 @@ export default function Chat() {
         </aside>
 
         {/* ─── 6. RIGHT ACTIVE CHAT PANEL ──────────────────────────── */}
-        <section className={`msg-chat-panel ${!activeConversation && !selectedDiscoverUser ? "msg-chat-panel--empty" : ""}`}>
-          {selectedDiscoverUser && !activeConversation ? (
-            /* ─── DISCOVER USER PROFILE PANEL ─────────────────── */
-            <div className="msg-discover-profile">
-              <button
-                className="msg-back-to-list-btn"
-                onClick={() => setSelectedDiscoverUser(null)}
-                title="Back to list"
-                aria-label="Back to list"
-              >
-                <BackArrowIcon />
-              </button>
-              <div className="msg-discover-profile-card">
-                <UserAvatar
-                  user={{ uid: selectedDiscoverUser.id }}
-                  profile={selectedDiscoverUser}
-                  style={{ width: 72, height: 72 }}
-                />
-                <h3 className="msg-discover-name">
-                  {selectedDiscoverUser.displayName || selectedDiscoverUser.name || "Student"}
-                </h3>
-                <p className="msg-discover-meta">
-                  {selectedDiscoverUser.branch || selectedDiscoverUser.role || "Student"}
-                </p>
-                {(() => {
-                  const status = followStatuses[selectedDiscoverUser.id];
-                  if (status === "accepted") {
-                    return (
-                      <div className="msg-discover-actions">
-                        <button
-                          className="btn btn-primary"
-                          onClick={() => handleMessageDiscoverUser(selectedDiscoverUser)}
-                        >
-                          Message
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (status === "following") {
-                    return (
-                      <div className="msg-discover-actions">
-                        <p className="msg-follow-to-message-status" style={{ marginBottom: 0 }}>
-                          You follow this user. They need to follow you back to start messaging.
-                        </p>
-                      </div>
-                    );
-                  }
-                  if (status === "follower") {
-                    return (
-                      <div className="msg-discover-actions">
-                        <button
-                          className="btn btn-primary"
-                          disabled={followLoading === selectedDiscoverUser.id}
-                          onClick={() => handleFollowToMessage(selectedDiscoverUser.id)}
-                        >
-                          {followLoading === selectedDiscoverUser.id ? "Following..." : "Follow Back"}
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (status === "pending") {
-                    return (
-                      <div className="msg-discover-actions">
-                        <button
-                          className="btn btn-secondary"
-                          disabled={followLoading === selectedDiscoverUser.id}
-                          onClick={() => handleCancelRequest(selectedDiscoverUser.id)}
-                        >
-                          {followLoading === selectedDiscoverUser.id ? "Cancelling..." : "Requested"}
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (status === "incoming_pending") {
-                    return (
-                      <div className="msg-discover-actions msg-discover-actions--stack">
-                        <button
-                          className="btn btn-primary"
-                          disabled={followLoading === selectedDiscoverUser.id}
-                          onClick={() => handleAcceptRequest(selectedDiscoverUser.id)}
-                        >
-                          {followLoading === selectedDiscoverUser.id ? "Accepting..." : "Accept Request"}
-                        </button>
-                        <button
-                          className="btn btn-secondary"
-                          disabled={followLoading === selectedDiscoverUser.id}
-                          onClick={() => handleRejectRequest(selectedDiscoverUser.id)}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="msg-discover-actions">
-                      <button
-                        className="btn btn-primary"
-                        disabled={followLoading === selectedDiscoverUser.id}
-                        onClick={() => handleFollowToMessage(selectedDiscoverUser.id)}
-                      >
-                        {followLoading === selectedDiscoverUser.id ? "Sending..." : "Follow to Message"}
-                      </button>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          ) : !activeConversation ? (
+        <section className={`msg-chat-panel ${!activeConversation ? "msg-chat-panel--empty" : ""}`}>
+          {!activeConversation ? (
             <div className="msg-chat-empty-state">
               <div className="msg-placeholder-icon-wrap">
                 <ChatHeaderIcon />

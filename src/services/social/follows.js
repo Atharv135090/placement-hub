@@ -11,25 +11,43 @@ export async function sendFollowRequest(fromUserId, toUserId) {
     if (blocked1.data) return { data: null, error: "blocked" };
 
     const docId = `${fromUserId}_${toUserId}`;
-    const existing = await getDoc(doc(db, "follows", docId));
-    if (existing.exists()) return { data: null, error: "already_exists" };
+    const reverseDocId = `${toUserId}_${fromUserId}`;
+
+    const [existingSnap, reverseSnap] = await Promise.all([
+      getDoc(doc(db, "follows", docId)),
+      getDoc(doc(db, "follows", reverseDocId)),
+    ]);
+
+    const reverseStatus = reverseSnap.exists() ? reverseSnap.data().status : null;
+
+    if (existingSnap.exists()) {
+      const existingStatus = existingSnap.data().status;
+      if (existingStatus === "pending" && reverseStatus === "accepted") {
+        await updateDoc(doc(db, "follows", docId), { status: "accepted" });
+        await updateDoc(doc(db, "users", fromUserId), { followingCount: increment(1) });
+        await updateDoc(doc(db, "users", toUserId), { followersCount: increment(1) });
+        return { data: { id: docId, status: "accepted" }, error: null };
+      }
+      return { data: null, error: "already_exists" };
+    }
 
     const toProfile = await getDoc(doc(db, "users", toUserId));
     const isPublic = toProfile.exists() && toProfile.data().profileVisibility === "public";
+    const shouldBeAccepted = isPublic || reverseStatus === "accepted";
 
     await setDoc(doc(db, "follows", docId), {
       fromUserId,
       toUserId,
-      status: isPublic ? "accepted" : "pending",
+      status: shouldBeAccepted ? "accepted" : "pending",
       createdAt: serverTimestamp(),
     });
 
-    if (isPublic) {
+    if (shouldBeAccepted) {
       await updateDoc(doc(db, "users", fromUserId), { followingCount: increment(1) });
       await updateDoc(doc(db, "users", toUserId), { followersCount: increment(1) });
     }
 
-    return { data: { id: docId, status: isPublic ? "accepted" : "pending" }, error: null };
+    return { data: { id: docId, status: shouldBeAccepted ? "accepted" : "pending" }, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
@@ -38,9 +56,17 @@ export async function sendFollowRequest(fromUserId, toUserId) {
 export async function acceptFollowRequest(fromUserId, toUserId) {
   try {
     const docId = `${fromUserId}_${toUserId}`;
+    const reverseDocId = `${toUserId}_${fromUserId}`;
+
     await updateDoc(doc(db, "follows", docId), { status: "accepted" });
     await updateDoc(doc(db, "users", fromUserId), { followingCount: increment(1) });
     await updateDoc(doc(db, "users", toUserId), { followersCount: increment(1) });
+
+    const reverseSnap = await getDoc(doc(db, "follows", reverseDocId));
+    if (reverseSnap.exists() && reverseSnap.data().status === "pending") {
+      await deleteDoc(doc(db, "follows", reverseDocId));
+    }
+
     return { data: { id: docId }, error: null };
   } catch (error) {
     return handleSocialError(error);
@@ -326,6 +352,8 @@ export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
 export function subscribeToAllFollowStatuses(userId, callback) {
   if (!userId) return () => {};
 
+  console.log("[FOLLOW_DEBUG] subscribeToAllFollowStatuses for userId:", userId);
+
   const qOutgoing = query(
     collection(db, "follows"),
     where("fromUserId", "==", userId)
@@ -349,12 +377,12 @@ export function subscribeToAllFollowStatuses(userId, callback) {
         const inc = incomingStatuses[uid] || null;
         if (out === "accepted" && inc === "accepted") {
           merged[uid] = "accepted";
+        } else if (inc === "accepted") {
+          merged[uid] = "follower";
         } else if (out === "accepted") {
           merged[uid] = "following";
         } else if (out === "pending") {
           merged[uid] = "pending";
-        } else if (inc === "accepted") {
-          merged[uid] = "follower";
         } else if (inc === "pending") {
           merged[uid] = "incoming_pending";
         }
@@ -367,6 +395,12 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     for (const key of Object.keys(outgoingStatuses)) {
       delete outgoingStatuses[key];
     }
+    console.log("[FOLLOW_DEBUG] OUTGOING docs for", userId, ":", snapshot.docs.map(d => ({
+      docId: d.id,
+      fromUserId: d.data().fromUserId,
+      toUserId: d.data().toUserId,
+      status: d.data().status,
+    })));
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status) {
@@ -376,7 +410,7 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     outgoingLoaded = true;
     emit();
   }, (error) => {
-    console.error("subscribeToAllFollowStatuses outgoing error:", error);
+    console.error("[FOLLOW_DEBUG] OUTGOING ERROR:", error);
     outgoingLoaded = true;
     emit();
   });
@@ -385,6 +419,12 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     for (const key of Object.keys(incomingStatuses)) {
       delete incomingStatuses[key];
     }
+    console.log("[FOLLOW_DEBUG] INCOMING docs for", userId, ":", snapshot.docs.map(d => ({
+      docId: d.id,
+      fromUserId: d.data().fromUserId,
+      toUserId: d.data().toUserId,
+      status: d.data().status,
+    })));
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status === "accepted") {
@@ -396,7 +436,7 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     incomingLoaded = true;
     emit();
   }, (error) => {
-    console.error("subscribeToAllFollowStatuses incoming error:", error);
+    console.error("[FOLLOW_DEBUG] INCOMING ERROR:", error);
     incomingLoaded = true;
     emit();
   });
