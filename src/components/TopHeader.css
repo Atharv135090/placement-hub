@@ -563,11 +563,8 @@
   .header-user-name { display: none; }
   .header-user-card { padding: 4px; border-radius: 50%; }
   .header-user-menu-trigger { padding: 0 4px 0 2px; }
-  .header-chat-btn span { display: none; }
   .header-chat-btn {
-    padding: 0 10px;
-    height: 34px;
-    min-width: 0;
+    display: none;
   }
   .header-icon-btn {
     width: 34px;

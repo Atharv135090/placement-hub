@@ -343,12 +343,20 @@ export function subscribeToAllFollowStatuses(userId, callback) {
   function emit() {
     if (outgoingLoaded && incomingLoaded) {
       const merged = {};
-      for (const [uid, status] of Object.entries(outgoingStatuses)) {
-        merged[uid] = status;
-      }
-      for (const [uid, status] of Object.entries(incomingStatuses)) {
-        if (!merged[uid]) {
-          merged[uid] = status;
+      const allUids = new Set([...Object.keys(outgoingStatuses), ...Object.keys(incomingStatuses)]);
+      for (const uid of allUids) {
+        const out = outgoingStatuses[uid] || null;
+        const inc = incomingStatuses[uid] || null;
+        if (out === "accepted" && inc === "accepted") {
+          merged[uid] = "accepted";
+        } else if (out === "accepted") {
+          merged[uid] = "following";
+        } else if (inc === "accepted") {
+          merged[uid] = "follower";
+        } else if (out === "pending") {
+          merged[uid] = "pending";
+        } else if (inc === "pending") {
+          merged[uid] = "incoming_pending";
         }
       }
       callback(merged);
