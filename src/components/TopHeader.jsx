@@ -137,7 +137,7 @@ export default function TopHeader({ onToggleMobileDrawer }) {
             ref={searchInputRef}
             name="searchInput"
             type="text"
-            placeholder="Search companies, locations..."
+            placeholder="Search companies, students, skills, or locations..."
           />
           <kbd className="top-header-kbd">Ctrl K</kbd>
         </form>

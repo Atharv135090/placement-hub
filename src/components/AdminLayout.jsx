@@ -261,7 +261,7 @@ export default function AdminLayout() {
             <input
               type="text"
               className="admin-search-input"
-              placeholder="Search users, companies, drives, applications..."
+              placeholder="Search users, companies, applications..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {

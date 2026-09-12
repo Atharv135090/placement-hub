@@ -451,19 +451,35 @@ export default function Students() {
 
             return (
               <div key={s.id} className="student-profile-card glass">
-                {/* Card Top Row: Avatar with Online indicator + Privacy Lock + 3-Dot Menu */}
+                {/* Card Top Bar: Avatar + Name/Status/Role + 3-Dot Menu */}
                 <div className="student-card-top-bar">
-                  <div className="student-avatar-container" onClick={() => navigate(`/students/${s.id}`)}>
-                    <UserAvatar
-                      user={{ uid: s.id }}
-                      profile={s}
-                      style={{ width: 56, height: 56 }}
-                    />
-                    {/* Status badge pill / dot matching reference */}
-                    <span className="student-online-pill" title="Active student">
-                      <span className="online-green-dot" />
-                      <span>Online</span>
-                    </span>
+                  <div className="student-card-profile-header">
+                    <div className="student-avatar-container" onClick={() => navigate(`/students/${s.id}`)}>
+                      <UserAvatar
+                        user={{ uid: s.id }}
+                        profile={s}
+                        style={{ width: 48, height: 48 }}
+                      />
+                    </div>
+
+                    <div className="student-profile-info-block">
+                      <div className="student-name-status-row">
+                        <span className="student-online-pill" title="Active student">
+                          <span className="online-green-dot" />
+                          <span>Online</span>
+                        </span>
+                        <div
+                          className="student-name-text"
+                          onClick={() => navigate(`/students/${s.id}`)}
+                          title={s.displayName || "Student"}
+                        >
+                          {s.displayName || "Student"}
+                        </div>
+                      </div>
+                      <span className={`student-role-badge ${s.role === "admin" || s.role === "owner" ? "student-role-badge--admin" : ""}`}>
+                        {s.role === "admin" || s.role === "owner" ? "Admin" : "Student"}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="student-card-top-right">
@@ -584,20 +600,6 @@ export default function Students() {
                       )}
                     </div>
                   </div>
-                </div>
-
-                {/* Student Identity */}
-                <div className="student-identity-block">
-                  <div
-                    className="student-name-text"
-                    onClick={() => navigate(`/students/${s.id}`)}
-                    title={s.displayName || "Student"}
-                  >
-                    {s.displayName || "Student"}
-                  </div>
-                  <span className={`student-role-badge ${s.role === "admin" || s.role === "owner" ? "student-role-badge--admin" : ""}`}>
-                    {s.role === "admin" || s.role === "owner" ? "Admin" : "Student"}
-                  </span>
                 </div>
 
                 {/* Details Row: Academic & Meta Info */}
