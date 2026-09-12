@@ -949,7 +949,7 @@ export default function Chat() {
                 const isSelected = activeConversation?.id === c.id;
                 const other = c.otherUser || {};
                 const name = other.displayName || "Student";
-                const lastMsg = c.lastMessageText || (c.lastMessage ? "[Encrypted Message]" : "Started a conversation");
+                const lastMsg = c.lastMessageText || (c.lastMessage ? "Encrypted message" : "Start a conversation");
                 const timeStr = formatConvTime(c.lastMessageAt || c.updatedAt || c.createdAt);
                 const unread = c.unreadCount || 0;
 

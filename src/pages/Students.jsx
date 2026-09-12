@@ -26,7 +26,7 @@ export default function Students() {
   const [sortBy, setSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 9;
+  const pageSize = 8;
 
   const [followStatuses, setFollowStatuses] = useState({});
   const [followLoading, setFollowLoading] = useState({});
