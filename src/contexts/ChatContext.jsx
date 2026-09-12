@@ -39,6 +39,7 @@ export function ChatProvider({ children }) {
       return;
     }
     // Ensure ECDH keys exist for this user (generates on first login)
+    // and publish public key to Firestore for cross-user E2EE
     ensureECDHKeys(uid).catch((err) => {
       console.warn("ECDH key init failed, will use legacy encryption:", err);
     });
@@ -60,15 +61,21 @@ export function ChatProvider({ children }) {
     }
 
     let disappearingSettingRef = { current: null };
+    let clearedAtRef = { current: null };
 
-    // Fetch disappearing messages setting for this conversation
+    // Fetch disappearing messages setting and clearedAt for this conversation
     (async () => {
       try {
         const convSnap = await getDoc(doc(db, "conversations", activeConversation.id));
         if (convSnap.exists()) {
-          const dm = convSnap.data().disappearingMessages;
+          const data = convSnap.data();
+          const dm = data.disappearingMessages;
           if (dm?.enabled && dm.duration && DISAPPEARING_DURATIONS[dm.duration]) {
             disappearingSettingRef.current = dm.duration;
+          }
+          // Per-user clear: read clearedAt timestamp for current user
+          if (data.clearedAt && data.clearedAt[uid]) {
+            clearedAtRef.current = data.clearedAt[uid];
           }
         }
       } catch {}
@@ -87,14 +94,24 @@ export function ChatProvider({ children }) {
         })
       );
 
-      // Filter out expired disappearing messages
       let filtered = decrypted;
+
+      // Per-user clear: filter out messages sent before the user cleared
+      const clearedAt = clearedAtRef.current;
+      if (clearedAt) {
+        filtered = filtered.filter((m) => {
+          const msgTime = m.createdAt?.toDate ? m.createdAt.toDate().getTime() : new Date(m.createdAt).getTime();
+          return msgTime > clearedAt;
+        });
+      }
+
+      // Filter out expired disappearing messages
       const expiredIds = [];
       const duration = disappearingSettingRef.current;
       if (duration) {
         const durationMs = DISAPPEARING_DURATIONS[duration];
         const now = Date.now();
-        filtered = decrypted.filter((m) => {
+        filtered = filtered.filter((m) => {
           const msgTime = m.createdAt?.toDate ? m.createdAt.toDate().getTime() : new Date(m.createdAt).getTime();
           const age = now - msgTime;
           if (age > durationMs) {
@@ -133,7 +150,8 @@ export function ChatProvider({ children }) {
       const profileRes = await getStudentProfile(otherUserId);
       if (profileRes.data) otherUser = { id: otherUserId, ...profileRes.data };
     } catch {}
-    const convData = {
+    // Read real conversation data from Firestore instead of hardcoding nulls
+    let convData = {
       id: convId,
       participants: [uid, otherUserId],
       lastMessage: null,
@@ -142,7 +160,20 @@ export function ChatProvider({ children }) {
       unread2: 0,
       otherUser,
     };
-    setActiveConversation(convData);
+    try {
+      const convSnap = await getDoc(doc(db, "conversations", convId));
+      if (convSnap.exists()) {
+        const firestore = convSnap.data();
+        convData = {
+          ...convData,
+          lastMessage: firestore.lastMessage || null,
+          lastMessageAt: firestore.lastMessageAt || null,
+          unread1: firestore.unread1 || 0,
+          unread2: firestore.unread2 || 0,
+          clearedAt: firestore.clearedAt || {},
+        };
+      }
+    } catch {}
     return convData;
   }, [uid]);
 

@@ -54,13 +54,6 @@ const CompaniesIcon = () => (
   </svg>
 );
 
-const DrivesIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-  </svg>
-);
-
 const ReportsIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -89,6 +82,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [adminNotifications, setAdminNotifications] = useState([]);
 
   useEffect(() => {
@@ -104,6 +98,7 @@ export default function AdminLayout() {
   }
 
   async function handleLogout() {
+    setUserDropdownOpen(false);
     sessionStorage.removeItem("admin_authenticated");
     await logOut();
     navigate("/login");
@@ -112,7 +107,6 @@ export default function AdminLayout() {
   const displayName = profile?.displayName || user?.displayName || "Admin";
 
   const [searchQuery, setSearchQuery] = useState("");
-  const searchInputRef = useState(null);
 
   // Ctrl+K keyboard shortcut listener
   useEffect(() => {
@@ -129,8 +123,14 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-shell">
+      {mobileDrawerOpen && (
+        <div
+          className="admin-sidebar-overlay"
+          onClick={() => setMobileDrawerOpen(false)}
+        />
+      )}
       {/* ─── SIDEBAR ─────────────────────────────────────────── */}
-      <aside className={`admin-sidebar ${collapsed ? "admin-sidebar--collapsed" : ""}`}>
+      <aside className={`admin-sidebar ${collapsed ? "admin-sidebar--collapsed" : ""} ${mobileDrawerOpen ? "admin-sidebar--open" : ""}`}>
         <div className="admin-sidebar-head">
           <NavLink to="/admin" className="admin-brand" title="Placement Hub Admin">
             <PlacementLogo size={30} />
@@ -161,12 +161,15 @@ export default function AdminLayout() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `admin-nav-link ${isActive ? "admin-nav-link--active" : ""}`
+                  `admin-sidebar-link ${isActive ? "admin-sidebar-link--active" : ""}`
                 }
+                onClick={() => setMobileDrawerOpen(false)}
                 title={collapsed ? item.label : undefined}
               >
-                <span className="admin-nav-icon"><Icon /></span>
-                {!collapsed && <span className="admin-nav-label">{item.label}</span>}
+                <span className="admin-sidebar-icon">
+                  <Icon />
+                </span>
+                {!collapsed && <span className="admin-sidebar-label">{item.label}</span>}
               </NavLink>
             );
           })}
@@ -227,6 +230,19 @@ export default function AdminLayout() {
         {/* Admin Top Header matching reference UI */}
         <header className="admin-top-bar">
           <div className="admin-top-bar-left">
+            <button
+              type="button"
+              className="admin-mobile-hamburger"
+              onClick={() => setMobileDrawerOpen(true)}
+              title="Open Admin Navigation"
+              aria-label="Open Admin Navigation"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <button
               className="admin-exit-student-btn"
               onClick={() => navigate("/")}

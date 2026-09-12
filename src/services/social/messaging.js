@@ -3,8 +3,8 @@ import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
 import {
-  getOrInitECDHPublicKey,
   getECDHPrivateKey,
+  fetchECDHPublicKey,
   encryptMessageE2EE,
   decryptMessageE2EE,
 } from "../../utils/crypto";
@@ -140,6 +140,27 @@ export async function sendMessage(conversationId, senderId, encryptedText, parti
     [unreadField]: increment(1),
   });
 
+  // Create notification for the recipient (matches existing notification schema)
+  try {
+    const recipientId = participants?.find((p) => p !== senderId);
+    if (recipientId) {
+      await addDoc(collection(db, "notifications"), {
+        title: "New Message",
+        message: "You have a new message",
+        type: "message",
+        senderId,
+        targetUserId: recipientId,
+        conversationId,
+        messageId: msgRef.id,
+        link: `/chat?student=${senderId}`,
+        readBy: [],
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (notifErr) {
+    console.warn("Failed to create message notification:", notifErr);
+  }
+
   cleanupConversationMessages(conversationId).catch(() => {});
 
   return { data: { id: msgRef.id }, error: null };
@@ -247,13 +268,20 @@ async function decryptV1(cipherText, uid1, uid2) {
 
 export async function encryptMessage(plaintext, senderUid, recipientUid) {
   const privateKey = await getECDHPrivateKey(senderUid);
-  const recipientPubKey = await getOrInitECDHPublicKey(recipientUid);
+  // Fetch recipient's REAL public key from Firestore (not local IndexedDB)
+  const recipientPubKey = await fetchECDHPublicKey(recipientUid);
 
   if (privateKey && recipientPubKey) {
-    const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
-    return { encryptedText: encrypted, messageVersion: 2 };
+    try {
+      const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
+      return { encryptedText: encrypted, messageVersion: 2 };
+    } catch (err) {
+      console.warn("V2 encryption failed, falling back to V1:", err);
+    }
   }
 
+  // Fallback: V1 PBKDF2 symmetric key (deterministic from UIDs)
+  console.log("encryptMessage: Using V1 fallback for", senderUid, "->", recipientUid);
   const key = await deriveKeyV1(senderUid, recipientUid);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
@@ -266,14 +294,22 @@ export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
   try {
     if (messageVersion === 2) {
       const myPrivKey = await getECDHPrivateKey(uid1);
-      const theirPubKey = await getOrInitECDHPublicKey(uid2);
+      // Fetch the OTHER user's REAL public key from Firestore
+      const theirPubKey = await fetchECDHPublicKey(uid2);
       if (myPrivKey && theirPubKey) {
         return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
       }
+      console.warn("decryptMessage V2: missing key material", {
+        hasMyPrivKey: !!myPrivKey,
+        hasTheirPubKey: !!theirPubKey,
+        uid1,
+        uid2,
+      });
       return "Unable to decrypt this message.";
     }
     return await decryptV1(cipherText, uid1, uid2);
-  } catch {
+  } catch (err) {
+    console.warn("decryptMessage error:", err?.message, "version:", messageVersion);
     return "Unable to decrypt this message.";
   }
 }

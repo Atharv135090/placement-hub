@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, getDocs, writeBatch, collection } from "firebase/firestore";
+import { doc, getDoc, updateDoc, query, where, orderBy, collection } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import { db, storage } from "../config/firebase";
-import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence } from "../services/social";
+import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence, subscribeToStudents, subscribeToAllFollowStatuses, sendFollowRequest, cancelFollowRequest, acceptFollowRequest, rejectFollowRequest } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import EmojiPicker from "../components/EmojiPicker";
 import Modal from "../components/Modal";
@@ -120,6 +120,12 @@ export default function Chat() {
   const [contactSearch, setContactSearch] = useState("");
   const [loadingContacts, setLoadingContacts] = useState(false);
 
+  // Discover Users State
+  const [allUsers, setAllUsers] = useState([]);
+  const [followStatuses, setFollowStatuses] = useState({});
+  const [selectedDiscoverUser, setSelectedDiscoverUser] = useState(null);
+  const [followLoading, setFollowLoading] = useState(null);
+
   // Conversation action state
   const [showConvMenu, setShowConvMenu] = useState(false);
 
@@ -135,8 +141,8 @@ export default function Chat() {
   const [showDisappearingPopup, setShowDisappearingPopup] = useState(false);
   const [disappearingDuration, setDisappearingDuration] = useState(null);
 
-  // Clear/Delete confirmation state
-  const [confirmAction, setConfirmAction] = useState(null); // "clear" | "delete" | null
+  // Clear confirmation state
+  const [confirmAction, setConfirmAction] = useState(null); // "clear" | null
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
   const ALLOWED_TYPES = [
@@ -221,7 +227,7 @@ export default function Chat() {
       setSearchParams({});
     }
     selectStudent();
-  }, [searchParams, user?.uid, activeConversation?.otherUser?.id, startConversation, setActiveConversation, setSearchParams]);
+  }, [searchParams.get("student"), user?.uid, startConversation, setActiveConversation, setSearchParams]);
 
   // Subscribe to active conversation partner's presence
   useEffect(() => {
@@ -298,6 +304,30 @@ export default function Chat() {
       markRead(activeConversation.id);
     }
   }, [activeConversation?.id, messages.length, markRead]);
+
+  // Auto-select first conversation on load
+  useEffect(() => {
+    if (!activeConversation && !selectedDiscoverUser && conversations.length > 0 && !adminMode) {
+      setActiveConversation(conversations[0]);
+    }
+  }, [conversations, activeConversation, selectedDiscoverUser, adminMode, setActiveConversation]);
+
+  // Subscribe to all users for Discover mode
+  useEffect(() => {
+    const unsub = subscribeToStudents((users) => {
+      setAllUsers((users || []).filter((u) => u.id !== user?.uid));
+    });
+    return () => unsub?.();
+  }, [user?.uid]);
+
+  // Subscribe to all follow statuses for Discover mode
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToAllFollowStatuses(user.uid, (statuses) => {
+      setFollowStatuses(statuses || {});
+    });
+    return () => unsub?.();
+  }, [user?.uid]);
 
   // Load available users for the New Message modal (excluding logged-in user)
   useEffect(() => {
@@ -509,65 +539,88 @@ export default function Chat() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showDisappearingPopup]);
 
-  // Clear chat messages
+  // Clear chat messages (per-user: marks clearedAt so messages are hidden for this user only)
   async function handleClearChat() {
     if (!activeConversation?.id || !user?.uid) return;
     setConfirmAction(null);
     try {
-      const msgQuery = query(
-        collection(db, "messages"),
-        where("conversationId", "==", activeConversation.id)
-      );
-      const snapshot = await getDocs(msgQuery);
-      const batch = writeBatch(db);
-      snapshot.docs.forEach((d) => {
-        batch.delete(d.ref);
-      });
-      await batch.commit();
-
       await updateDoc(doc(db, "conversations", activeConversation.id), {
-        lastMessage: null,
-        lastMessageAt: null,
+        [`clearedAt.${user.uid}`]: Date.now(),
       });
+      setMessages([]);
     } catch (err) {
       console.error("Clear chat error:", err);
     }
   }
 
-  // Delete chat (remove from user's conversation list)
-  async function handleDeleteChat() {
-    if (!activeConversation?.id || !user?.uid) return;
-    setConfirmAction(null);
+  // ─── DISCOVER: FOLLOW ACTIONS ────────────────────────────────
+  async function handleFollowToMessage(targetUserId) {
+    if (!user?.uid || followLoading) return;
+    setFollowLoading(targetUserId);
     try {
-      const convRef = doc(db, "conversations", activeConversation.id);
-      const convSnap = await getDoc(convRef);
-      if (!convSnap.exists()) return;
-
-      const convData = convSnap.data();
-      const participants = convData.participants || [];
-
-      // Remove current user from participants
-      const updatedParticipants = participants.filter((p) => p !== user.uid);
-
-      if (updatedParticipants.length === 0) {
-        // Last participant — delete conversation and its messages
-        const msgQuery = query(
-          collection(db, "messages"),
-          where("conversationId", "==", activeConversation.id)
-        );
-        const msgSnap = await getDocs(msgQuery);
-        const batch = writeBatch(db);
-        msgSnap.docs.forEach((d) => batch.delete(d.ref));
-        batch.delete(convRef);
-        await batch.commit();
-      } else {
-        // Update participants to exclude current user
-        await updateDoc(convRef, { participants: updatedParticipants });
-      }
-
-      setActiveConversation(null);
+      await sendFollowRequest(user.uid, targetUserId);
     } catch (err) {
-      console.error("Delete chat error:", err);
+      console.error("Follow request failed:", err);
+    } finally {
+      setFollowLoading(null);
+    }
+  }
+
+  async function handleCancelRequest(targetUserId) {
+    if (!user?.uid || followLoading) return;
+    setFollowLoading(targetUserId);
+    try {
+      await cancelFollowRequest(user.uid, targetUserId);
+    } catch (err) {
+      console.error("Cancel request failed:", err);
+    } finally {
+      setFollowLoading(null);
+    }
+  }
+
+  async function handleAcceptRequest(targetUserId) {
+    if (!user?.uid || followLoading) return;
+    setFollowLoading(targetUserId);
+    try {
+      await acceptFollowRequest(targetUserId, user.uid);
+    } catch (err) {
+      console.error("Accept request failed:", err);
+    } finally {
+      setFollowLoading(null);
+    }
+  }
+
+  async function handleRejectRequest(targetUserId) {
+    if (!user?.uid || followLoading) return;
+    setFollowLoading(targetUserId);
+    try {
+      await rejectFollowRequest(targetUserId, user.uid);
+    } catch (err) {
+      console.error("Reject request failed:", err);
+    } finally {
+      setFollowLoading(null);
+    }
+  }
+
+  async function handleMessageDiscoverUser(targetUser) {
+    if (!user?.uid) return;
+    const status = followStatuses[targetUser.id];
+    if (status !== "accepted") return;
+    const otherUserObj = {
+      id: targetUser.id,
+      displayName: targetUser.displayName || targetUser.name || "Student",
+      photoUrl: targetUser.photoUrl,
+      role: targetUser.role || "student",
+      branch: targetUser.branch,
+    };
+    try {
+      const conv = await startConversation(targetUser.id);
+      if (conv) {
+        setActiveConversation({ ...conv, otherUser: otherUserObj });
+        setSelectedDiscoverUser(null);
+      }
+    } catch (err) {
+      console.error("Error starting chat:", err);
     }
   }
 
@@ -635,8 +688,41 @@ export default function Chat() {
     return result;
   }, [conversations, convSearch, filterTab]);
 
+  // Merged list: conversations first, then remaining users not in conversations
+  const mergedUserList = useMemo(() => {
+    const convUserIds = new Set(conversations.map((c) => c.otherUser?.id).filter(Boolean));
+
+    let remaining = allUsers.filter((u) => !convUserIds.has(u.id));
+
+    if (convSearch.trim()) {
+      const q = convSearch.toLowerCase().trim();
+      remaining = remaining.filter((u) => {
+        const name = (u.displayName || u.name || "").toLowerCase();
+        const role = (u.role || "").toLowerCase();
+        const branch = (u.branch || "").toLowerCase();
+        return name.includes(q) || role.includes(q) || branch.includes(q);
+      });
+    }
+
+    if (filterTab === "students") {
+      remaining = remaining.filter((u) => !u.role || u.role === "student" || u.role === "owner");
+    } else if (filterTab === "recruiters") {
+      remaining = remaining.filter((u) => u.role === "recruiter" || u.role === "admin");
+    } else if (filterTab === "companies") {
+      remaining = remaining.filter((u) => u.role === "company");
+    }
+
+    return remaining;
+  }, [allUsers, conversations, convSearch, filterTab]);
+
   // Start new conversation from modal
   async function handleSelectContact(contact) {
+    const status = followStatuses[contact.id];
+    if (status !== "accepted") {
+      setNewMsgModalOpen(false);
+      setSelectedDiscoverUser(contact);
+      return;
+    }
     setNewMsgModalOpen(false);
     const otherUserObj = {
       id: contact.id,
@@ -649,15 +735,8 @@ export default function Chat() {
       const conv = await startConversation(contact.id);
       if (conv) {
         setActiveConversation({ ...conv, otherUser: otherUserObj });
-      } else {
-        const fallbackId = [user?.uid, contact.id].sort().join("_");
-        setActiveConversation({
-          id: fallbackId,
-          participants: [user?.uid, contact.id],
-          otherUser: otherUserObj,
-        });
+        setPartnerProfile(otherUserObj);
       }
-      setPartnerProfile(otherUserObj);
     } catch (err) {
       console.error("Error starting chat:", err);
     }
@@ -829,7 +908,7 @@ export default function Chat() {
             <input
               type="text"
               className="msg-search-input"
-              placeholder="Search conversations..."
+              placeholder="Search users..."
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
             />
@@ -839,52 +918,34 @@ export default function Chat() {
           <div className="msg-filter-tabs" role="tablist" aria-label="Conversation Filters">
             <button
               className={`msg-tab-pill ${filterTab === "all" ? "active" : ""}`}
-              onClick={() => setFilterTab("all")}
+              onClick={() => { setFilterTab("all"); setSelectedDiscoverUser(null); }}
             >
               All
             </button>
             <button
               className={`msg-tab-pill ${filterTab === "students" ? "active" : ""}`}
-              onClick={() => setFilterTab("students")}
+              onClick={() => { setFilterTab("students"); setSelectedDiscoverUser(null); }}
             >
               Students
             </button>
             <button
               className={`msg-tab-pill ${filterTab === "recruiters" ? "active" : ""}`}
-              onClick={() => setFilterTab("recruiters")}
+              onClick={() => { setFilterTab("recruiters"); setSelectedDiscoverUser(null); }}
             >
               Recruiters
             </button>
             <button
               className={`msg-tab-pill ${filterTab === "companies" ? "active" : ""}`}
-              onClick={() => setFilterTab("companies")}
+              onClick={() => { setFilterTab("companies"); setSelectedDiscoverUser(null); }}
             >
               Companies
             </button>
           </div>
 
-          {/* Scrollable Conversation List */}
+          {/* Scrollable Conversation/User List */}
           <div className="msg-conversations-list">
-            {filteredConversations.length === 0 ? (
-              <div className="msg-empty-list">
-                <div className="msg-empty-icon-wrap">💬</div>
-                <h4 className="msg-empty-title">
-                  {convSearch ? "No matching conversations" : "No messages yet"}
-                </h4>
-                <p className="msg-empty-desc">
-                  {convSearch
-                    ? "Try a different search keyword."
-                    : "Start connecting with fellow students and recruiters."}
-                </p>
-                {!convSearch && (
-                  <button className="msg-empty-btn" onClick={() => setNewMsgModalOpen(true)}>
-                    <PenEditIcon />
-                    <span>Start a conversation</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredConversations.map((c) => {
+            {/* ─── CONVERSATIONS FIRST ─────────────────────── */}
+            {filteredConversations.map((c) => {
                 const isSelected = activeConversation?.id === c.id;
                 const other = c.otherUser || {};
                 const name = other.displayName || "Student";
@@ -897,6 +958,7 @@ export default function Chat() {
                     key={c.id}
                     className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
                     onClick={() => {
+                      setSelectedDiscoverUser(null);
                       setActiveConversation(c);
                       markRead(c.id);
                     }}
@@ -922,26 +984,169 @@ export default function Chat() {
                     </div>
                   </div>
                 );
-              })
+              })}
+
+            {/* ─── REMAINING USERS (no conversation yet) ──── */}
+            {mergedUserList.map((u) => {
+                const isSelected = selectedDiscoverUser?.id === u.id && !activeConversation;
+                const name = u.displayName || u.name || "Student";
+                const status = followStatuses[u.id];
+
+                return (
+                  <div
+                    key={u.id}
+                    className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
+                    onClick={() => {
+                      if (status === "accepted") {
+                        setSelectedDiscoverUser(null);
+                        handleMessageDiscoverUser(u);
+                      } else {
+                        setActiveConversation(null);
+                        setSelectedDiscoverUser(u);
+                      }
+                    }}
+                  >
+                    <div className="msg-conv-avatar-wrap">
+                      <UserAvatar
+                        user={{ uid: u.id }}
+                        profile={u}
+                        style={{ width: 44, height: 44 }}
+                      />
+                    </div>
+
+                    <div className="msg-conv-content">
+                      <div className="msg-conv-top-row">
+                        <span className="msg-conv-name">{name}</span>
+                        {status === "accepted" && (
+                          <span className="msg-discover-badge msg-discover-badge--following">Following</span>
+                        )}
+                        {status === "pending" && (
+                          <span className="msg-discover-badge msg-discover-badge--requested">Requested</span>
+                        )}
+                        {status === "incoming_pending" && (
+                          <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
+                        )}
+                      </div>
+                      <div className="msg-conv-bottom-row">
+                        <p className="msg-conv-preview">
+                          {u.branch || u.role || "Student"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+            {/* Empty state when nothing matches */}
+            {filteredConversations.length === 0 && mergedUserList.length === 0 && (
+              <div className="msg-empty-list">
+                <div className="msg-empty-icon-wrap">🔍</div>
+                <h4 className="msg-empty-title">
+                  {convSearch ? "No users found" : "No users available"}
+                </h4>
+                <p className="msg-empty-desc">
+                  {convSearch ? "Try a different search keyword." : "Start connecting with fellow students and recruiters."}
+                </p>
+              </div>
             )}
           </div>
         </aside>
 
         {/* ─── 6. RIGHT ACTIVE CHAT PANEL ──────────────────────────── */}
-        <section className={`msg-chat-panel ${!activeConversation ? "msg-chat-panel--empty" : ""}`}>
-          {!activeConversation ? (
+        <section className={`msg-chat-panel ${!activeConversation && !selectedDiscoverUser ? "msg-chat-panel--empty" : ""}`}>
+          {selectedDiscoverUser && !activeConversation ? (
+            /* ─── DISCOVER USER PROFILE PANEL ─────────────────── */
+            <div className="msg-discover-profile">
+              <button
+                className="msg-back-to-list-btn"
+                onClick={() => setSelectedDiscoverUser(null)}
+                title="Back to list"
+                aria-label="Back to list"
+              >
+                <BackArrowIcon />
+              </button>
+              <div className="msg-discover-profile-card">
+                <UserAvatar
+                  user={{ uid: selectedDiscoverUser.id }}
+                  profile={selectedDiscoverUser}
+                  style={{ width: 72, height: 72 }}
+                />
+                <h3 className="msg-discover-name">
+                  {selectedDiscoverUser.displayName || selectedDiscoverUser.name || "Student"}
+                </h3>
+                <p className="msg-discover-meta">
+                  {selectedDiscoverUser.branch || selectedDiscoverUser.role || "Student"}
+                </p>
+                {(() => {
+                  const status = followStatuses[selectedDiscoverUser.id];
+                  if (status === "accepted") {
+                    return (
+                      <div className="msg-discover-actions">
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => handleMessageDiscoverUser(selectedDiscoverUser)}
+                        >
+                          Message
+                        </button>
+                      </div>
+                    );
+                  }
+                  if (status === "pending") {
+                    return (
+                      <div className="msg-discover-actions">
+                        <button
+                          className="btn btn-secondary"
+                          disabled={followLoading === selectedDiscoverUser.id}
+                          onClick={() => handleCancelRequest(selectedDiscoverUser.id)}
+                        >
+                          {followLoading === selectedDiscoverUser.id ? "Cancelling..." : "Requested"}
+                        </button>
+                      </div>
+                    );
+                  }
+                  if (status === "incoming_pending") {
+                    return (
+                      <div className="msg-discover-actions msg-discover-actions--stack">
+                        <button
+                          className="btn btn-primary"
+                          disabled={followLoading === selectedDiscoverUser.id}
+                          onClick={() => handleAcceptRequest(selectedDiscoverUser.id)}
+                        >
+                          {followLoading === selectedDiscoverUser.id ? "Accepting..." : "Accept Request"}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          disabled={followLoading === selectedDiscoverUser.id}
+                          onClick={() => handleRejectRequest(selectedDiscoverUser.id)}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="msg-discover-actions">
+                      <button
+                        className="btn btn-primary"
+                        disabled={followLoading === selectedDiscoverUser.id}
+                        onClick={() => handleFollowToMessage(selectedDiscoverUser.id)}
+                      >
+                        {followLoading === selectedDiscoverUser.id ? "Sending..." : "Follow to Message"}
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : !activeConversation ? (
             <div className="msg-chat-empty-state">
               <div className="msg-placeholder-icon-wrap">
                 <ChatHeaderIcon />
               </div>
               <h3 className="msg-placeholder-title">Select a conversation</h3>
               <p className="msg-placeholder-subtitle">
-                Choose a conversation from the list on the left, or start a new chat with fellow students and mentors.
+                Choose a user from the list to start messaging.
               </p>
-              <button className="msg-placeholder-btn" onClick={() => setNewMsgModalOpen(true)}>
-                <PenEditIcon />
-                <span>New Message</span>
-              </button>
             </div>
           ) : (
             <>
@@ -1033,12 +1238,6 @@ export default function Chat() {
                           onClick={() => { setShowConvMenu(false); setConfirmAction("clear"); }}
                         >
                           Clear Chat
-                        </button>
-                        <button
-                          className="msg-conv-menu-item danger"
-                          onClick={() => { setShowConvMenu(false); setConfirmAction("delete"); }}
-                        >
-                          Delete Chat
                         </button>
                       </div>
                     )}
@@ -1262,22 +1461,20 @@ export default function Chat() {
         <div className="msg-confirm-overlay" onClick={() => setConfirmAction(null)}>
           <div className="msg-confirm-box" onClick={(e) => e.stopPropagation()}>
             <h3 className="msg-confirm-title">
-              {confirmAction === "clear" ? "Clear this chat?" : "Delete this chat?"}
+              Clear this chat?
             </h3>
             <p className="msg-confirm-desc">
-              {confirmAction === "clear"
-                ? "This will remove all messages from this conversation for you. This cannot be undone."
-                : "This conversation will be removed from your conversation list. This cannot be undone."}
+              This will hide all messages in this conversation from your view. The other person will still see them. This cannot be undone.
             </p>
             <div className="msg-confirm-actions">
               <button className="msg-confirm-cancel" onClick={() => setConfirmAction(null)}>
                 Cancel
               </button>
               <button
-                className={`msg-confirm-action ${confirmAction === "delete" ? "danger" : ""}`}
-                onClick={confirmAction === "clear" ? handleClearChat : handleDeleteChat}
+                className="msg-confirm-action"
+                onClick={handleClearChat}
               >
-                {confirmAction === "clear" ? "Clear" : "Delete"}
+                Clear
               </button>
             </div>
           </div>

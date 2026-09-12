@@ -108,8 +108,6 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       return { data: null, error: "Not authenticated" };
     }
 
-    console.log("sendAdminMessage:", { reportId, targetUserId, adminId });
-
     const convRes = await getOrCreateAdminConversation(adminId, targetUserId);
     if (convRes.error) {
       console.error("Failed to create conversation:", convRes.error);
@@ -149,7 +147,6 @@ export async function sendAdminMessage(reportId, targetUserId, message) {
       createdAt: new Date().toISOString(),
     });
 
-    console.log("sendAdminMessage: success, conversation:", convRes.data.id);
     return { data: { success: true, conversationId: convRes.data.id }, error: null };
   } catch (error) {
     console.error("sendAdminMessage FAILED:", error.code, error.message);
@@ -165,8 +162,6 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       console.error("sendAdminWarning: No authenticated user");
       return { data: null, error: "Not authenticated" };
     }
-
-    console.log("sendAdminWarning:", { reportId, targetUserId, adminId, reason });
 
     const convRes = await getOrCreateAdminConversation(adminId, targetUserId);
     if (convRes.error) {
@@ -210,7 +205,6 @@ export async function sendAdminWarning(reportId, targetUserId, reason, warningMe
       createdAt: new Date().toISOString(),
     });
 
-    console.log("sendAdminWarning: success, conversation:", convRes.data.id);
     return { data: { success: true, conversationId: convRes.data.id }, error: null };
   } catch (error) {
     console.error("sendAdminWarning FAILED:", error.code, error.message);
@@ -226,8 +220,6 @@ export async function adminUpdateReport(reportId, status, { resolutionNote, dism
       console.error("adminUpdateReport: No authenticated user");
       return { data: null, error: "Not authenticated" };
     }
-
-    console.log("adminUpdateReport:", { reportId, status, adminId });
 
     const updateData = { status };
     const now = new Date().toISOString();
@@ -256,7 +248,6 @@ export async function adminUpdateReport(reportId, status, { resolutionNote, dism
       createdAt: now,
     });
 
-    console.log("adminUpdateReport: success");
     return { data: { success: true }, error: null };
   } catch (error) {
     console.error("adminUpdateReport FAILED:", error.code, error.message);

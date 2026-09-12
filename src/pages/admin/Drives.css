@@ -247,7 +247,8 @@
 
 /* ─── TABLE ───────────────────────────────────────────── */
 .ad-table-wrap {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .ad-table-head,

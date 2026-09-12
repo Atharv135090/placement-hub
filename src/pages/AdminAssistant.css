@@ -24,11 +24,6 @@
   box-shadow: -8px 0 40px rgba(0, 0, 0, 0.3);
 }
 
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
 /* Header */
 .admin-asst-header {
   display: flex;
@@ -204,6 +199,11 @@
 }
 
 /* Typing */
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
 .admin-asst-typing {
   display: flex;
   align-items: center;

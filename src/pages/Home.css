@@ -849,11 +849,29 @@
   .dash-hero-banner {
     grid-template-columns: 1fr;
   }
+  .hero-left-col {
+    padding: 20px 18px;
+  }
   .hero-car-card {
-    display: none;
+    display: block;
+    height: 150px;
+    min-height: 150px;
+  }
+  .hero-car-img {
+    object-position: center 40%;
+  }
+  .hero-car-overlay {
+    background: linear-gradient(180deg, transparent 0%, rgba(15, 18, 26, 0.9) 100%);
+  }
+  [data-theme="light"] .hero-car-overlay {
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.9) 100%);
   }
   .dash-stats-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .dash-stat-card {
+    padding: 14px;
   }
   .gauge-split {
     flex-direction: column;
@@ -865,6 +883,8 @@
     grid-template-columns: 1fr;
   }
   .big-dreams-right {
-    display: none;
+    display: block;
+    height: 130px;
+    min-height: 130px;
   }
 }

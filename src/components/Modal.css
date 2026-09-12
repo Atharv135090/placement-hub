@@ -8,6 +8,7 @@
   justify-content: center;
   background: rgba(8, 11, 20, 0.75);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   padding: 20px;
   animation: fadeIn 0.2s var(--ease);
 }
@@ -22,13 +23,13 @@
   animation: modalSlideIn 0.35s cubic-bezier(0.23, 1, 0.32, 1);
   overflow: hidden;
   background: var(--glass-bg-heavy);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   box-shadow:
     var(--shadow-lg),
     0 0 60px rgba(239, 68, 68, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(var(--glass-blur-heavy));
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
   transform-style: preserve-3d;
 }
 
@@ -105,13 +106,15 @@
 .modal-field select,
 .modal-field textarea {
   padding: 10px 14px;
-  background: var(--glass-bg-light);
+  background: var(--glass-bg-light, var(--bg-deep));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 0.88rem;
   font-family: inherit;
   transition: all var(--transition);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .modal-field input::placeholder,
@@ -155,12 +158,12 @@
 .modal-btn--primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-dim));
   color: white;
-  box-shadow: 0 4px 0 var(--accent-dim), 0 6px 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 4px 0 var(--accent-dim), 0 6px 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 
 .modal-btn--primary:hover {
   transform: translateY(-2px) translateZ(4px);
-  box-shadow: 0 6px 0 var(--accent-dim), 0 10px 30px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.2);
+  box-shadow: 0 6px 0 var(--accent-dim), 0 10px 30px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25);
 }
 
 .modal-btn--primary:disabled {
@@ -171,17 +174,19 @@
 }
 
 .modal-btn--secondary {
-  background: var(--glass-bg-light);
+  background: var(--glass-bg);
   color: var(--text-secondary);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.1), inset 0 1px 0 var(--glass-top-highlight);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .modal-btn--secondary:hover {
   color: var(--text-primary);
   border-color: var(--glass-border-hover);
   transform: translateY(-1px) translateZ(2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 var(--glass-top-highlight);
 }
 
 .modal-btn--danger {

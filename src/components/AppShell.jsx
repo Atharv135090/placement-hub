@@ -249,7 +249,7 @@ export default function AppShell() {
 
       {/* ── MAIN VIEWPORT ── */}
       <div className="main-viewport">
-        <TopHeader />
+        <TopHeader onToggleMobileDrawer={() => setMoreDrawerOpen(true)} />
         <main key={location.pathname} className="main-content animate-page-enter">
           <Outlet />
         </main>

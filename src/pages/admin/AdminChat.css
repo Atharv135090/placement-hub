@@ -151,7 +151,7 @@
   height: 40px;
   border-radius: 50%;
   background: var(--bg-skeleton);
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: acPulse 1.5s ease-in-out infinite;
 }
 
 .ac-skel-lines {
@@ -165,7 +165,7 @@
   height: 10px;
   border-radius: 4px;
   background: var(--bg-skeleton);
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: acPulse 1.5s ease-in-out infinite;
 }
 
 .ac-skel-line--short {
@@ -380,7 +380,7 @@
   }
 }
 
-@keyframes pulse {
+@keyframes acPulse {
   0%,
   100% {
     opacity: 0.4;

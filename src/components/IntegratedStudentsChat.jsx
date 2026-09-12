@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
-import { subscribeToFollowers, subscribeToFollowing, subscribeToPendingFollowRequests, blockUser, reportUser, subscribeToUserPresence } from "../services/social";
+import { subscribeToFollowers, subscribeToFollowing, subscribeToPendingFollowRequests, blockUser, reportUser, subscribeToUserPresence, sendFollowRequest } from "../services/social";
 import UserAvatar from "./UserAvatar";
 import Modal from "./Modal";
 import "./IntegratedStudentsChat.css";
@@ -171,6 +171,7 @@ export default function IntegratedStudentsChat({
     sendChatMessage,
     markRead,
     activeConversation,
+    setActiveConversation,
     sending,
   } = useChat();
 
@@ -197,6 +198,7 @@ export default function IntegratedStudentsChat({
   const [reportDetails, setReportDetails] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSent, setReportSent] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const [partnerPresence, setPartnerPresence] = useState({ online: false, lastSeenAt: null });
 
@@ -237,9 +239,19 @@ export default function IntegratedStudentsChat({
   // Start/reuse Firebase conversation when activeStudentId changes
   useEffect(() => {
     if (activeStudentId && user?.uid) {
-      startConversation(activeStudentId);
+      // Check mutual follow before starting conversation
+      const status = followStatuses[activeStudentId];
+      if (status !== "accepted") {
+        // Don't create conversation — but keep activeConversation null so the
+        // right panel shows the follow gate instead of chat messages
+        return;
+      }
+      (async () => {
+        const conv = await startConversation(activeStudentId);
+        if (conv) setActiveConversation(conv);
+      })();
     }
-  }, [activeStudentId, user?.uid, startConversation]);
+  }, [activeStudentId, user?.uid, startConversation, setActiveConversation, followStatuses]);
 
   // Mark read when viewing messages
   useEffect(() => {
@@ -296,12 +308,33 @@ export default function IntegratedStudentsChat({
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
   }
 
+  // Handle follow to message
+  async function handleFollowToMessage() {
+    if (!user?.uid || !activeStudentId || followLoading) return;
+    setFollowLoading(true);
+    try {
+      await sendFollowRequest(user.uid, activeStudentId);
+    } catch (err) {
+      console.error("Follow request failed:", err);
+    } finally {
+      setFollowLoading(false);
+    }
+  }
+
+  // Check if mutually connected
+  const isMutuallyConnected = followStatuses[activeStudentId] === "accepted";
+  const followStatus = followStatuses[activeStudentId];
+
   // Handle sending a message via Firebase
   async function handleSendMessage(textToSend) {
     const text = (textToSend || composerText).trim();
     if (!text || !activeConversation?.id || sending) return;
-    await sendChatMessage(activeConversation.id, text);
-    setComposerText("");
+    try {
+      await sendChatMessage(activeConversation.id, text);
+      setComposerText("");
+    } catch (err) {
+      console.error("Message send failed:", err);
+    }
   }
 
   function handleKeyDown(e) {
@@ -624,11 +657,24 @@ export default function IntegratedStudentsChat({
             {/* Header */}
             <div className="isc-chat-header">
               <div className="isc-chat-user-meta">
+                <button
+                  type="button"
+                  className="isc-mobile-back-btn"
+                  onClick={() => onSelectStudent(null)}
+                  title="Back to conversation list"
+                  aria-label="Back to conversation list"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg>
+                </button>
+
                 {selectedStudent.photoUrl ? (
                   <UserAvatar
                     user={{ uid: selectedStudent.id }}
                     profile={selectedStudent}
-                    style={{ width: 48, height: 48 }}
+                    style={{ width: 44, height: 44 }}
                   />
                 ) : (
                   <div className="isc-chat-header-avatar">
@@ -708,13 +754,39 @@ export default function IntegratedStudentsChat({
                         className="isc-dropdown-item"
                         onClick={() => {
                           setChatMenuOpen(false);
-                          if (window.confirm("Clear conversation history for this student?")) {
-                            // Clear messages safely in UI
-                          }
+                          onSelectStudent(null);
+                        }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                        <span>Close Chat</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item"
+                        onClick={() => {
+                          setChatMenuOpen(false);
+                        }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        <span>Disappearing Messages</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="isc-dropdown-item"
+                        onClick={() => {
+                          setChatMenuOpen(false);
                         }}
                       >
                         <TrashIcon />
-                        <span>Clear Conversation</span>
+                        <span>Clear Chat</span>
                       </button>
 
                       <div className="isc-dropdown-divider" />
@@ -795,7 +867,53 @@ export default function IntegratedStudentsChat({
               <div ref={chatBottomRef} />
             </div>
 
-            {/* Composer Container */}
+            {/* Composer Container — gated by mutual follow */}
+            {!isMutuallyConnected ? (
+              <div className="isc-follow-gate">
+                <div className="isc-follow-gate-content">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="8.5" cy="7" r="4" />
+                    <line x1="20" y1="8" x2="20" y2="14" />
+                    <line x1="23" y1="11" x2="17" y2="11" />
+                  </svg>
+                  <p className="isc-follow-gate-text">
+                    You need to follow each other before you can send messages.
+                  </p>
+                  {followStatus === "pending" ? (
+                    <button className="btn isc-follow-gate-btn isc-follow-gate-btn--requested" disabled>
+                      Requested
+                    </button>
+                  ) : followStatus === "incoming_pending" ? (
+                    <button
+                      className="btn isc-follow-gate-btn isc-follow-gate-btn--accept"
+                      disabled={followLoading}
+                      onClick={async () => {
+                        setFollowLoading(true);
+                        try {
+                          const { acceptFollowRequest } = await import("../services/social");
+                          await acceptFollowRequest(activeStudentId, user.uid);
+                        } catch (err) {
+                          console.error("Accept failed:", err);
+                        } finally {
+                          setFollowLoading(false);
+                        }
+                      }}
+                    >
+                      {followLoading ? "Accepting..." : "Accept Request"}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn isc-follow-gate-btn"
+                      disabled={followLoading}
+                      onClick={handleFollowToMessage}
+                    >
+                      {followLoading ? "Sending..." : "Follow to Message"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
             <div className="isc-composer-container">
               <div className="isc-composer-capsule">
                 <button
@@ -860,6 +978,7 @@ export default function IntegratedStudentsChat({
                 </button>
               </div>
             </div>
+            )}
           </>
         )}
       </section>

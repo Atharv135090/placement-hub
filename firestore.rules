@@ -166,6 +166,16 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
     }
 
+    // ─── USER KEYS (E2EE PUBLIC KEY DIRECTORY) ─────────────────
+
+    match /userKeys/{userKeyId} {
+      // Any authenticated user can read public keys for E2EE key exchange
+      allow read: if isAuth();
+      // Only the key owner can write their own public key
+      allow create, update: if isAuth() && request.auth.uid == userKeyId;
+      allow delete: if false;
+    }
+
     // ─── BLOCKS ───────────────────────────────────────────────
 
     match /blocks/{blockId} {

@@ -286,7 +286,7 @@
   background: var(--glass-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  animation: pulse 2s ease-in-out infinite;
+  animation: skeletonPulse 2s ease-in-out infinite;
 }
 
 .au-skeleton-avatar {
@@ -346,7 +346,8 @@
 
 /* ─── TABLE ─────────────────────────────────────────────── */
 .au-table-wrap {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 0;
 }
 

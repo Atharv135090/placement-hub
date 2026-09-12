@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import UserAvatar from "../../components/UserAvatar";
 import "./WebsiteAnalytics.css";
@@ -83,24 +83,30 @@ export default function WebsiteAnalytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubs = [];
+    let cancelled = false;
     setLoading(true);
 
-    unsubs.push(onSnapshot(collection(db, "companies"), (snap) => {
-      setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }));
-    unsubs.push(onSnapshot(collection(db, "applications"), (snap) => {
-      setApplications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }));
-    unsubs.push(onSnapshot(collection(db, "users"), (snap) => {
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    }));
-    unsubs.push(onSnapshot(collection(db, "notifications"), (snap) => {
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }));
-
-    return () => unsubs.forEach(u => u());
+    async function fetchData() {
+      try {
+        const [companiesSnap, appsSnap, usersSnap, notifSnap] = await Promise.all([
+          getDocs(collection(db, "companies")),
+          getDocs(query(collection(db, "applications"), orderBy("createdAt", "desc"), limit(500))),
+          getDocs(query(collection(db, "users"), limit(500))),
+          getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(200))),
+        ]);
+        if (cancelled) return;
+        setCompanies(companiesSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setApplications(appsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setNotifications(notifSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(false);
+      } catch (err) {
+        console.error("Failed to load analytics:", err);
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => { cancelled = true; };
   }, []);
 
   const stats = useMemo(() => {

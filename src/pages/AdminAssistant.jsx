@@ -125,7 +125,8 @@ export default function AdminAssistant({ onClose }) {
 
   useEffect(() => {
     refreshData();
-    setTimeout(() => inputRef.current?.focus(), 150);
+    const timer = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(timer);
   }, [refreshData]);
 
   useEffect(() => {

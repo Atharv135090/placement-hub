@@ -9,7 +9,7 @@ import PlacementLogo from "./PlacementLogo";
 import UserAvatar from "./UserAvatar";
 import "./TopHeader.css";
 
-export default function TopHeader() {
+export default function TopHeader({ onToggleMobileDrawer }) {
   const { user, profile } = useAuth();
   const { themeMode, setThemeMode } = useTheme();
   const navigate = useNavigate();
@@ -95,16 +95,31 @@ export default function TopHeader() {
 
   return (
     <header className="top-header glass">
-      <div
-        className="top-header-left"
-        {...logoLongPress}
-        onClick={() => navigate("/")}
-        title="Hold logo to open Admin Controls"
-      >
-        <PlacementLogo size={32} />
-        <div className="h-brand-info">
-          <span className="h-brand-name">Placement Hub</span>
-          <span className="h-brand-sub">Track · Prepare · Apply</span>
+      <div className="top-header-left">
+        <button
+          type="button"
+          className="mobile-hamburger-btn"
+          onClick={onToggleMobileDrawer}
+          title="Open Navigation Menu"
+          aria-label="Open Navigation Menu"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <div
+          className="top-header-brand"
+          {...logoLongPress}
+          onClick={() => navigate("/")}
+          title="Hold logo to open Admin Controls"
+        >
+          <PlacementLogo size={28} />
+          <div className="h-brand-info">
+            <span className="h-brand-name">Placement Hub</span>
+            <span className="h-brand-sub">Track · Prepare · Apply</span>
+          </div>
         </div>
       </div>
 

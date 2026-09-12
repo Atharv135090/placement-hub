@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useChat } from "../contexts/ChatContext";
 import {
   subscribeToStudents,
   sendFollowRequest,
@@ -13,13 +12,11 @@ import {
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
-import IntegratedStudentsChat from "../components/IntegratedStudentsChat";
 import "./Students.css";
 
 export default function Students() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { startConversation } = useChat();
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -198,16 +195,6 @@ export default function Students() {
     }
   }
 
-  // Direct chat handler
-  async function handleStartChat(studentId) {
-    setActiveMenuId(null);
-    try {
-      setSearchParams({ chat: studentId });
-    } catch (err) {
-      console.error("Chat error:", err);
-    }
-  }
-
   // Copy profile link
   function handleCopyLink(studentId) {
     setActiveMenuId(null);
@@ -230,22 +217,6 @@ export default function Students() {
     } catch (err) {
       console.error("Block error:", err);
     }
-  }
-
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isChatMode = searchParams.has("chat") || searchParams.has("message");
-  const chatStudentId = searchParams.get("chat") || searchParams.get("message");
-
-  if (isChatMode) {
-    return (
-      <IntegratedStudentsChat
-        activeStudentId={chatStudentId}
-        onSelectStudent={(id) => setSearchParams({ chat: id })}
-        students={students}
-        currentUser={user}
-        followStatuses={followStatuses}
-      />
-    );
   }
 
   // Format graduation year into clean student tag
@@ -294,7 +265,7 @@ export default function Students() {
       <div className="students-hero-card glass">
         <div className="students-hero-left">
           <div className="students-hero-icon-wrap">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -306,28 +277,28 @@ export default function Students() {
             <h1 className="students-hero-title">Students</h1>
             <div className="students-hero-tagline">Connect • Collaborate • Grow Together</div>
             <p className="students-hero-desc">
-              Find and connect with fellow students, explore profiles, and build your network.
+              Connect with talented peers, explore profiles, and grow together.
             </p>
           </div>
         </div>
 
         <div className="students-hero-right">
-          {/* Subtle floating avatar badges matching reference */}
+          {/* Floating avatar badges matching reference graphic style */}
           <div className="students-floating-group">
             <div className="students-float-circle bubble-1" title="Community">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
               </svg>
             </div>
             <div className="students-float-circle bubble-2" title="Peers">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
               </svg>
             </div>
             <div className="students-float-circle bubble-3" title="Connections">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -338,7 +309,7 @@ export default function Students() {
 
           <div className="students-hero-divider"></div>
 
-          {/* Vertical motto: BETTER PEOPLE BRIGHTER FUTURES */}
+          {/* Motto badge matching reference screenshot */}
           <div className="students-hero-motto">
             <span>BETTER</span>
             <span>PEOPLE</span>
@@ -358,12 +329,12 @@ export default function Students() {
           <input
             type="text"
             className="students-search-box"
-            placeholder="Search by name, skills, or branch..."
+            placeholder="Search students by name, skills, or branch..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button className="students-clear-btn" onClick={() => setSearch("")}>✕</button>
+            <button className="students-clear-btn" onClick={() => setSearch("")} title="Clear search">✕</button>
           )}
         </div>
 
@@ -439,6 +410,11 @@ export default function Students() {
               </svg>
             </button>
           </div>
+
+          {/* Inline counter matching reference design */}
+          <div className="students-header-counter">
+            Showing {filteredStudents.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, filteredStudents.length)} of {filteredStudents.length} students
+          </div>
         </div>
       </div>
 
@@ -452,7 +428,7 @@ export default function Students() {
             </svg>
           </div>
           <h3>No students found</h3>
-          <p>Try clearing your search term or adjusting branch and year filters.</p>
+          <p>Try changing your search or filters.</p>
           {(search || branchFilter || yearFilter) && (
             <button
               className="btn btn-secondary clear-filters-btn"
@@ -475,7 +451,7 @@ export default function Students() {
 
             return (
               <div key={s.id} className="student-profile-card glass">
-                {/* Card Top Row: Avatar with green dot + Privacy Lock + 3-Dot Menu */}
+                {/* Card Top Row: Avatar with Online indicator + Privacy Lock + 3-Dot Menu */}
                 <div className="student-card-top-bar">
                   <div className="student-avatar-container" onClick={() => navigate(`/students/${s.id}`)}>
                     <UserAvatar
@@ -483,12 +459,15 @@ export default function Students() {
                       profile={s}
                       style={{ width: 56, height: 56 }}
                     />
-                    {/* Online status indicator dot matching reference */}
-                    <span className="student-online-dot" title="Active student" />
+                    {/* Status badge pill / dot matching reference */}
+                    <span className="student-online-pill" title="Active student">
+                      <span className="online-green-dot" />
+                      <span>Online</span>
+                    </span>
                   </div>
 
                   <div className="student-card-top-right">
-                    {/* Privacy lock icon badge matching reference */}
+                    {/* Privacy lock icon badge */}
                     {isPrivate && (
                       <span
                         className="student-lock-badge"
@@ -528,18 +507,44 @@ export default function Students() {
                               <circle cx="12" cy="8" r="4" />
                               <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
                             </svg>
-                            <span>View Full Profile</span>
+                            <span>View Profile</span>
                           </button>
 
-                          {(!isPrivate || isFollowing) && (
+                          <button
+                            className="dropdown-item"
+                            onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span>Message Student</span>
+                          </button>
+
+                          {isFollowing ? (
                             <button
                               className="dropdown-item"
-                              onClick={() => handleStartChat(s.id)}
+                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="8.5" cy="7" r="4" />
+                                <line x1="18" y1="8" x2="23" y2="13" />
+                                <line x1="23" y1="8" x2="18" y2="13" />
                               </svg>
-                              <span>Send Message</span>
+                              <span>Unfollow</span>
+                            </button>
+                          ) : (
+                            <button
+                              className="dropdown-item"
+                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="8.5" cy="7" r="4" />
+                                <line x1="20" y1="8" x2="20" y2="14" />
+                                <line x1="23" y1="11" x2="17" y2="11" />
+                              </svg>
+                              <span>Follow</span>
                             </button>
                           )}
 
@@ -590,9 +595,12 @@ export default function Students() {
                   >
                     {s.displayName || "Student"}
                   </div>
+                  <span className={`student-role-badge ${s.role === "admin" || s.role === "owner" ? "student-role-badge--admin" : ""}`}>
+                    {s.role === "admin" || s.role === "owner" ? "Admin" : "Student"}
+                  </span>
                 </div>
 
-                {/* Details Row: Year, Branch, Location */}
+                {/* Details Row: Academic & Meta Info */}
                 <div className="student-meta-tags-row">
                   <span className="student-meta-user-icon">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -600,11 +608,11 @@ export default function Students() {
                       <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
                     </svg>
                   </span>
-                  {s.graduationYear && (
-                    <span className="student-meta-pill">{formatStudentYear(s.graduationYear)}</span>
-                  )}
                   {s.branch && (
                     <span className="student-meta-pill">{s.branch}</span>
+                  )}
+                  {s.graduationYear && (
+                    <span className="student-meta-pill">{formatStudentYear(s.graduationYear)}</span>
                   )}
                   {s.location && (
                     <span className="student-meta-pill">{s.location}</span>
@@ -644,57 +652,20 @@ export default function Students() {
                   )}
                 </div>
 
-                {/* Bottom Action Buttons */}
+                {/* Bottom Action Buttons Row */}
                 <div className="student-card-actions">
+                  {/* Message Primary Button matching reference visual */}
                   <button
-                    className={`btn student-action-btn ${
-                      isFollowing
-                        ? "btn-following-state"
-                        : isRequested
-                        ? "btn-requested-state"
-                        : isIncomingPending
-                        ? "btn-follow-state"
-                        : "btn-follow-state"
-                    }`}
-                    onClick={() => handleFollow(s.id)}
-                    disabled={followLoading[s.id]}
+                    className="btn student-action-btn btn-message-primary"
+                    onClick={() => navigate("/chat", { state: { recipientId: s.id } })}
                   >
-                    {isFollowing ? (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                          <polyline points="17 6 23 6 23 12" />
-                        </svg>
-                        <span>Following</span>
-                      </>
-                    ) : isRequested ? (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        <span>Requested</span>
-                      </>
-                    ) : isIncomingPending ? (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        <span>Accept</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                          <circle cx="8.5" cy="7" r="4" />
-                          <line x1="20" y1="8" x2="20" y2="14" />
-                          <line x1="23" y1="11" x2="17" y2="11" />
-                        </svg>
-                        <span>Follow</span>
-                      </>
-                    )}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span>Message</span>
                   </button>
 
+                  {/* View Profile Secondary Button */}
                   <button
                     className="btn student-view-profile-btn"
                     onClick={() => navigate(`/students/${s.id}`)}
@@ -743,6 +714,10 @@ export default function Students() {
             >
               ›
             </button>
+          </div>
+
+          <div className="students-footer-motto-inline">
+            Together for a Brighter Tomorrow <span className="motto-accent-dash"></span>
           </div>
         </div>
       )}
