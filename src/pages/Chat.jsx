@@ -946,7 +946,7 @@ export default function Chat() {
       {/* ─── MAIN TWO-COLUMN MESSAGING CARD ───────────────────────── */}
       <div className="msg-card-container">
         {/* ─── 5. LEFT CONVERSATION LIST PANEL ─────────────────────── */}
-        <aside className={`msg-sidebar-panel ${activeConversation ? "msg-sidebar--hide-mobile" : ""}`}>
+        <aside className={`msg-sidebar-panel ${(activeConversation || selectedDiscoverUser) ? "msg-sidebar--hide-mobile" : ""}`}>
           {/* Search bar */}
           <div className="msg-search-box">
             <SearchIcon />
@@ -1221,7 +1221,7 @@ export default function Chat() {
               <div className="msg-active-header">
                 <button
                   className="msg-back-to-list-btn"
-                  onClick={() => setActiveConversation(null)}
+                  onClick={() => { setActiveConversation(null); setSelectedDiscoverUser(null); }}
                   title="Back to conversations"
                   aria-label="Back to conversations"
                 >

@@ -1417,6 +1417,79 @@
     width: calc(100vw - 32px);
     max-width: 340px;
   }
+
+  /* ─── WHATSAPP-STYLE MOBILE CHAT ─────────────────────────────── */
+  /* Hide empty state on mobile — sidebar IS the default view */
+  .msg-chat-panel--empty {
+    display: none;
+  }
+
+  /* Hide New Message button on mobile */
+  .msg-btn-new-message {
+    display: none;
+  }
+
+  /* Chat panel: only show when it has content on mobile */
+  .msg-chat-panel:not(.msg-chat-panel--empty) {
+    display: flex;
+  }
+
+  /* Follow-to-message state in active chat */
+  .msg-follow-to-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 12px;
+    padding: 24px 16px;
+    text-align: center;
+  }
+
+  .msg-follow-to-message-avatar {
+    margin-bottom: 4px;
+  }
+
+  .msg-follow-to-message h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary, #1e293b);
+    margin: 0;
+  }
+
+  [data-theme="dark"] .msg-follow-to-message h3 {
+    color: var(--text-primary, #f1f5f9);
+  }
+
+  .msg-follow-to-message-role {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0;
+  }
+
+  .msg-follow-to-message-status {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #94a3b8);
+    line-height: 1.5;
+    margin: 4px 0 0;
+    max-width: 280px;
+  }
+
+  .msg-follow-to-message-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .msg-follow-to-message-actions .btn {
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    min-width: 180px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
