@@ -16,8 +16,7 @@ import {
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { db, storage } from "../../config/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../../config/firebase";
 
 // ─── COLLECTIONS ──────────────────────────────────────────────
 

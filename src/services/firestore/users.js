@@ -5,19 +5,32 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   query,
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db, storage } from "../../config/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../../config/firebase";
 import { USERS, timestamp, handleFirestoreError, mapDocs } from "./helpers";
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const CHUNK_SIZE = 800000;
 
 export async function createUserProfile(userId, profileData) {
   try {
     await setDoc(doc(db, USERS, userId), {
       uid: userId,
       ...profileData,
+      originalName: profileData.displayName || "",
+      usernameHistory: [],
       role: profileData.role ?? "student",
       createdAt: timestamp(),
       updatedAt: timestamp(),
@@ -54,14 +67,12 @@ export async function updateUserProfile(userId, updates) {
 
 export async function uploadProfilePicture(userId, file) {
   try {
-    const storageRef = ref(storage, `profile-pictures/${userId}`);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
+    const dataUrl = await fileToBase64(file);
     await updateDoc(doc(db, USERS, userId), {
-      photoUrl: downloadURL,
+      photoUrl: dataUrl,
       updatedAt: timestamp(),
     });
-    return { data: { photoUrl: downloadURL }, error: null };
+    return { data: { photoUrl: dataUrl }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
   }
@@ -69,16 +80,66 @@ export async function uploadProfilePicture(userId, file) {
 
 export async function uploadResume(userId, file) {
   try {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storageRef = ref(storage, `resumes/${userId}/${Date.now()}_${safeName}`);
-    await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(storageRef);
+    const dataUrl = await fileToBase64(file);
+    const base64 = dataUrl.split(",")[1] || "";
+    const mimeType = file.type || "application/pdf";
+
+    const oldSnap = await getDocs(collection(db, USERS, userId, "resumeChunks"));
+    for (const d of oldSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+
+    const chunks = [];
+    for (let i = 0; i < base64.length; i += CHUNK_SIZE) {
+      chunks.push(base64.slice(i, i + CHUNK_SIZE));
+    }
+
+    for (let i = 0; i < chunks.length; i++) {
+      await setDoc(doc(db, USERS, userId, "resumeChunks", `chunk_${i}`), {
+        data: chunks[i],
+        index: i,
+      });
+    }
+
     await updateDoc(doc(db, USERS, userId), {
-      resumeUrl: downloadURL,
       resumeFileName: file.name,
+      resumeChunks: chunks.length,
+      resumeMimeType: mimeType,
       updatedAt: timestamp(),
     });
-    return { data: { resumeUrl: downloadURL, resumeFileName: file.name }, error: null };
+
+    return { data: { resumeUrl: null, resumeFileName: file.name }, error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+export async function getResumeDataUrl(userId) {
+  try {
+    const userSnap = await getDoc(doc(db, USERS, userId));
+    if (!userSnap.exists()) return { data: null, error: null };
+
+    const userData = userSnap.data();
+    if (!userData.resumeChunks) return { data: null, error: null };
+
+    let base64 = "";
+    for (let i = 0; i < userData.resumeChunks; i++) {
+      const chunkSnap = await getDoc(
+        doc(db, USERS, userId, "resumeChunks", `chunk_${i}`)
+      );
+      if (chunkSnap.exists()) {
+        base64 += chunkSnap.data().data;
+      }
+    }
+
+    if (!base64) return { data: null, error: null };
+
+    const mimeType = userData.resumeMimeType || "application/pdf";
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    return {
+      data: { dataUrl, fileName: userData.resumeFileName || "Resume" },
+      error: null,
+    };
   } catch (error) {
     return handleFirestoreError(error);
   }

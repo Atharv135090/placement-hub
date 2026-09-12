@@ -727,6 +727,63 @@
   cursor: not-allowed;
 }
 
+/* Read-only / View Mode Inputs */
+.glass-text-input.readonly {
+  background: #f8fafc;
+  color: #334155;
+  cursor: default;
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+.readonly-wrap {
+  opacity: 0.85;
+}
+
+.glass-textarea.readonly {
+  background: #f8fafc;
+  color: #334155;
+  cursor: default;
+  border-color: rgba(0, 0, 0, 0.04);
+  resize: none;
+}
+
+select.glass-text-input.readonly {
+  background: #f8fafc;
+  color: #334155;
+  cursor: default;
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+select.glass-text-input.readonly:disabled {
+  opacity: 0.85;
+}
+
+/* Hero cancel button */
+.hero-cancel-btn {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+}
+
+.hero-cancel-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.hero-edit-profile-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.card-edit-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .glass-select {
   padding-left: 14px;
   cursor: pointer;
@@ -1502,6 +1559,22 @@
     align-items: flex-start;
     gap: 16px;
   }
+  .hero-actions-bar {
+    flex-wrap: wrap;
+  }
+  .hero-edit-profile-btn {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .hero-cancel-btn {
+    flex: 1;
+    min-width: 80px;
+    justify-content: center;
+  }
+  .card-header-actions {
+    flex-wrap: wrap;
+  }
 }
 
 /* ==========================================================================
@@ -1534,6 +1607,30 @@
 [data-theme="dark"] .resume-file-display-box {
   background: #1e293b;
   border-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .glass-text-input.readonly,
+[data-theme="dark"] .glass-textarea.readonly,
+[data-theme="dark"] select.glass-text-input.readonly {
+  background: rgba(30, 41, 59, 0.6);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.05);
+  cursor: default;
+}
+
+[data-theme="dark"] .readonly-wrap {
+  opacity: 0.75;
+}
+
+[data-theme="dark"] .hero-cancel-btn {
+  background: transparent;
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .hero-cancel-btn:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.6);
   color: #f8fafc;
 }
 
@@ -1700,4 +1797,145 @@
     flex-direction: column;
     gap: 4px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESUME UPLOAD MODAL
+   ═══════════════════════════════════════════════════════════ */
+
+.resume-current-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.resume-current-file .pdf-icon {
+  font-size: 1.4rem;
+}
+
+.resume-current-file strong {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.resume-current-file .file-size {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.resume-drop-zone {
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--bg-surface);
+}
+
+.resume-drop-zone:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-subtle);
+}
+
+.resume-drop-prompt .drop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.resume-drop-prompt p {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.resume-drop-prompt .drop-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.resume-selected-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.resume-selected-file .pdf-icon {
+  font-size: 1.4rem;
+}
+
+.resume-selected-file strong {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.resume-selected-file .file-size {
+  font-size: 0.72rem;
+  color: var(--accent-light);
+  font-weight: 600;
+}
+
+.resume-upload-success {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.resume-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--emerald-subtle);
+  color: var(--emerald);
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.resume-upload-success h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.resume-upload-success p {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.resume-error-msg {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-sm);
+  color: #ef4444;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .resume-error-msg {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
 }

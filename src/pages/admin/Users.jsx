@@ -42,6 +42,8 @@ export default function AdminUsers() {
   const [blockModal, setBlockModal] = useState(null);
   const [blocking, setBlocking] = useState(false);
 
+  const [usernameHistoryModal, setUsernameHistoryModal] = useState(null);
+
   const usersUnsubRef = useRef(null);
   const appsUnsubRef = useRef(null);
 
@@ -308,6 +310,14 @@ export default function AdminUsers() {
                     <span className="au-user-name">
                       {u.displayName || "Unnamed"}
                       {isBlocked && <span className="au-blocked-badge">Blocked</span>}
+                      <button
+                        className="au-info-btn"
+                        onClick={() => setUsernameHistoryModal(u)}
+                        title="View username history"
+                        aria-label="View username history"
+                      >
+                        ⓘ
+                      </button>
                     </span>
                     <span className="au-user-email">{u.email}</span>
                   </div>
@@ -536,6 +546,58 @@ export default function AdminUsers() {
               </span>
             ) : "Delete Account"}
           </button>
+        </div>
+      </Modal>
+
+      {/* Username History Modal */}
+      <Modal open={!!usernameHistoryModal} onClose={() => setUsernameHistoryModal(null)} title="Username History">
+        <div className="au-modal-user">
+          <div className="au-modal-avatar">
+            <UserAvatar user={usernameHistoryModal} profile={usernameHistoryModal} className="au-modal-avatar-img" />
+          </div>
+          <div>
+            <p className="au-modal-name">{usernameHistoryModal?.displayName || "Unnamed"}</p>
+            <p className="au-modal-email">{usernameHistoryModal?.email}</p>
+          </div>
+        </div>
+
+        <div className="au-history-section">
+          <div className="au-history-row">
+            <span className="au-history-label">Original Name</span>
+            <span className="au-history-value">{usernameHistoryModal?.originalName || usernameHistoryModal?.displayName || "N/A"}</span>
+          </div>
+          <div className="au-history-row">
+            <span className="au-history-label">Current Name</span>
+            <span className="au-history-value au-history-value--current">{usernameHistoryModal?.displayName || "N/A"}</span>
+          </div>
+        </div>
+
+        <div className="au-history-section">
+          <h4 className="au-history-title">Change History</h4>
+          {usernameHistoryModal?.usernameHistory && usernameHistoryModal.usernameHistory.length > 0 ? (
+            <div className="au-history-list">
+              {[...usernameHistoryModal.usernameHistory]
+                .sort((a, b) => {
+                  const aTime = a.changedAt?.toDate ? a.changedAt.toDate().getTime() : (a.changedAt?.seconds ? a.changedAt.seconds * 1000 : 0);
+                  const bTime = b.changedAt?.toDate ? b.changedAt.toDate().getTime() : (b.changedAt?.seconds ? b.changedAt.seconds * 1000 : 0);
+                  return bTime - aTime;
+                })
+                .map((entry, idx) => {
+                  const changedAt = entry.changedAt?.toDate ? entry.changedAt.toDate() : (entry.changedAt?.seconds ? new Date(entry.changedAt.seconds * 1000) : null);
+                  const timeStr = changedAt ? changedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) + ", " + changedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "";
+                  return (
+                    <div key={idx} className="au-history-entry">
+                      <span className="au-history-new">{entry.newName}</span>
+                      <span className="au-history-arrow">←</span>
+                      <span className="au-history-old">{entry.previousName}</span>
+                      <span className="au-history-time">{timeStr}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <p className="au-history-empty">No name changes recorded.</p>
+          )}
         </div>
       </Modal>
     </div>

@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import UserAvatar from "../components/UserAvatar";
-import { getPlacementContext, generateSmartResponse } from "../utils/aiEngine";
+import { getPlacementContext, generateSmartResponse, isAIConfigured } from "../utils/aiEngine";
 import "./Assistant.css";
 
 const MOTIVATIONAL_QUOTES = [
@@ -185,6 +185,8 @@ export default function Assistant() {
     user?.displayName?.split(" ")[0] ||
     "Student";
 
+  const aiReady = isAIConfigured();
+
   // Automatic quote rotation every 7 seconds without immediate repetition
   useEffect(() => {
     const timer = setInterval(() => {
@@ -297,6 +299,27 @@ export default function Assistant() {
               </div>
             </div>
           </div>
+
+          {/* AI Setup Banner — shown when Gemini key is not configured */}
+          {!aiReady && (
+            <div className="asst-setup-banner">
+              <div className="asst-setup-banner-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <div className="asst-setup-banner-text">
+                <strong>AI not configured yet.</strong> Get a free Gemini API key at{" "}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                  aistudio.google.com/apikey
+                </a>{" "}
+                and add it to your <code>.env</code> file as <code>VITE_GEMINI_API_KEY=your_key</code>.
+                Then restart the dev server.
+              </div>
+            </div>
+          )}
 
           {/* 2. Quick-Help / Category Cards (5 horizontal cards) */}
           <div className="asst-categories-row">

@@ -4,10 +4,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import { logOut } from "../services/auth";
-import { updateUserProfile, uploadProfilePicture, uploadResume } from "../services/firestore";
+import { updateUserProfile, uploadProfilePicture, uploadResume, getResumeDataUrl } from "../services/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, deleteDoc, getDocs, query, where, collection } from "firebase/firestore";
+import { doc, deleteDoc, getDocs, query, where, collection, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
 import UserAvatar from "../components/UserAvatar";
 import "../components/Modal.css";
 import "./Settings.css";
@@ -76,12 +76,16 @@ export default function Settings() {
   const [resumeViewUrl, setResumeViewUrl] = useState(null);
   const [showResumeViewer, setShowResumeViewer] = useState(false);
 
-  // UI state
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState("");
+  const [savedData, setSavedData] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // UI state
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showHeroMenu, setShowHeroMenu] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -127,27 +131,59 @@ export default function Settings() {
   // Populate data from profile / user
   useEffect(() => {
     if (profile) {
-      setName(profile.displayName || user?.displayName || "");
-      setBranch(profile.branch || "");
-      setLocation(profile.location || "");
-      setCollege(profile.college || "");
-      setAbout(profile.about || "");
-      setGraduationYear(profile.graduationYear || "");
-      setPlacementStatus(profile.placementStatus || "Not set");
-      setProfileVisibility(profile.profileVisibility || "public");
+      const profileData = {
+        name: profile.displayName || user?.displayName || "",
+        branch: profile.branch || "",
+        location: profile.location || "",
+        college: profile.college || "",
+        about: profile.about || "",
+        graduationYear: profile.graduationYear || "",
+        placementStatus: profile.placementStatus || "Not set",
+        profileVisibility: profile.profileVisibility || "public",
+      };
+      setName(profileData.name);
+      setBranch(profileData.branch);
+      setLocation(profileData.location);
+      setCollege(profileData.college);
+      setAbout(profileData.about);
+      setGraduationYear(profileData.graduationYear);
+      setPlacementStatus(profileData.placementStatus);
+      setProfileVisibility(profileData.profileVisibility);
+      setSavedData(profileData);
       if (Array.isArray(profile.skills)) {
         setSkills(profile.skills);
       }
-      if (profile.resumeUrl) {
-        setResumeViewUrl(profile.resumeUrl);
-      }
       if (profile.resumeFileName) {
         setResumeFileName(profile.resumeFileName);
+      }
+      if (profile.resumeChunks && user?.uid) {
+        let cancelled = false;
+        getResumeDataUrl(user.uid).then((result) => {
+          if (!cancelled && result.data) {
+            setResumeViewUrl(result.data.dataUrl);
+          }
+        });
+        return () => { cancelled = true; };
       }
     } else if (user) {
       setName(user.displayName || "");
     }
   }, [profile, user]);
+
+  // Track whether form has unsaved changes
+  const hasChanges = useMemo(() => {
+    if (!savedData) return false;
+    return (
+      name !== savedData.name ||
+      branch !== savedData.branch ||
+      location !== savedData.location ||
+      college !== savedData.college ||
+      about !== savedData.about ||
+      graduationYear !== savedData.graduationYear ||
+      placementStatus !== savedData.placementStatus ||
+      profileVisibility !== savedData.profileVisibility
+    );
+  }, [name, branch, location, college, about, graduationYear, placementStatus, profileVisibility, savedData]);
 
   // Profile completion calculation
   const profileCompletion = useMemo(() => {
@@ -179,10 +215,30 @@ export default function Settings() {
   async function handleSaveProfile(e) {
     if (e) e.preventDefault();
     if (!user?.uid) return;
+
+    // Name validation
+    const trimmedName = (name || "").trim();
+    if (!trimmedName) {
+      setSavedToast("Name cannot be empty.");
+      setTimeout(() => setSavedToast(""), 3000);
+      return;
+    }
+    if (trimmedName.length > 100) {
+      setSavedToast("Name is too long (max 100 characters).");
+      setTimeout(() => setSavedToast(""), 3000);
+      return;
+    }
+
+    // If nothing changed, just exit edit mode
+    if (!hasChanges) {
+      setIsEditing(false);
+      return;
+    }
+
     setSaving(true);
     try {
-      await updateUserProfile(user.uid, {
-        displayName: name,
+      const updates = {
+        displayName: trimmedName,
         branch,
         location,
         college,
@@ -191,17 +247,95 @@ export default function Settings() {
         placementStatus,
         skills,
         profileVisibility,
+      };
+
+      const userDocRef = doc(db, "users", user.uid);
+
+      // Name change detection: only record history if name actually changed
+      const previousName = (profile?.displayName || user?.displayName || "").trim();
+      if (trimmedName !== previousName && previousName) {
+        // Record username history entry
+        const historyUpdate = {
+          ...updates,
+          usernameHistory: arrayUnion({
+            previousName,
+            newName: trimmedName,
+            changedAt: new Date().toISOString(),
+          }),
+          updatedAt: serverTimestamp(),
+        };
+        // Set originalName if not already set (first-time protection)
+        if (!profile?.originalName) {
+          historyUpdate.originalName = previousName;
+        }
+        await updateDoc(userDocRef, historyUpdate);
+      } else {
+        // No name change — normal update
+        await updateDoc(userDocRef, {
+          ...updates,
+          updatedAt: serverTimestamp(),
+        });
+
+        // Set originalName if not already set (first-time protection)
+        if (!profile?.originalName && previousName) {
+          await updateDoc(userDocRef, { originalName: previousName });
+        }
+      }
+
+      // Update local profile context so the rest of the app reflects changes
+      setProfile((prev) => ({ ...prev, ...updates }));
+
+      // Update savedData to reflect successful save
+      setSavedData({
+        name: trimmedName,
+        branch,
+        location,
+        college,
+        about,
+        graduationYear,
+        placementStatus,
+        profileVisibility,
       });
-      setSavedToast("Profile changes saved successfully!");
+
       setIsEditing(false);
+      setSavedToast("Profile updated successfully");
       setTimeout(() => setSavedToast(""), 3000);
     } catch (err) {
       console.error("Save profile error:", err);
-      setSavedToast("Failed to save changes. Please try again.");
-      setTimeout(() => setSavedToast(""), 3000);
+      setSavedToast("Unable to save profile changes. Please try again.");
+      setTimeout(() => setSavedToast(""), 4000);
+      // Stay in edit mode on failure — do NOT set setIsEditing(false)
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleEditProfile() {
+    setIsEditing(true);
+    setShowCancelConfirm(false);
+  }
+
+  function handleCancelEdit() {
+    if (hasChanges) {
+      setShowCancelConfirm(true);
+      return;
+    }
+    performCancelEdit();
+  }
+
+  function performCancelEdit() {
+    if (savedData) {
+      setName(savedData.name);
+      setBranch(savedData.branch);
+      setLocation(savedData.location);
+      setCollege(savedData.college);
+      setAbout(savedData.about);
+      setGraduationYear(savedData.graduationYear);
+      setPlacementStatus(savedData.placementStatus);
+      setProfileVisibility(savedData.profileVisibility);
+    }
+    setIsEditing(false);
+    setShowCancelConfirm(false);
   }
 
   function handleAddSkill() {
@@ -246,28 +380,54 @@ export default function Settings() {
     setProfile((prev) => ({ ...prev, photoUrl: defaultPhoto }));
   }
 
+  // Resume error state
+  const [resumeError, setResumeError] = useState("");
+
   function handleResumeFileSelect(e) {
     const file = e.target.files?.[0];
-    if (file) {
-      setResumeFile(file);
-      setResumeFileName(file.name);
+    if (!file) return;
+    setResumeError("");
+
+    if (file.type !== "application/pdf") {
+      setResumeError("Only PDF files are allowed.");
+      e.target.value = "";
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setResumeError("File size must be under 5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setResumeFile(file);
+    setResumeFileName(file.name);
   }
 
   async function handleResumeUpload() {
     if (!resumeFile || !user?.uid) return;
     setSaving(true);
+    setResumeError("");
     const result = await uploadResume(user.uid, resumeFile);
-    setSaving(false);
-    if (result.error) return;
+    if (result.error) {
+      setSaving(false);
+      setResumeError("Upload failed. Please try again.");
+      return;
+    }
 
-    setResumeViewUrl(result.data.resumeUrl);
+    const urlResult = await getResumeDataUrl(user.uid);
+    setSaving(false);
+
+    if (urlResult.data) {
+      setResumeViewUrl(urlResult.data.dataUrl);
+    }
     setResumeFileName(result.data.resumeFileName);
     setResumeUploadSuccess(true);
     setTimeout(() => {
       setShowResumeModal(false);
       setResumeFile(null);
       setResumeUploadSuccess(false);
+      setResumeError("");
     }, 1500);
   }
 
@@ -360,6 +520,31 @@ export default function Settings() {
       {savedToast && (
         <div className="profile-floating-toast glass-card animate-fade-in">
           <span>✓ {savedToast}</span>
+        </div>
+      )}
+
+      {/* Cancel confirmation dialog */}
+      {showCancelConfirm && (
+        <div className="modal-overlay" onClick={() => setShowCancelConfirm(false)}>
+          <div className="modal-panel glass-heavy animate-scale-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-head">
+              <h2 className="modal-title">Discard unsaved changes?</h2>
+              <button className="modal-close" onClick={() => setShowCancelConfirm(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem" }}>
+                You have unsaved modifications. If you leave, your changes will be lost.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowCancelConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={performCancelEdit}>
+                Discard
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -505,80 +690,104 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Hero right: Edit Profile button & 4 Stat Cards */}
-        <div className="hero-top-right">
-          <div className="hero-actions-bar">
-            <button
-              className="btn btn-primary hero-edit-profile-btn"
-              onClick={() => setIsEditing((prev) => !prev)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              <span>{isEditing ? "Done Editing" : "Edit Profile"}</span>
-            </button>
-
-            <div className="hero-menu-container" ref={heroMenuRef}>
-              <button
-                className="hero-three-dots-btn"
-                onClick={() => setShowHeroMenu((prev) => !prev)}
-                title="Options"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="5" r="1.75" />
-                  <circle cx="12" cy="12" r="1.75" />
-                  <circle cx="12" cy="19" r="1.75" />
-                </svg>
-              </button>
-
-              {showHeroMenu && (
-                <div className="hero-dropdown-menu glass-heavy animate-fade-in">
+          {/* Hero right: Edit Profile button & 4 Stat Cards */}
+          <div className="hero-top-right">
+            <div className="hero-actions-bar">
+              {!isEditing ? (
+                <button
+                  className="btn btn-primary hero-edit-profile-btn"
+                  onClick={handleEditProfile}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Edit Profile</span>
+                </button>
+              ) : (
+                <>
                   <button
-                    className="menu-option-btn"
-                    onClick={() => {
-                      setShowHeroMenu(false);
-                      profileFileInputRef.current?.click();
-                    }}
+                    className="btn btn-primary hero-edit-profile-btn"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                      <circle cx="12" cy="13" r="4" />
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
                     </svg>
-                    <span>Change Photo</span>
+                    <span>{saving ? "Saving..." : "Save Changes"}</span>
                   </button>
-
                   <button
-                    className="menu-option-btn"
-                    onClick={() => {
-                      setShowHeroMenu(false);
-                      handleRestoreDefaultPhoto();
-                    }}
+                    className="btn btn-secondary hero-edit-profile-btn hero-cancel-btn"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    <span>Restore Default Avatar</span>
+                    <span>Cancel</span>
                   </button>
-
-                  <button
-                    className="menu-option-btn"
-                    onClick={() => {
-                      setShowHeroMenu(false);
-                      copyAccountId();
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                    </svg>
-                    <span>Copy Account ID</span>
-                  </button>
-                </div>
+                </>
               )}
+
+              <div className="hero-menu-container" ref={heroMenuRef}>
+                <button
+                  className="hero-three-dots-btn"
+                  onClick={() => setShowHeroMenu((prev) => !prev)}
+                  title="Options"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.75" />
+                    <circle cx="12" cy="12" r="1.75" />
+                    <circle cx="12" cy="19" r="1.75" />
+                  </svg>
+                </button>
+
+                {showHeroMenu && (
+                  <div className="hero-dropdown-menu glass-heavy animate-fade-in">
+                    <button
+                      className="menu-option-btn"
+                      onClick={() => {
+                        setShowHeroMenu(false);
+                        profileFileInputRef.current?.click();
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
+                      <span>Change Photo</span>
+                    </button>
+
+                    <button
+                      className="menu-option-btn"
+                      onClick={() => {
+                        setShowHeroMenu(false);
+                        handleRestoreDefaultPhoto();
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </svg>
+                      <span>Restore Default Avatar</span>
+                    </button>
+
+                    <button
+                      className="menu-option-btn"
+                      onClick={() => {
+                        setShowHeroMenu(false);
+                        copyAccountId();
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                      <span>Copy Account ID</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
           {/* 4 Compact Glass Application Stat Cards */}
           <div className="hero-stat-cards-grid">
@@ -734,19 +943,43 @@ export default function Settings() {
               </div>
 
               <div className="card-header-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary card-edit-toggle-btn"
-                  onClick={handleSaveProfile}
-                  disabled={saving}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                  </svg>
-                  <span>{saving ? "Saving..." : "Save Details"}</span>
-                </button>
+                {!isEditing ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary card-edit-toggle-btn"
+                    onClick={handleEditProfile}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary card-edit-toggle-btn"
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                      <span>{saving ? "Saving..." : "Save Changes"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary card-edit-toggle-btn"
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                    >
+                      <span>Cancel</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -755,7 +988,7 @@ export default function Settings() {
               <div className="form-fields-column">
                 <div className="futuristic-input-field">
                   <label className="field-label">Full Name</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <span className="field-prefix-icon">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -764,10 +997,12 @@ export default function Settings() {
                     </span>
                     <input
                       type="text"
-                      className="glass-text-input"
+                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. John Doe"
+                      readOnly={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     />
                   </div>
                 </div>
@@ -793,7 +1028,7 @@ export default function Settings() {
 
                 <div className="futuristic-input-field">
                   <label className="field-label">Branch / Degree</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <span className="field-prefix-icon">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
@@ -802,17 +1037,19 @@ export default function Settings() {
                     </span>
                     <input
                       type="text"
-                      className="glass-text-input"
+                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
                       value={branch}
                       onChange={(e) => setBranch(e.target.value)}
                       placeholder="e.g. Computer Science Engineering"
+                      readOnly={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     />
                   </div>
                 </div>
 
                 <div className="futuristic-input-field">
                   <label className="field-label">Graduation Year</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <span className="field-prefix-icon">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -823,17 +1060,19 @@ export default function Settings() {
                     </span>
                     <input
                       type="text"
-                      className="glass-text-input"
+                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
                       value={graduationYear}
                       onChange={(e) => setGraduationYear(e.target.value)}
                       placeholder="e.g. 2026"
+                      readOnly={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     />
                   </div>
                 </div>
 
                 <div className="futuristic-input-field">
                   <label className="field-label">Location</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <span className="field-prefix-icon">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -842,21 +1081,25 @@ export default function Settings() {
                     </span>
                     <input
                       type="text"
-                      className="glass-text-input"
+                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="e.g. Pune, Maharashtra"
+                      readOnly={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     />
                   </div>
                 </div>
 
                 <div className="futuristic-input-field">
                   <label className="field-label">Placement Status</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <select
-                      className="glass-text-input glass-select"
+                      className={`glass-text-input glass-select ${!isEditing ? "readonly" : ""}`}
                       value={placementStatus}
                       onChange={(e) => setPlacementStatus(e.target.value)}
+                      disabled={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     >
                       <option value="Not set">Not set</option>
                       <option value="Actively Looking">Actively Looking</option>
@@ -869,11 +1112,13 @@ export default function Settings() {
 
                 <div className="futuristic-input-field">
                   <label className="field-label">Profile Visibility</label>
-                  <div className="field-input-wrapper">
+                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
                     <select
-                      className="glass-text-input glass-select"
+                      className={`glass-text-input glass-select ${!isEditing ? "readonly" : ""}`}
                       value={profileVisibility}
                       onChange={(e) => setProfileVisibility(e.target.value)}
+                      disabled={!isEditing}
+                      tabIndex={isEditing ? 0 : -1}
                     >
                       <option value="public">Public - Anyone can view your profile</option>
                       <option value="private">Private - Require follow approval</option>
@@ -890,12 +1135,14 @@ export default function Settings() {
                     <span className="about-counter-pill">{about.length}/500</span>
                   </div>
                   <textarea
-                    className="glass-textarea"
+                    className={`glass-textarea ${!isEditing ? "readonly" : ""}`}
                     rows="9"
                     maxLength={500}
                     value={about}
                     onChange={(e) => setAbout(e.target.value)}
                     placeholder="Passionate about technology, problem solving and building useful products."
+                    readOnly={!isEditing}
+                    tabIndex={isEditing ? 0 : -1}
                   ></textarea>
                 </div>
               </div>
@@ -1408,6 +1655,7 @@ export default function Settings() {
             setShowResumeModal(false);
             setResumeFile(null);
             setResumeUploadSuccess(false);
+            setResumeError("");
           }}
         >
           <div className="modal-panel glass-heavy" onClick={(e) => e.stopPropagation()}>
@@ -1419,6 +1667,7 @@ export default function Settings() {
                   setShowResumeModal(false);
                   setResumeFile(null);
                   setResumeUploadSuccess(false);
+                  setResumeError("");
                 }}
               >
                 ✕
@@ -1440,6 +1689,9 @@ export default function Settings() {
                       <span className="file-size">PDF</span>
                     </div>
                   </div>
+                  {resumeError && (
+                    <div className="resume-error-msg">{resumeError}</div>
+                  )}
                   <div
                     className="resume-drop-zone"
                     onClick={() => resumeFileInputRef.current?.click()}
@@ -1447,9 +1699,9 @@ export default function Settings() {
                     <input
                       ref={resumeFileInputRef}
                       type="file"
-                      accept=".pdf"
+                      accept=".pdf,application/pdf"
                       onChange={handleResumeFileSelect}
-                      style={{ display: "none" }}
+                      style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
                     />
                     {resumeFile ? (
                       <div className="resume-selected-file">
@@ -1473,6 +1725,7 @@ export default function Settings() {
                       onClick={() => {
                         setShowResumeModal(false);
                         setResumeFile(null);
+                        setResumeError("");
                       }}
                     >
                       Cancel

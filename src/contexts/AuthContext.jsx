@@ -54,6 +54,12 @@ export function AuthProvider({ children }) {
             setProfile(data);
           }
 
+          // Set originalName for existing users who don't have it yet
+          if (!data.originalName && data.displayName) {
+            await updateUserProfile(firebaseUser.uid, { originalName: data.displayName });
+            setProfile((prev) => prev ? { ...prev, originalName: data.displayName } : prev);
+          }
+
           if (!data.photoUrl) {
             const googlePhoto = firebaseUser.photoURL;
             const autoPhoto = googlePhoto || getAutoAssignedPhoto(firebaseUser);

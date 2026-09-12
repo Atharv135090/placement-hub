@@ -90,6 +90,7 @@
 .msg-card-container {
   display: flex;
   height: calc(100vh - 165px);
+  height: calc(100dvh - 165px);
   min-height: 600px;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(16px);
@@ -934,6 +935,7 @@
 @media (max-width: 768px) {
   .msg-card-container {
     height: calc(100vh - 150px);
+    height: calc(100dvh - 150px);
     min-height: 0;
   }
 
@@ -1120,6 +1122,7 @@
   left: 0;
   margin-bottom: 8px;
   width: 300px;
+  max-width: calc(100vw - 32px);
   max-height: 360px;
   background: var(--glass-bg-heavy, rgba(30, 30, 46, 0.92));
   backdrop-filter: blur(24px);

@@ -255,7 +255,7 @@ export default function AppShell() {
         </main>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
+      {/* ── MOBILE BOTTOM NAV DOCK ── */}
       <nav className="mobile-nav-dock glass" aria-label="Mobile Navigation">
         <NavLink
           to="/"
@@ -293,79 +293,98 @@ export default function AppShell() {
         </NavLink>
 
         <NavLink
-          to="/assistant"
+          to="/chat"
           className={({ isActive }) => `mobile-nav-btn ${isActive ? "active" : ""}`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z" />
-            <line x1="10" y1="22" x2="14" y2="22" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>Assistant</span>
+          <span>Chat</span>
         </NavLink>
 
-        <button
-          className={`mobile-nav-btn ${moreDrawerOpen ? "active" : ""}`}
-          onClick={() => setMoreDrawerOpen(!moreDrawerOpen)}
-          aria-label="More Menu"
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `mobile-nav-btn ${isActive ? "active" : ""}`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="19" cy="12" r="1" />
-            <circle cx="5" cy="12" r="1" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
-          <span>More</span>
-        </button>
+          <span>Profile</span>
+        </NavLink>
       </nav>
 
-      {/* ── MOBILE MORE DRAWER ── */}
+      {/* ── MOBILE SLIDE DRAWER (MATCHING REFERENCE UI) ── */}
       {moreDrawerOpen && (
         <div className="mobile-drawer-backdrop" onClick={() => setMoreDrawerOpen(false)}>
-          <div className="mobile-drawer-sheet glass-heavy" onClick={(e) => e.stopPropagation()}>
-            <div className="drawer-handle" />
-            <div className="drawer-header">
-              <h3>All Navigation</h3>
-              <button className="drawer-close-btn" onClick={() => setMoreDrawerOpen(false)}>✕</button>
+          <div className="mobile-drawer-panel glass-heavy" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-head">
+              <div className="mobile-drawer-brand">
+                <PlacementLogo size={28} />
+                <span className="mobile-drawer-brand-title">Placement Hub</span>
+              </div>
+              <button
+                className="mobile-drawer-close-btn"
+                onClick={() => setMoreDrawerOpen(false)}
+                aria-label="Close navigation"
+              >
+                ✕
+              </button>
             </div>
-            <div className="drawer-grid">
-              {NAV_ITEMS.map((item) => (
+
+            <nav className="mobile-drawer-nav">
+              {currentNavItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  className="drawer-item glass"
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    `mobile-drawer-link ${isActive ? "mobile-drawer-link--active" : ""}`
+                  }
                   onClick={() => setMoreDrawerOpen(false)}
                 >
-                  <span className="drawer-item-icon">{item.icon}</span>
-                  <span className="drawer-item-label">
-                    {item.label}
-                    {item.badge && <span className="drawer-soon-badge">{item.badge}</span>}
-                  </span>
+                  <span className="mobile-drawer-icon">{item.icon}</span>
+                  <span className="mobile-drawer-label">{item.label}</span>
+                  {item.badge && <span className="drawer-soon-badge">{item.badge}</span>}
                 </NavLink>
               ))}
-              <NavLink
-                to="/profile"
-                className="drawer-item glass"
-                onClick={() => setMoreDrawerOpen(false)}
+            </nav>
+
+            <div className="mobile-drawer-foot">
+              <div
+                className="mobile-drawer-user-card"
+                onClick={() => {
+                  setMoreDrawerOpen(false);
+                  navigate("/profile");
+                }}
               >
-                <span className="drawer-item-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </span>
-                <span className="drawer-item-label">Profile</span>
-              </NavLink>
-              <NavLink
-                to="/chat"
-                className="drawer-item glass"
-                onClick={() => setMoreDrawerOpen(false)}
+                <div className="mobile-drawer-avatar">
+                  <UserAvatar user={user} profile={profile} alt="Avatar" />
+                </div>
+                <div className="mobile-drawer-user-info">
+                  <span className="mobile-drawer-user-name">
+                    {profile?.displayName || user?.displayName || "Student"}
+                  </span>
+                  <span className="mobile-drawer-user-role">
+                    {profile?.role === "owner" ? "Owner" : profile?.role === "admin" ? "Admin" : "View Profile"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                className="mobile-drawer-logout-btn"
+                onClick={async () => {
+                  setMoreDrawerOpen(false);
+                  await handleLogout();
+                }}
+                title="Logout"
               >
-                <span className="drawer-item-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                </span>
-                <span className="drawer-item-label">Chat</span>
-              </NavLink>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

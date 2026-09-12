@@ -294,6 +294,10 @@
 }
 
 @media (max-width: 768px) {
+  .apps-search-box {
+    min-width: 0;
+    width: 100%;
+  }
   .apps-table-header {
     display: none;
   }
@@ -396,7 +400,7 @@
 /* Toast */
 .apps-toast {
   position: fixed;
-  bottom: 24px;
+  bottom: 80px;
   right: 24px;
   padding: 10px 20px;
   border-radius: var(--radius-full);

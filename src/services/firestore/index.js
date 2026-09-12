@@ -34,6 +34,7 @@ export {
   updateUserProfile,
   uploadProfilePicture,
   uploadResume,
+  getResumeDataUrl,
   toggleSaveJob,
   getUserSavedIds,
   getAllUsers,

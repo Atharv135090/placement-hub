@@ -6,6 +6,7 @@
 .ats-workspace {
   position: relative;
   min-height: calc(100vh - 84px);
+  min-height: calc(100dvh - 84px);
   padding: 24px 32px 40px;
   box-sizing: border-box;
   background: #080c14;
@@ -1314,6 +1315,10 @@
   .ats-footer-banner {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .ats-visual-col {
+    height: 280px;
   }
 }
 
