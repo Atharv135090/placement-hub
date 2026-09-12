@@ -1289,6 +1289,8 @@
 /* ══════════════════════════════════════════════════════════════════
    RESPONSIVENESS & ACCESSIBILITY
    ══════════════════════════════════════════════════════════════════ */
+
+/* ─── TABLET (<=1080px) ─────────────────────────────────────── */
 @media (max-width: 1080px) {
   .ats-showcase-grid {
     grid-template-columns: 1fr;
@@ -1299,26 +1301,506 @@
   }
 }
 
-@media (max-width: 640px) {
+/* ─── MOBILE (<=768px) ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Workspace: compact padding, prevent overflow */
   .ats-workspace {
-    padding: 16px;
+    padding: 12px 12px 100px;
+    overflow-x: hidden;
+    min-height: auto;
   }
 
+  /* Showcase card: compact padding */
+  .ats-showcase-card {
+    padding: 18px 16px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  [data-theme="light"] .ats-showcase-card {
+    border-color: rgba(225, 29, 72, 0.1);
+  }
+
+  /* Brand pill: compact */
+  .ats-brand-pill {
+    padding: 5px 12px;
+    font-size: 0.7rem;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* Grid: single column */
+  .ats-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  /* Hero column: compact gaps */
+  .ats-hero-col {
+    gap: 12px;
+  }
+
+  /* Badge row: wrap */
+  .ats-badge-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ats-soon-pill {
+    padding: 3px 10px;
+    font-size: 0.65rem;
+  }
+
+  .ats-future-tag {
+    font-size: 0.62rem;
+  }
+
+  /* Main title: scale down */
   .ats-main-title {
-    font-size: 2.2rem;
+    font-size: 2rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
   }
 
+  /* Subtitle status */
+  .ats-subtitle-status {
+    gap: 6px;
+  }
+
+  .ats-status-name {
+    font-size: 0.82rem;
+  }
+
+  /* Hero description */
+  .ats-hero-description {
+    font-size: 0.84rem;
+    line-height: 1.5;
+    max-width: 100%;
+  }
+
+  /* CTA buttons: stack or wrap */
+  .ats-cta-group {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .ats-btn-primary,
+  .ats-btn-preview {
+    padding: 10px 18px;
+    font-size: 0.8rem;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* Metrics row: compact, 2-column on small screens */
+  .ats-metrics-row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+    justify-content: center;
+  }
+
+  .ats-metric-item {
+    gap: 6px;
+  }
+
+  .ats-metric-value {
+    font-size: 0.9rem;
+  }
+
+  .ats-metric-label {
+    font-size: 0.66rem;
+  }
+
+  .ats-metric-divider {
+    display: none;
+  }
+
+  /* Features grid: single column */
   .ats-features-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 4px;
   }
 
+  .ats-feature-card {
+    padding: 12px 14px;
+    border-radius: 14px;
+    gap: 10px;
+  }
+
+  .ats-feature-icon-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .ats-feature-title {
+    font-size: 0.82rem;
+  }
+
+  .ats-feature-desc {
+    font-size: 0.72rem;
+  }
+
+  .ats-feature-tag {
+    font-size: 0.6rem;
+  }
+
+  /* ─── VISUAL COLUMN: scale down everything ──────────────────── */
+  .ats-visual-col {
+    height: 300px;
+    overflow: hidden;
+  }
+
+  .ats-visual-stage {
+    transform: scale(0.7);
+    transform-origin: center center;
+  }
+
+  /* Gyro: smaller */
+  .ats-gyro-container {
+    width: 260px;
+    height: 260px;
+  }
+
+  /* HUD Resume: smaller, repositioned */
+  .ats-hud-resume {
+    width: 150px;
+    padding: 10px 12px;
+    top: 0;
+    left: -10px;
+  }
+
+  .ats-resume-doc-badge {
+    font-size: 0.62rem;
+  }
+
+  .ats-resume-doc-chip {
+    font-size: 0.56rem;
+  }
+
+  /* HUD Score: smaller, repositioned */
+  .ats-hud-score-card {
+    width: 140px;
+    padding: 12px;
+    top: 0;
+    right: -10px;
+  }
+
+  .ats-score-radial-box {
+    width: 48px;
+    height: 48px;
+  }
+
+  .ats-score-number {
+    font-size: 1rem;
+  }
+
+  .ats-score-label {
+    font-size: 0.58rem;
+  }
+
+  .ats-check-item {
+    font-size: 0.58rem;
+  }
+
+  /* Car: responsive */
+  .ats-car-wrapper {
+    width: 85%;
+    max-width: 320px;
+  }
+
+  .ats-svj-floating-badge {
+    padding: 3px 8px;
+    font-size: 0.6rem;
+    bottom: 8px;
+    right: 12px;
+  }
+
+  /* Vertical tagline: hide on mobile */
+  .ats-vertical-tagline {
+    display: none;
+  }
+
+  /* Stage glow: smaller */
+  .ats-stage-glow-ring {
+    width: 200px;
+    height: 40px;
+    bottom: 10px;
+  }
+
+  /* ─── FOOTER BANNER: stack vertically ──────────────────────── */
   .ats-footer-banner {
     flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 16px;
+  }
+
+  .ats-footer-left {
     align-items: flex-start;
   }
 
+  .ats-cs-spaced {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+  }
+
+  .ats-cs-sub {
+    font-size: 0.62rem;
+  }
+
+  .ats-progress-track {
+    width: 100%;
+    max-width: 140px;
+  }
+
+  /* Countdown: responsive grid */
+  .ats-footer-countdown {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .ats-count-block {
+    padding: 6px 4px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .ats-count-num {
+    font-size: 1rem;
+  }
+
+  .ats-count-label {
+    font-size: 0.56rem;
+    letter-spacing: 0.04em;
+  }
+
+  .ats-footer-right {
+    font-size: 0.64rem;
+    text-align: center;
+  }
+
+  /* ─── AMBIENT GLOWS: prevent overflow ──────────────────────── */
+  .ats-ambient-glow--pink {
+    width: 250px;
+    height: 250px;
+    left: 10%;
+    top: -5%;
+  }
+
+  .ats-ambient-glow--purple {
+    width: 300px;
+    height: 300px;
+    right: -10%;
+    bottom: -10%;
+  }
+
+  .ats-ambient-glow--cyan {
+    width: 200px;
+    height: 200px;
+    left: -15%;
+  }
+
+  /* ─── PREVIEW MODAL: mobile fit ────────────────────────────── */
+  .ats-preview-overlay {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .ats-preview-modal {
+    padding: 16px 14px 24px;
+    border-radius: 20px;
+    gap: 16px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+
+  .ats-modal-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ats-modal-brand {
+    gap: 8px;
+  }
+
+  .ats-modal-badge {
+    padding: 3px 8px;
+    font-size: 0.6rem;
+  }
+
+  .ats-modal-title {
+    font-size: 0.82rem;
+  }
+
+  .ats-modal-phase-stepper {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .ats-step-pill {
+    padding: 4px 10px;
+    font-size: 0.66rem;
+  }
+
+  .ats-modal-close-btn {
+    font-size: 1.1rem;
+    padding: 4px 6px;
+  }
+
+  .ats-modal-body {
+    min-height: 280px;
+  }
+
+  /* Phase 1: Scanner */
+  .ats-scanner-stage {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .ats-scanner-doc {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    min-height: 200px;
+    padding: 14px;
+  }
+
+  .ats-scan-checklist {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .ats-scan-check-row {
+    padding: 8px 12px;
+    font-size: 0.74rem;
+  }
+
+  /* Phase 2: Analysis */
+  .ats-analysis-stage {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    max-width: 100%;
+  }
+
+  .ats-analysis-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .ats-analysis-card h4 {
+    font-size: 0.8rem;
+  }
+
+  .ats-analysis-card p {
+    font-size: 0.7rem;
+  }
+
+  /* Phase 3: Score */
+  .ats-score-stage {
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .ats-big-score-ring {
+    width: 120px;
+    height: 120px;
+  }
+
+  .ats-big-score-num {
+    font-size: 2rem;
+  }
+
+  .ats-proof-item {
+    font-size: 0.82rem;
+  }
+
+  /* Phase 4: Final */
+  .ats-final-title {
+    font-size: 1.4rem;
+  }
+
+  .ats-final-slogan {
+    font-size: 0.9rem;
+  }
+
+  .ats-final-cta-row {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .ats-final-cta-row .ats-btn-preview,
+  .ats-final-cta-row .ats-btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── SMALL MOBILE (<=480px) ────────────────────────────────── */
+@media (max-width: 480px) {
+  .ats-workspace {
+    padding: 8px 8px 100px;
+  }
+
+  .ats-showcase-card {
+    padding: 14px 12px 16px;
+    border-radius: 16px;
+  }
+
+  .ats-main-title {
+    font-size: 1.7rem;
+  }
+
+  .ats-status-name {
+    font-size: 0.75rem;
+  }
+
+  .ats-hero-description {
+    font-size: 0.78rem;
+  }
+
+  .ats-btn-primary,
+  .ats-btn-preview {
+    padding: 9px 14px;
+    font-size: 0.75rem;
+  }
+
+  .ats-metrics-row {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .ats-metric-value {
+    font-size: 0.82rem;
+  }
+
   .ats-visual-col {
-    height: 280px;
+    height: 240px;
+  }
+
+  .ats-visual-stage {
+    transform: scale(0.55);
+  }
+
+  .ats-count-num {
+    font-size: 0.88rem;
+  }
+
+  .ats-count-label {
+    font-size: 0.5rem;
   }
 }
 
