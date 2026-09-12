@@ -351,10 +351,10 @@ export function subscribeToAllFollowStatuses(userId, callback) {
           merged[uid] = "accepted";
         } else if (out === "accepted") {
           merged[uid] = "following";
-        } else if (inc === "accepted") {
-          merged[uid] = "follower";
         } else if (out === "pending") {
           merged[uid] = "pending";
+        } else if (inc === "accepted") {
+          merged[uid] = "follower";
         } else if (inc === "pending") {
           merged[uid] = "incoming_pending";
         }

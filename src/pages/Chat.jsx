@@ -1572,6 +1572,20 @@ export default function Chat() {
                             </button>
                           </>
                         )}
+                        {_chatFs === "following" && (
+                          <p className="msg-follow-to-message-status" style={{ marginBottom: 0 }}>
+                            You follow this user. They need to follow you back to start messaging.
+                          </p>
+                        )}
+                        {_chatFs === "follower" && (
+                          <button
+                            className="btn btn-primary"
+                            disabled={followLoading === _chatUid}
+                            onClick={() => handleFollowToMessage(_chatUid)}
+                          >
+                            {followLoading === _chatUid ? "Following..." : "Follow Back"}
+                          </button>
+                        )}
                         {!_chatFs && (
                           <button
                             className="btn btn-primary"
