@@ -5,6 +5,7 @@ import {
   adminLogoutUser,
   adminDeleteUser,
   adminBlockUser,
+  getResumeDataUrl,
 } from "../../services/firestore";
 import {
   collection,
@@ -43,6 +44,10 @@ export default function AdminUsers() {
   const [blocking, setBlocking] = useState(false);
 
   const [usernameHistoryModal, setUsernameHistoryModal] = useState(null);
+
+  const [resumeModal, setResumeModal] = useState(null);
+  const [resumeDataUrl, setResumeDataUrl] = useState(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
 
   const usersUnsubRef = useRef(null);
   const appsUnsubRef = useRef(null);
@@ -92,6 +97,17 @@ export default function AdminUsers() {
   function openRoleModal(user) {
     setRoleModal(user);
     setNewRole(user.role || "student");
+  }
+
+  async function handleViewResume(user) {
+    setResumeModal(user);
+    setResumeLoading(true);
+    setResumeDataUrl(null);
+    const result = await getResumeDataUrl(user.id);
+    if (result.data) {
+      setResumeDataUrl(result.data.dataUrl);
+    }
+    setResumeLoading(false);
   }
 
   async function handleRoleSave() {
@@ -408,6 +424,14 @@ export default function AdminUsers() {
           const userApps = getUserApps(activityModal.id);
           return (
             <div className="au-activity">
+              {activityModal.resumeChunks ? (
+                <div className="au-activity-resume-bar">
+                  <button className="btn btn-secondary" onClick={() => handleViewResume(activityModal)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    View Resume
+                  </button>
+                </div>
+              ) : null}
               <div className="au-activity-summary">
                 <div className="au-activity-stat">
                   <span className="au-activity-stat-val">{userApps.length}</span>
@@ -597,6 +621,32 @@ export default function AdminUsers() {
             </div>
           ) : (
             <p className="au-history-empty">No name changes recorded.</p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Resume Viewer Modal */}
+      <Modal open={!!resumeModal} onClose={() => { setResumeModal(null); setResumeDataUrl(null); }} title={`Resume — ${resumeModal?.displayName || resumeModal?.email}`}>
+        <div className="au-resume-viewer">
+          {resumeLoading ? (
+            <div className="au-resume-loading">
+              <span className="au-modal-spinner" /> Loading resume...
+            </div>
+          ) : resumeDataUrl ? (
+            <iframe src={resumeDataUrl} title="Resume Preview" className="au-resume-iframe" />
+          ) : (
+            <div className="au-resume-empty">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>No resume uploaded by this user.</span>
+            </div>
+          )}
+        </div>
+        <div className="au-modal-actions">
+          <button className="btn btn-secondary" onClick={() => { setResumeModal(null); setResumeDataUrl(null); }}>Close</button>
+          {resumeDataUrl && (
+            <a href={resumeDataUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" download={resumeModal?.resumeFileName || "resume.pdf"}>
+              Download
+            </a>
           )}
         </div>
       </Modal>

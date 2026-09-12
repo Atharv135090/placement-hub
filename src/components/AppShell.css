@@ -361,21 +361,27 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     color: var(--text-muted);
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 500;
     flex: 1;
     height: 100%;
     transition: all var(--transition);
     border-radius: var(--radius-sm);
     text-decoration: none;
+    padding: 4px 0;
   }
 
   .mobile-nav-btn.active {
     color: var(--accent);
     font-weight: 700;
     text-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .mobile-nav-btn svg {
+    width: 20px;
+    height: 20px;
   }
 
   /* Slide-in Left Drawer (Matching Reference Image 12th Card) */
@@ -398,8 +404,8 @@
   }
 
   .mobile-drawer-panel {
-    width: 290px;
-    max-width: 85vw;
+    width: 280px;
+    max-width: 82vw;
     height: 100vh;
     height: 100dvh;
     display: flex;
@@ -410,7 +416,7 @@
     -webkit-backdrop-filter: blur(24px);
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
     animation: slideLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+    padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom) 14px;
   }
 
   @keyframes slideLeft {

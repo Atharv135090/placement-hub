@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 50px;
+  padding-bottom: 20px;
 }
 
 /* ─── TOP NAVIGATION LINK ────────────────────────────── */
@@ -1117,12 +1117,13 @@
   .cd-hero-banner {
     height: auto;
     min-height: 180px;
+    border-radius: 14px;
   }
 
   .cd-hero-overlay {
     flex-direction: column;
     align-items: flex-start;
-    padding: 24px;
+    padding: 20px;
     gap: 16px;
   }
 
@@ -1130,11 +1131,62 @@
     display: none;
   }
 
+  .cd-banner-logo-box {
+    width: 56px;
+    height: 56px;
+  }
+
+  .cd-banner-title {
+    font-size: 1.3rem;
+  }
+
+  .cd-banner-subtitle {
+    font-size: 0.84rem;
+  }
+
   .cd-metric-cards-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cd-metric-card {
+    padding: 14px 16px;
   }
 
   .cd-stats-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cd-content-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .cd-card {
+    padding: 18px 20px;
+  }
+
+  .cd-nav-tabs-bar {
+    padding: 8px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .cd-nav-tabs-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cd-tabs-list {
+    flex-wrap: nowrap;
+    min-width: max-content;
+  }
+
+  .cd-modal {
+    margin: 12px;
+    padding: 20px;
+  }
+
+  .cd-form-row {
+    grid-template-columns: 1fr;
   }
 }

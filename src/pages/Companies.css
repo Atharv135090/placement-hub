@@ -7,7 +7,7 @@
   flex-direction: column;
   gap: 22px;
   width: 100%;
-  padding-bottom: 50px;
+  padding-bottom: 20px;
 }
 
 /* ─── 1. HEADER ROW ─────────────────────────────────────────── */
@@ -245,6 +245,41 @@
   .comps-search-wrap {
     min-width: 0;
     width: 100%;
+  }
+  .comps-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .comps-page-actions {
+    justify-content: flex-start;
+  }
+  .comps-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .comps-filter-dropdowns {
+    flex-wrap: wrap;
+  }
+  .comps-page-title {
+    font-size: 1.5rem;
+  }
+  .comps-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .comps-pagination {
+    justify-content: center;
+  }
+  .comps-list-container {
+    border-radius: 14px;
+  }
+  .comps-table {
+    font-size: 0.8rem;
+  }
+  .comps-table th,
+  .comps-table td {
+    padding: 12px 14px;
   }
 }
 

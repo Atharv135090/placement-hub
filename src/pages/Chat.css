@@ -933,10 +933,16 @@
 }
 
 @media (max-width: 768px) {
+  .msg-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
   .msg-card-container {
-    height: calc(100vh - 150px);
-    height: calc(100dvh - 150px);
+    height: calc(100dvh - 170px);
     min-height: 0;
+    border-radius: 16px;
   }
 
   .msg-sidebar-panel {
@@ -952,6 +958,9 @@
   .msg-chat-panel {
     display: flex;
     width: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 10;
   }
 
   .msg-back-to-list-btn {
@@ -966,6 +975,23 @@
 
   .msg-composer-outer {
     padding: 10px 14px;
+  }
+
+  .msg-history-body {
+    padding: 16px;
+  }
+
+  .msg-active-header {
+    height: 60px;
+    padding: 0 14px;
+  }
+
+  .msg-conv-item {
+    padding: 10px 12px;
+  }
+
+  .msg-main-title {
+    font-size: 1.4rem;
   }
 }
 

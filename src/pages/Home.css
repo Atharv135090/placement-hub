@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
-  padding-bottom: 50px;
+  padding-bottom: 20px;
   width: 100%;
 }
 
@@ -852,6 +852,12 @@
   .hero-left-col {
     padding: 20px 18px;
   }
+  .hero-heading {
+    font-size: 1.3rem;
+  }
+  .hero-tagline {
+    font-size: 0.82rem;
+  }
   .hero-car-card {
     display: block;
     height: 150px;
@@ -873,6 +879,9 @@
   .dash-stat-card {
     padding: 14px;
   }
+  .stat-value {
+    font-size: 1.6rem;
+  }
   .gauge-split {
     flex-direction: column;
   }
@@ -886,5 +895,11 @@
     display: block;
     height: 130px;
     min-height: 130px;
+  }
+  .dash-announcements {
+    gap: 8px;
+  }
+  .dash-announcement {
+    padding: 10px 14px;
   }
 }

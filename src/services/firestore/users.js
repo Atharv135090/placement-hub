@@ -84,9 +84,13 @@ export async function uploadResume(userId, file) {
     const base64 = dataUrl.split(",")[1] || "";
     const mimeType = file.type || "application/pdf";
 
-    const oldSnap = await getDocs(collection(db, USERS, userId, "resumeChunks"));
-    for (const d of oldSnap.docs) {
-      await deleteDoc(d.ref);
+    try {
+      const oldSnap = await getDocs(collection(db, USERS, userId, "resumeChunks"));
+      for (const d of oldSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+    } catch (_) {
+      // Old chunks may not exist yet on first upload — safe to ignore
     }
 
     const chunks = [];
@@ -164,6 +168,29 @@ export async function getUserSavedIds(userId) {
     const docSnap = await getDoc(doc(db, USERS, userId));
     if (!docSnap.exists()) return { data: [], error: null };
     return { data: docSnap.data().savedJobIds || [], error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+export async function deleteResume(userId) {
+  try {
+    const userSnap = await getDoc(doc(db, USERS, userId));
+    if (userSnap.exists() && userSnap.data().resumeChunks) {
+      const oldSnap = await getDocs(collection(db, USERS, userId, "resumeChunks"));
+      for (const d of oldSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+    }
+
+    await updateDoc(doc(db, USERS, userId), {
+      resumeFileName: null,
+      resumeChunks: null,
+      resumeMimeType: null,
+      updatedAt: timestamp(),
+    });
+
+    return { data: { deleted: true }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
   }

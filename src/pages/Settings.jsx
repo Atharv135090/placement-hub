@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import { logOut } from "../services/auth";
-import { updateUserProfile, uploadProfilePicture, uploadResume, getResumeDataUrl } from "../services/firestore";
+import { updateUserProfile, uploadProfilePicture, uploadResume, getResumeDataUrl, deleteResume } from "../services/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { doc, deleteDoc, getDocs, query, where, collection, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
@@ -75,6 +75,7 @@ export default function Settings() {
   const [resumeUploadSuccess, setResumeUploadSuccess] = useState(false);
   const [resumeViewUrl, setResumeViewUrl] = useState(null);
   const [showResumeViewer, setShowResumeViewer] = useState(false);
+  const [deletingResume, setDeletingResume] = useState(false);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -429,6 +430,21 @@ export default function Settings() {
       setResumeUploadSuccess(false);
       setResumeError("");
     }, 1500);
+  }
+
+  async function handleResumeDelete() {
+    if (!user?.uid || deletingResume) return;
+    if (!window.confirm("Are you sure you want to delete your resume? This cannot be undone.")) return;
+    setDeletingResume(true);
+    const result = await deleteResume(user.uid);
+    setDeletingResume(false);
+    if (result.error) {
+      alert("Failed to delete resume. Please try again.");
+      return;
+    }
+    setResumeFileName("");
+    setResumeViewUrl(null);
+    setShowResumeViewer(false);
   }
 
   function handleViewResume() {
@@ -1314,6 +1330,16 @@ export default function Settings() {
                     </svg>
                     <span>{resumeFileName ? "Update Resume" : "Upload Resume"}</span>
                   </button>
+                  {resumeFileName && (
+                    <button
+                      type="button"
+                      className="btn btn-danger resume-action-btn"
+                      onClick={handleResumeDelete}
+                      disabled={deletingResume}
+                    >
+                      {deletingResume ? "Deleting..." : "Delete"}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1701,7 +1727,7 @@ export default function Settings() {
                       type="file"
                       accept=".pdf,application/pdf"
                       onChange={handleResumeFileSelect}
-                      style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}
+                      className="resume-file-input"
                     />
                     {resumeFile ? (
                       <div className="resume-selected-file">

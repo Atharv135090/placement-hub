@@ -1500,6 +1500,8 @@ select.glass-text-input.readonly:disabled {
   }
   .hero-top-right {
     align-items: stretch;
+    flex-shrink: 1;
+    min-width: 0;
   }
   .hero-actions-bar {
     justify-content: flex-start;
@@ -1529,10 +1531,14 @@ select.glass-text-input.readonly:disabled {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+    padding: 18px 20px;
   }
   .banner-right-visual {
     width: 100%;
     justify-content: flex-start;
+  }
+  .banner-main-title {
+    font-size: 1.3rem;
   }
   .profile-nav-completion-bar {
     flex-direction: column;
@@ -1540,6 +1546,10 @@ select.glass-text-input.readonly:disabled {
   }
   .profile-segmented-tabs {
     overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .profile-segmented-tabs::-webkit-scrollbar {
+    display: none;
   }
   .form-fields-column {
     grid-template-columns: 1fr;
@@ -1559,21 +1569,59 @@ select.glass-text-input.readonly:disabled {
     align-items: flex-start;
     gap: 16px;
   }
+  .hero-top-right {
+    flex-shrink: 1;
+    min-width: 0;
+    width: 100%;
+  }
   .hero-actions-bar {
     flex-wrap: wrap;
+    width: 100%;
   }
   .hero-edit-profile-btn {
     flex: 1;
-    min-width: 120px;
+    min-width: 0;
     justify-content: center;
   }
   .hero-cancel-btn {
     flex: 1;
-    min-width: 80px;
+    min-width: 0;
     justify-content: center;
   }
+  .card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
   .card-header-actions {
+    width: 100%;
     flex-wrap: wrap;
+  }
+  .card-header-actions .btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+  .futuristic-card {
+    padding: 18px 20px;
+  }
+  .personal-details-grid {
+    gap: 16px;
+  }
+  .profile-hero-card {
+    padding: 18px 20px;
+  }
+  .hero-name-text {
+    font-size: 1.2rem;
+  }
+  .hero-stat-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .resume-content-layout {
+    gap: 16px;
+  }
+  .skills-pills-cloud {
+    gap: 6px;
   }
 }
 
@@ -1837,6 +1885,18 @@ select.glass-text-input.readonly:disabled {
   cursor: pointer;
   transition: all var(--transition);
   background: var(--bg-surface);
+  position: relative;
+  overflow: hidden;
+}
+
+.resume-file-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .resume-drop-zone:hover {

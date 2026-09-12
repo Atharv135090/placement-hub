@@ -1085,3 +1085,47 @@
   padding: 8px 0;
   margin: 0;
 }
+
+/* ── RESUME VIEWER ──────────────────────────────────────── */
+.au-activity-resume-bar {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.au-activity-resume-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.au-resume-viewer {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.au-resume-iframe {
+  width: 100%;
+  height: 500px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: var(--bg-primary, #0a0a0a);
+}
+
+.au-resume-loading,
+.au-resume-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 40px 0;
+}
+
+.au-resume-empty svg {
+  opacity: 0.4;
+}

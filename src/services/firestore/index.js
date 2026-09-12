@@ -35,6 +35,7 @@ export {
   uploadProfilePicture,
   uploadResume,
   getResumeDataUrl,
+  deleteResume,
   toggleSaveJob,
   getUserSavedIds,
   getAllUsers,
