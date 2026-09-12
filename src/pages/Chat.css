@@ -1563,3 +1563,189 @@
 .msg-confirm-action.danger {
   background: #dc2626;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN 3 & 4 SPECIFIC UI EXTENSIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+.msg-conv-role {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: -1px;
+}
+
+[data-theme="dark"] .msg-conv-role {
+  color: #94a3b8;
+}
+
+.msg-conv-right-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.msg-conv-chevron {
+  color: #64748b;
+  opacity: 0.6;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.msg-conv-item:hover .msg-conv-chevron {
+  opacity: 1;
+  transform: translateX(2px);
+  color: #e11d48;
+}
+
+/* ─── Profile Summary Card (Screen 4) ────────────────────────── */
+.msg-profile-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  margin: 4px 0 14px 0;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .msg-profile-summary-card {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.msg-profile-summary-avatar {
+  flex-shrink: 0;
+}
+
+.msg-profile-summary-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.msg-profile-summary-name {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.msg-profile-summary-role {
+  font-size: 0.76rem;
+  color: #f43f5e;
+  font-weight: 600;
+}
+
+.msg-profile-summary-branch {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msg-profile-summary-btn {
+  padding: 7px 16px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 1px solid rgba(244, 63, 94, 0.6);
+  color: #f43f5e;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.msg-profile-summary-btn:hover {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ─── Link Preview Card (Screen 4) ────────────────────────────── */
+.msg-link-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+[data-theme="light"] .msg-link-preview-card {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.msg-link-preview-card:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+.msg-link-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #cc181e;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(204, 24, 30, 0.35);
+}
+
+.msg-link-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.msg-link-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .msg-link-title {
+  color: #0f172a;
+}
+
+.msg-link-domain {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.msg-link-action-icon {
+  color: #94a3b8;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+

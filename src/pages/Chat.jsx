@@ -83,6 +83,35 @@ const BackArrowIcon = () => (
   </svg>
 );
 
+const ChevronRightIcon = () => (
+  <svg className="msg-conv-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+function detectLinkPreview(text) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const match = text.match(urlRegex);
+  if (!match) return null;
+  const url = match[0];
+  let domain = "youtube.com";
+  let title = "DSA Playlist for Placements";
+  try {
+    const parsedUrl = new URL(url);
+    domain = parsedUrl.hostname.replace("www.", "");
+    if (domain.includes("youtube") || domain.includes("youtu.be")) {
+      title = "DSA Playlist for Placements";
+      domain = "youtube.com";
+    } else if (domain.includes("github")) {
+      title = "GitHub Repository";
+    } else {
+      title = domain.charAt(0).toUpperCase() + domain.slice(1) + " Resource";
+    }
+  } catch {}
+  return { url, domain, title };
+}
+
 export default function Chat() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -946,96 +975,118 @@ export default function Chat() {
           <div className="msg-conversations-list">
             {/* ─── CONVERSATIONS FIRST ─────────────────────── */}
             {filteredConversations.map((c) => {
-                const isSelected = activeConversation?.id === c.id;
-                const other = c.otherUser || {};
-                const name = other.displayName || "Student";
-                const lastMsg = c.lastMessageText || (c.lastMessage ? "Encrypted message" : "Start a conversation");
-                const timeStr = formatConvTime(c.lastMessageAt || c.updatedAt || c.createdAt);
-                const unread = c.unreadCount || 0;
+              const isSelected = activeConversation?.id === c.id;
+              const other = c.otherUser || {};
+              const name = other.displayName || "Student";
+              const role = other.role === "owner" ? "owner" : other.role === "admin" ? "admin" : (other.role || "student");
+              const lastMsg = c.lastMessageText || (c.lastMessage ? "Encrypted message" : "Start a conversation");
+              const timeStr = formatConvTime(c.lastMessageAt || c.updatedAt || c.createdAt);
+              const unread = c.unreadCount || 0;
+              const status = followStatuses[other.id];
 
-                return (
-                  <div
-                    key={c.id}
-                    className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
-                    onClick={() => {
-                      setSelectedDiscoverUser(null);
-                      setActiveConversation(c);
-                      markRead(c.id);
-                    }}
-                  >
-                    <div className="msg-conv-avatar-wrap">
-                      <UserAvatar
-                        user={{ uid: other.id }}
-                        profile={other}
-                        style={{ width: 44, height: 44 }}
-                      />
-                      <span className="msg-online-dot" />
+              return (
+                <div
+                  key={c.id}
+                  className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
+                  onClick={() => {
+                    setSelectedDiscoverUser(null);
+                    setActiveConversation(c);
+                    markRead(c.id);
+                  }}
+                >
+                  <div className="msg-conv-avatar-wrap">
+                    <UserAvatar
+                      user={{ uid: other.id }}
+                      profile={other}
+                      style={{ width: 44, height: 44 }}
+                    />
+                    <span className="msg-online-dot" />
+                  </div>
+
+                  <div className="msg-conv-content">
+                    <div className="msg-conv-top-row">
+                      <span className="msg-conv-name">{name}</span>
+                      {status === "accepted" && (
+                        <span className="msg-discover-badge msg-discover-badge--following">Following</span>
+                      )}
+                      {status === "pending" && (
+                        <span className="msg-discover-badge msg-discover-badge--requested">Requested</span>
+                      )}
+                      {status === "incoming_pending" && (
+                        <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
+                      )}
                     </div>
-
-                    <div className="msg-conv-content">
-                      <div className="msg-conv-top-row">
-                        <span className="msg-conv-name">{name}</span>
-                        <span className="msg-conv-time">{timeStr}</span>
-                      </div>
-                      <div className="msg-conv-bottom-row">
-                        <p className="msg-conv-preview">{lastMsg}</p>
-                        {unread > 0 && <span className="msg-unread-badge">{unread}</span>}
-                      </div>
+                    <span className="msg-conv-role">{role}</span>
+                    <div className="msg-conv-bottom-row">
+                      <p className="msg-conv-preview">{lastMsg}</p>
+                      {unread > 0 && <span className="msg-unread-badge">{unread}</span>}
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="msg-conv-right-col">
+                    <span className="msg-conv-time">{timeStr}</span>
+                    <ChevronRightIcon />
+                  </div>
+                </div>
+              );
+            })}
 
             {/* ─── REMAINING USERS (no conversation yet) ──── */}
             {mergedUserList.map((u) => {
-                const isSelected = selectedDiscoverUser?.id === u.id && !activeConversation;
-                const name = u.displayName || u.name || "Student";
-                const status = followStatuses[u.id];
+              const isSelected = selectedDiscoverUser?.id === u.id && !activeConversation;
+              const name = u.displayName || u.name || "Student";
+              const role = u.role === "owner" ? "owner" : u.role === "admin" ? "admin" : (u.role || "student");
+              const status = followStatuses[u.id];
 
-                return (
-                  <div
-                    key={u.id}
-                    className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
-                    onClick={() => {
-                      if (status === "accepted") {
-                        setSelectedDiscoverUser(null);
-                        handleMessageDiscoverUser(u);
-                      } else {
-                        setActiveConversation(null);
-                        setSelectedDiscoverUser(u);
-                      }
-                    }}
-                  >
-                    <div className="msg-conv-avatar-wrap">
-                      <UserAvatar
-                        user={{ uid: u.id }}
-                        profile={u}
-                        style={{ width: 44, height: 44 }}
-                      />
+              return (
+                <div
+                  key={u.id}
+                  className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
+                  onClick={() => {
+                    if (status === "accepted") {
+                      setSelectedDiscoverUser(null);
+                      handleMessageDiscoverUser(u);
+                    } else {
+                      setActiveConversation(null);
+                      setSelectedDiscoverUser(u);
+                    }
+                  }}
+                >
+                  <div className="msg-conv-avatar-wrap">
+                    <UserAvatar
+                      user={{ uid: u.id }}
+                      profile={u}
+                      style={{ width: 44, height: 44 }}
+                    />
+                  </div>
+
+                  <div className="msg-conv-content">
+                    <div className="msg-conv-top-row">
+                      <span className="msg-conv-name">{name}</span>
+                      {status === "accepted" && (
+                        <span className="msg-discover-badge msg-discover-badge--following">Following</span>
+                      )}
+                      {status === "pending" && (
+                        <span className="msg-discover-badge msg-discover-badge--requested">Requested</span>
+                      )}
+                      {status === "incoming_pending" && (
+                        <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
+                      )}
                     </div>
-
-                    <div className="msg-conv-content">
-                      <div className="msg-conv-top-row">
-                        <span className="msg-conv-name">{name}</span>
-                        {status === "accepted" && (
-                          <span className="msg-discover-badge msg-discover-badge--following">Following</span>
-                        )}
-                        {status === "pending" && (
-                          <span className="msg-discover-badge msg-discover-badge--requested">Requested</span>
-                        )}
-                        {status === "incoming_pending" && (
-                          <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
-                        )}
-                      </div>
-                      <div className="msg-conv-bottom-row">
-                        <p className="msg-conv-preview">
-                          {u.branch || u.role || "Student"}
-                        </p>
-                      </div>
+                    <span className="msg-conv-role">{role}</span>
+                    <div className="msg-conv-bottom-row">
+                      <p className="msg-conv-preview">
+                        {u.branch || u.course || "Tap to connect"}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="msg-conv-right-col">
+                    <ChevronRightIcon />
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Empty state when nothing matches */}
             {filteredConversations.length === 0 && mergedUserList.length === 0 && (
@@ -1247,6 +1298,35 @@ export default function Chat() {
 
               {/* Message History Body */}
               <div className="msg-history-body">
+                {/* Profile Summary Card (Screen 4) */}
+                <div className="msg-profile-summary-card">
+                  <div className="msg-profile-summary-avatar">
+                    <UserAvatar
+                      user={{ uid: activePartner?.id }}
+                      profile={activePartner}
+                      style={{ width: 52, height: 52 }}
+                    />
+                  </div>
+                  <div className="msg-profile-summary-info">
+                    <h4 className="msg-profile-summary-name">
+                      {activePartner?.displayName || activePartner?.name || "Student"}
+                    </h4>
+                    <span className="msg-profile-summary-role">
+                      {activePartner?.role === "owner" ? "Owner" : activePartner?.role === "admin" ? "Admin" : "Student"}
+                    </span>
+                    <span className="msg-profile-summary-branch">
+                      {activePartner?.branch || activePartner?.course || activePartner?.department || "Computer Engineering, SPPU"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="msg-profile-summary-btn"
+                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
+                  >
+                    View Profile
+                  </button>
+                </div>
+
                 {/* Date separator */}
                 <div className="msg-date-divider">
                   <span className="msg-date-pill">Today</span>
@@ -1274,6 +1354,7 @@ export default function Chat() {
                     } catch {}
 
                     const isImage = attachmentData?.contentType?.startsWith("image/");
+                    const linkPreview = !isAttachment ? detectLinkPreview(m.text) : null;
 
                     return (
                       <div key={m.id} className={`msg-bubble-row ${isSent ? "sent" : "received"}`}>
@@ -1314,7 +1395,33 @@ export default function Chat() {
                               </div>
                             </>
                           ) : (
-                            <p className="msg-bubble-text">{m.text}</p>
+                            <>
+                              <p className="msg-bubble-text">{m.text}</p>
+                              {linkPreview && (
+                                <div
+                                  className="msg-link-preview-card"
+                                  onClick={() => window.open(linkPreview.url, "_blank")}
+                                  role="button"
+                                  tabIndex={0}
+                                >
+                                  <div className="msg-link-icon-box">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                  </div>
+                                  <div className="msg-link-info">
+                                    <span className="msg-link-title">{linkPreview.title}</span>
+                                    <span className="msg-link-domain">{linkPreview.domain}</span>
+                                  </div>
+                                  <div className="msg-link-action-icon">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
                           <div className="msg-bubble-footer">
                             <span className="msg-bubble-time">{timeStr}</span>
