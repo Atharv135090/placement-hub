@@ -446,3 +446,56 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     unsubIn();
   };
 }
+
+export function getRelationship(outgoingStatus, incomingStatus) {
+  if (outgoingStatus === "accepted" && incomingStatus === "accepted") return "mutual";
+  if (outgoingStatus === "pending") return "pending";
+  if (outgoingStatus === "accepted") return "following";
+  if (incomingStatus === "accepted") return "follower";
+  if (incomingStatus === "pending") return "incoming_pending";
+  return "none";
+}
+
+export function subscribeToRelationship(currentUserId, otherUserId, callback) {
+  if (!currentUserId || !otherUserId) return () => {};
+
+  const docIdOut = `${currentUserId}_${otherUserId}`;
+  const docIdIn = `${otherUserId}_${currentUserId}`;
+
+  const statuses = { outgoing: null, incoming: null };
+
+  function emit() {
+    const relationship = getRelationship(statuses.outgoing, statuses.incoming);
+    console.log("[PAIR_REL]", currentUserId.slice(0, 6), "<->", otherUserId.slice(0, 6), ":", {
+      OUT_DOC: docIdOut,
+      OUT_STATUS: statuses.outgoing,
+      IN_DOC: docIdIn,
+      IN_STATUS: statuses.incoming,
+      RELATIONSHIP: relationship,
+    });
+    callback({ outgoing: statuses.outgoing, incoming: statuses.incoming, relationship });
+  }
+
+  const unsubOut = onSnapshot(doc(db, "follows", docIdOut), (docSnap) => {
+    statuses.outgoing = docSnap.exists() ? docSnap.data().status : null;
+    emit();
+  }, (error) => {
+    console.error("[subscribeToRelationship] outgoing error:", error);
+    statuses.outgoing = null;
+    emit();
+  });
+
+  const unsubIn = onSnapshot(doc(db, "follows", docIdIn), (docSnap) => {
+    statuses.incoming = docSnap.exists() ? docSnap.data().status : null;
+    emit();
+  }, (error) => {
+    console.error("[subscribeToRelationship] incoming error:", error);
+    statuses.incoming = null;
+    emit();
+  });
+
+  return () => {
+    unsubOut();
+    unsubIn();
+  };
+}

@@ -29,6 +29,8 @@ export {
   subscribeToPendingFollowRequests,
   subscribeToFollowStatus,
   subscribeToAllFollowStatuses,
+  getRelationship,
+  subscribeToRelationship,
   rebuildFollowerCounts,
 } from "./follows";
 

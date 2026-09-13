@@ -5,7 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import { db, storage } from "../config/firebase";
-import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence, subscribeToStudents, subscribeToAllFollowStatuses, sendFollowRequest, cancelFollowRequest, acceptFollowRequest, rejectFollowRequest } from "../services/social";
+import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence, subscribeToStudents, subscribeToAllFollowStatuses, subscribeToRelationship, sendFollowRequest, cancelFollowRequest, acceptFollowRequest, rejectFollowRequest } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import EmojiPicker from "../components/EmojiPicker";
 import Modal from "../components/Modal";
@@ -167,6 +167,7 @@ export default function Chat() {
   const [followStatuses, setFollowStatuses] = useState({});
   const [selectedDiscoverUser, setSelectedDiscoverUser] = useState(null);
   const [followLoading, setFollowLoading] = useState(null);
+  const [pairRelationship, setPairRelationship] = useState(null);
 
   // Conversation action state
   const [showConvMenu, setShowConvMenu] = useState(false);
@@ -386,14 +387,8 @@ export default function Chat() {
     }
   }, [activeConversation?.id, messages.length, markRead]);
 
-  // Auto-select first conversation on load (desktop only — mobile shows conversation list first)
-  useEffect(() => {
-    const hasStudentParam = searchParams.get("student");
-    const isMobile = window.innerWidth <= 768;
-    if (!activeConversation && !selectedDiscoverUser && conversations.length > 0 && !adminMode && !hasStudentParam && !isMobile) {
-      setActiveConversation(conversations[0]);
-    }
-  }, [conversations, activeConversation, selectedDiscoverUser, adminMode, setActiveConversation, searchParams.get("student")]);
+  // Disable auto-select first conversation on load as per PRD Step 1:
+  // First screen must always be Messages/User List without automatically opening a conversation.
 
   // Subscribe to all users for Discover mode
   useEffect(() => {
@@ -415,9 +410,9 @@ export default function Chat() {
   // Auto-create conversation when relationship becomes mutual and no conversation exists yet
   useEffect(() => {
     if (!activeConversation?.id && activeConversation?.otherUser?.id && user?.uid) {
-      const otherId = activeConversation.otherUser.id;
-      const status = followStatuses[otherId];
-      if (status === "accepted") {
+      const rel = pairRelationship?.relationship;
+      if (rel === "mutual") {
+        const otherId = activeConversation.otherUser.id;
         startConversation(otherId).then((conv) => {
           if (conv) {
             setActiveConversation((prev) => ({ ...prev, id: conv.id }));
@@ -427,32 +422,20 @@ export default function Chat() {
         });
       }
     }
-  }, [followStatuses, activeConversation?.otherUser?.id, activeConversation?.id, user?.uid, startConversation, setActiveConversation]);
+  }, [pairRelationship?.relationship, activeConversation?.otherUser?.id, activeConversation?.id, user?.uid, startConversation, setActiveConversation]);
 
-  // DEBUG: When a user is selected, do a direct Firestore read to cross-check
+  // Subscribe to the exact two-direction follow status for the active conversation partner
   useEffect(() => {
-    if (!user?.uid || !selectedDiscoverUser?.id) return;
-    const myId = user.uid;
-    const otherId = selectedDiscoverUser.id;
-    const outDocId = `${myId}_${otherId}`;
-    const inDocId = `${otherId}_${myId}`;
-    async function debugRead() {
-      try {
-        const [outSnap, inSnap] = await Promise.all([
-          getDoc(doc(db, "follows", outDocId)),
-          getDoc(doc(db, "follows", inDocId)),
-        ]);
-        console.log("[FOLLOW_DEBUG] DIRECT READ for", selectedDiscoverUser.displayName || otherId, ":", {
-          outgoing: { docId: outDocId, exists: outSnap.exists(), data: outSnap.exists() ? outSnap.data() : null },
-          incoming: { docId: inDocId, exists: inSnap.exists(), data: inSnap.exists() ? inSnap.data() : null },
-          subscriptionMerged: followStatuses[otherId],
-        });
-      } catch (e) {
-        console.error("[FOLLOW_DEBUG] DIRECT READ ERROR:", e);
-      }
+    const otherId = activeConversation?.otherUser?.id || null;
+    if (!user?.uid || !otherId) {
+      setPairRelationship(null);
+      return;
     }
-    debugRead();
-  }, [user?.uid, selectedDiscoverUser?.id, followStatuses[selectedDiscoverUser?.id]]);
+    const unsub = subscribeToRelationship(user.uid, otherId, (rel) => {
+      setPairRelationship(rel);
+    });
+    return () => unsub?.();
+  }, [user?.uid, activeConversation?.otherUser?.id]);
 
   // Load available users for the New Message modal (excluding logged-in user)
   useEffect(() => {
@@ -756,38 +739,35 @@ export default function Chat() {
     }
   }
 
-  async function handleMessageDiscoverUser(targetUser) {
-    if (!user?.uid) return;
+  function handleUserClick(targetUser) {
+    if (!targetUser || !targetUser.id) return;
+    setSelectedDiscoverUser(null);
+    const existingConv = conversations.find(
+      (c) => c.otherUser?.id === targetUser.id || c.participants?.includes(targetUser.id)
+    );
     const otherUserObj = {
       id: targetUser.id,
       displayName: targetUser.displayName || targetUser.name || "Student",
       photoUrl: targetUser.photoUrl,
       role: targetUser.role || "student",
-      branch: targetUser.branch,
+      branch: targetUser.branch || targetUser.course || "",
     };
-    const status = followStatuses[targetUser.id];
-    if (status === "accepted") {
-      try {
-        const conv = await startConversation(targetUser.id);
-        if (conv) {
-          setActiveConversation({ ...conv, otherUser: otherUserObj });
-        }
-      } catch (err) {
-        console.error("Error starting chat:", err);
+    if (existingConv) {
+      setActiveConversation({ ...existingConv, otherUser: existingConv.otherUser || otherUserObj });
+      if (existingConv.id) {
+        markRead(existingConv.id);
       }
     } else {
-      const existingConv = conversations.find((c) => c.otherUser?.id === targetUser.id);
-      if (existingConv) {
-        setActiveConversation(existingConv);
-      } else {
-        setActiveConversation({
-          id: null,
-          otherUser: otherUserObj,
-          participants: [user.uid, targetUser.id],
-        });
-      }
+      setActiveConversation({
+        id: null,
+        otherUser: otherUserObj,
+        participants: [user.uid, targetUser.id],
+      });
     }
-    setSelectedDiscoverUser(null);
+  }
+
+  function handleMessageDiscoverUser(targetUser) {
+    handleUserClick(targetUser);
   }
 
   // Format message timestamp: 08:48 PM
@@ -887,38 +867,7 @@ export default function Chat() {
   // Start new conversation from modal
   async function handleSelectContact(contact) {
     setNewMsgModalOpen(false);
-    const otherUserObj = {
-      id: contact.id,
-      displayName: contact.displayName || contact.name || "Student",
-      photoUrl: contact.photoUrl,
-      role: contact.role || "student",
-      branch: contact.branch,
-    };
-    const status = followStatuses[contact.id];
-    if (status === "accepted") {
-      try {
-        const conv = await startConversation(contact.id);
-        if (conv) {
-          setActiveConversation({ ...conv, otherUser: otherUserObj });
-          setPartnerProfile(otherUserObj);
-        }
-      } catch (err) {
-        console.error("Error starting chat:", err);
-      }
-    } else {
-      const existingConv = conversations.find((c) => c.otherUser?.id === contact.id);
-      if (existingConv) {
-        setActiveConversation(existingConv);
-        setPartnerProfile(otherUserObj);
-      } else {
-        setActiveConversation({
-          id: null,
-          otherUser: otherUserObj,
-          participants: [user.uid, contact.id],
-        });
-        setPartnerProfile(otherUserObj);
-      }
-    }
+    handleUserClick(contact);
   }
 
   // Filtered contacts for modal
@@ -1139,9 +1088,13 @@ export default function Chat() {
                   key={c.id}
                   className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
                   onClick={() => {
-                    setSelectedDiscoverUser(null);
-                    setActiveConversation(c);
-                    markRead(c.id);
+                    if (other?.id) {
+                      handleUserClick(other);
+                    } else {
+                      setSelectedDiscoverUser(null);
+                      setActiveConversation(c);
+                      if (c.id) markRead(c.id);
+                    }
                   }}
                 >
                   <div className="msg-conv-avatar-wrap">
@@ -1196,8 +1149,7 @@ export default function Chat() {
                   key={u.id}
                   className={`msg-conv-item ${isSelected ? "msg-conv-item--active" : ""}`}
                   onClick={() => {
-                    setSelectedDiscoverUser(null);
-                    handleMessageDiscoverUser(u);
+                    handleUserClick(u);
                   }}
                 >
                   <div className="msg-conv-avatar-wrap">
@@ -1520,155 +1472,74 @@ export default function Chat() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* ─── 7. MESSAGE COMPOSER / FOLLOW-TO-MESSAGE ─────────── */}
-              {(() => {
-                const _chatUid = activeConversation?.otherUser?.id || activeConversation?.participants?.find((p) => p !== user?.uid);
-                const _chatFs = _chatUid ? followStatuses[_chatUid] : null;
-                const _chatMutual = _chatFs === "accepted";
-
-                if (!_chatMutual) {
-                  return (
-                    <div className="msg-follow-to-message">
-                      <div className="msg-follow-to-message-avatar">
-                        <UserAvatar
-                          user={{ uid: _chatUid }}
-                          profile={activePartner}
-                          style={{ width: 64, height: 64 }}
-                        />
-                      </div>
-                      <h3>{activePartner?.displayName || activePartner?.name || "Student"}</h3>
-                      <p className="msg-follow-to-message-role">
-                        {activePartner?.role === "owner" ? "Owner" : activePartner?.role === "admin" ? "Admin" : "Student"}
-                      </p>
-                      <p className="msg-follow-to-message-status">
-                        You need to follow each other to start messaging.
-                      </p>
-                      <div className="msg-follow-to-message-actions">
-                        {_chatFs === "pending" && (
-                          <button
-                            className="btn btn-secondary"
-                            disabled={followLoading === _chatUid}
-                            onClick={() => handleCancelRequest(_chatUid)}
-                          >
-                            {followLoading === _chatUid ? "Cancelling..." : "Requested"}
-                          </button>
-                        )}
-                        {_chatFs === "incoming_pending" && (
-                          <>
-                            <button
-                              className="btn btn-primary"
-                              disabled={followLoading === _chatUid}
-                              onClick={() => handleAcceptRequest(_chatUid)}
-                            >
-                              {followLoading === _chatUid ? "Accepting..." : "Accept Request"}
-                            </button>
-                            <button
-                              className="btn btn-secondary"
-                              disabled={followLoading === _chatUid}
-                              onClick={() => handleRejectRequest(_chatUid)}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {_chatFs === "following" && (
-                          <p className="msg-follow-to-message-status" style={{ marginBottom: 0 }}>
-                            You follow this user. They need to follow you back to start messaging.
-                          </p>
-                        )}
-                        {_chatFs === "follower" && (
-                          <button
-                            className="btn btn-primary"
-                            disabled={followLoading === _chatUid}
-                            onClick={() => handleFollowToMessage(_chatUid)}
-                          >
-                            {followLoading === _chatUid ? "Following..." : "Follow Back"}
-                          </button>
-                        )}
-                        {!_chatFs && (
-                          <button
-                            className="btn btn-primary"
-                            disabled={followLoading === _chatUid}
-                            onClick={() => handleFollowToMessage(_chatUid)}
-                          >
-                            {followLoading === _chatUid ? "Sending..." : "Follow to Message"}
-                          </button>
-                        )}
-                      </div>
+              {/* ─── 7. MESSAGE COMPOSER ─────────── */}
+              <div className="msg-composer-outer">
+                {uploading && (
+                  <div className="msg-upload-progress">
+                    <span>Uploading...</span>
+                    <div className="msg-upload-bar">
+                      <div className="msg-upload-bar-fill" style={{ width: `${uploadProgress}%` }} />
                     </div>
-                  );
-                }
-
-                return (
-                  <div className="msg-composer-outer">
-                    {uploading && (
-                      <div className="msg-upload-progress">
-                        <span>Uploading...</span>
-                        <div className="msg-upload-bar">
-                          <div className="msg-upload-bar-fill" style={{ width: `${uploadProgress}%` }} />
-                        </div>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                    )}
-                    <div className="msg-composer-capsule" style={{ position: "relative" }}>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        style={{ display: "none" }}
-                        onChange={handleFileUpload}
-                        accept={ALLOWED_EXTENSIONS.join(",")}
-                      />
-                      <button
-                        type="button"
-                        className="msg-composer-tool-btn"
-                        title="Attach file"
-                        onClick={handleFileSelect}
-                        disabled={uploading}
-                      >
-                        <PaperclipIcon />
-                      </button>
-
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        className="msg-composer-input"
-                        placeholder="Type a message..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        disabled={sending || uploading}
-                      />
-
-                      <div style={{ position: "relative" }}>
-                        <button
-                          type="button"
-                          className="msg-composer-tool-btn"
-                          title="Insert emoji"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        >
-                          <EmojiIcon />
-                        </button>
-                        {showEmojiPicker && (
-                          <EmojiPicker
-                            onSelect={handleEmojiSelect}
-                            onClose={() => setShowEmojiPicker(false)}
-                          />
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        className="msg-composer-send-btn"
-                        onClick={handleSend}
-                        disabled={!input.trim() || sending || uploading}
-                        title="Send message"
-                      >
-                        <SendAirplaneIcon />
-                      </button>
-                    </div>
+                    <span>{uploadProgress}%</span>
                   </div>
-                );
-              })()}
+                )}
+                <div className="msg-composer-capsule" style={{ position: "relative" }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    style={{ display: "none" }}
+                    onChange={handleFileUpload}
+                    accept={ALLOWED_EXTENSIONS.join(",")}
+                  />
+                  <button
+                    type="button"
+                    className="msg-composer-tool-btn"
+                    title="Attach file"
+                    onClick={handleFileSelect}
+                    disabled={uploading}
+                  >
+                    <PaperclipIcon />
+                  </button>
+
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="msg-composer-input"
+                    placeholder="Type a message..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    disabled={sending || uploading}
+                  />
+
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      className="msg-composer-tool-btn"
+                      title="Insert emoji"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
+                      <EmojiIcon />
+                    </button>
+                    {showEmojiPicker && (
+                      <EmojiPicker
+                        onSelect={handleEmojiSelect}
+                        onClose={() => setShowEmojiPicker(false)}
+                      />
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="msg-composer-send-btn"
+                    onClick={handleSend}
+                    disabled={!input.trim() || sending || uploading}
+                    title="Send message"
+                  >
+                    <SendAirplaneIcon />
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </section>
