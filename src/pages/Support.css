@@ -592,6 +592,27 @@
   margin-top: 10px;
 }
 
+/* ─── SUCCESS TOAST ───────────────────────────────────────── */
+.support-success-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  color: #065f46;
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .support-success-toast {
+  background: #064e3b;
+  border-color: #065f46;
+  color: #a7f3d0;
+}
+
 /* ─── DARK MODE ADJUSTMENTS ─────────────────────────────────── */
 [data-theme="dark"] .support-page-container {
   background: #090d16;

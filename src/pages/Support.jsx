@@ -36,6 +36,7 @@ export default function Support() {
   const [newFile, setNewFile] = useState(null);
   const [submittingNew, setSubmittingNew] = useState(false);
   const [newError, setNewError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -111,17 +112,28 @@ export default function Support() {
     }
     setSubmittingNew(true);
     setNewError("");
+    setSuccessMessage("");
 
     try {
       let attachmentObj = null;
       if (newFile) {
-        const uploadRes = await uploadSupportAttachment(newFile);
-        if (uploadRes.error) {
-          setNewError(uploadRes.error);
-          setSubmittingNew(false);
+        try {
+          const uploadRes = await uploadSupportAttachment(newFile);
+          if (uploadRes.error) {
+            setNewError(uploadRes.error);
+            return;
+          }
+          attachmentObj = uploadRes.data;
+        } catch (uploadErr) {
+          console.error("[Support] Attachment upload failed:", uploadErr);
+          setNewError("Failed to upload attachment. Please try again without a file.");
           return;
         }
-        attachmentObj = uploadRes.data;
+      }
+
+      if (!user?.uid) {
+        setNewError("You must be logged in to submit a support request.");
+        return;
       }
 
       const res = await createSupportTicket({
@@ -134,18 +146,23 @@ export default function Support() {
       });
 
       if (res.error) {
-        setNewError(res.error);
+        console.error("[Support] createSupportTicket error:", res.error);
+        setNewError("Unable to submit your support request. Please try again.");
       } else {
+        const ticketId = res.data?.id;
         setNewSubject("");
         setNewMessage("");
         setNewFile(null);
         setNewModalOpen(false);
-        if (res.data?.id) {
-          setSelectedTicketId(res.data.id);
+        setSuccessMessage("Support request submitted successfully.");
+        if (ticketId) {
+          setSelectedTicketId(ticketId);
         }
+        setTimeout(() => setSuccessMessage(""), 4000);
       }
     } catch (err) {
-      setNewError(err.message || "Failed to create support request");
+      console.error("[Support] handleCreateRequest unexpected error:", err);
+      setNewError("Unable to submit your support request. Please try again.");
     } finally {
       setSubmittingNew(false);
     }
@@ -235,6 +252,7 @@ export default function Support() {
           className="support-new-request-btn"
           onClick={() => {
             setNewError("");
+            setSuccessMessage("");
             setNewModalOpen(true);
           }}
         >
@@ -245,6 +263,16 @@ export default function Support() {
           <span>New Request</span>
         </button>
       </div>
+
+      {successMessage && (
+        <div className="support-success-toast">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{successMessage}</span>
+        </div>
+      )}
 
       {/* ── WORKSPACE (LIST + CONVERSATION) ── */}
       <div className={`support-workspace ${selectedTicketId ? "support-workspace--detail-open" : ""}`}>
