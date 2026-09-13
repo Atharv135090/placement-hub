@@ -1668,7 +1668,7 @@ export default function Chat() {
                     disabled={sending || uploading}
                   />
 
-                  <div style={{ position: "relative" }}>
+                  <div className="msg-composer-emoji-wrap" style={{ position: "relative" }}>
                     <button
                       type="button"
                       className="msg-composer-tool-btn"

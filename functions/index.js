@@ -4,7 +4,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
 const { logger } = require("firebase-functions");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 initializeApp();
 
@@ -627,11 +627,7 @@ exports.chat = onCall(
     }
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.5-flash",
-      });
+      const ai = new GoogleGenAI({ apiKey });
 
       let systemPrompt = `
 You are Placement Hub Assistant, a general-purpose AI assistant.
@@ -714,30 +710,18 @@ User's Placement Hub information:
         parts: [{ text: msg.text }],
       }));
 
-      const chat = model.startChat({
-        history: [
-          {
-            role: "user",
-            parts: [{ text: systemPrompt }],
-          },
-          {
-            role: "model",
-            parts: [
-              {
-                text: "Understood. I'm ready to help with anything.",
-              },
-            ],
-          },
-          ...chatHistory,
-        ],
-        generationConfig: {
+      const chat = ai.chats.create({
+        model: "gemini-3.5-flash",
+        config: {
+          systemInstruction: systemPrompt,
           maxOutputTokens: 2048,
         },
+        history: chatHistory,
       });
 
-      const result = await chat.sendMessage(message);
+      const result = await chat.sendMessage({ message });
 
-      const response = result.response.text();
+      const response = result.text;
 
       return {
         response,

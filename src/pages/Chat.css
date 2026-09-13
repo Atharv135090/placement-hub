@@ -742,9 +742,11 @@
   gap: 10px;
   background: #f8fafc;
   border: 1px solid rgba(0, 0, 0, 0.07);
-  border-radius: 26px;
-  padding: 6px 8px 6px 16px;
+  border-radius: 9999px;
+  padding: 6px 6px 6px 16px;
   transition: all 0.2s ease;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 [data-theme="dark"] .msg-composer-capsule {
@@ -755,6 +757,13 @@
 .msg-composer-capsule:focus-within {
   border-color: rgba(225, 29, 72, 0.4);
   box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.08);
+}
+
+.msg-composer-emoji-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .msg-composer-tool-btn {
@@ -782,6 +791,7 @@
 
 .msg-composer-input {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
@@ -796,6 +806,7 @@
 .msg-composer-send-btn {
   width: 40px;
   height: 40px;
+  min-width: 40px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
   color: #ffffff;
@@ -807,6 +818,7 @@
   box-shadow: 0 3px 12px rgba(225, 29, 72, 0.35);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
+  margin: 0;
 }
 
 .msg-composer-send-btn:hover:not(:disabled) {
@@ -1269,24 +1281,35 @@
   }
 
   .msg-composer-capsule {
-    padding: 4px 6px 4px 12px;
+    padding: 4px 5px 4px 12px;
     gap: 6px;
-    border-radius: 22px;
+    border-radius: 9999px;
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow: visible;
   }
 
   .msg-composer-input {
     font-size: 0.84rem;
     padding: 6px 0;
+    flex: 1;
+    min-width: 0;
   }
 
   .msg-composer-tool-btn {
     width: 28px;
     height: 28px;
+    min-width: 28px;
+    flex-shrink: 0;
   }
 
   .msg-composer-send-btn {
     width: 34px;
     height: 34px;
+    min-width: 34px;
+    flex-shrink: 0;
+    margin: 0;
+    box-sizing: border-box;
   }
 
   .msg-composer-send-btn svg {

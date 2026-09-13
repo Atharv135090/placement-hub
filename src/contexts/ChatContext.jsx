@@ -36,6 +36,7 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const unsubMsgRef = useRef(null);
+  const ecdhReadyRef = useRef(null);
 
   useEffect(() => {
     if (!uid) {
@@ -44,7 +45,7 @@ export function ChatProvider({ children }) {
     }
     // Ensure ECDH keys exist for this user (generates on first login)
     // and publish public key to Firestore for cross-user E2EE
-    ensureECDHKeys(uid).catch((err) => {
+    ecdhReadyRef.current = ensureECDHKeys(uid).catch((err) => {
       console.warn("ECDH key init failed, will use legacy encryption:", err);
     });
 
@@ -135,6 +136,8 @@ export function ChatProvider({ children }) {
     })();
 
     unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
+      // Wait for ECDH key initialization before attempting decryption
+      if (ecdhReadyRef.current) await ecdhReadyRef.current;
       const otherId = activeConversation.participants?.find((p) => p !== uid);
       const decrypted = await Promise.all(
         rawMessages.map(async (m) => {
