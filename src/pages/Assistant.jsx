@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
@@ -176,6 +176,8 @@ export default function Assistant() {
 
   const { applications, companies, savedIds } = usePlacementData();
   const inputRef = useRef(null);
+  const chatViewportRef = useRef(null);
+  const prevMessagesLengthRef = useRef(messages.length);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [recentChats, setRecentChats] = useState(INITIAL_RECENT_CHATS);
@@ -186,6 +188,15 @@ export default function Assistant() {
     "Student";
 
   const aiReady = isAIConfigured();
+
+  // Synchronously reset main viewport container & window scroll to top on initial page mount
+  useLayoutEffect(() => {
+    const mainViewport = document.querySelector(".main-viewport");
+    if (mainViewport) {
+      mainViewport.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, []);
 
   // Automatic quote rotation every 7 seconds without immediate repetition
   useEffect(() => {
@@ -201,11 +212,15 @@ export default function Assistant() {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-scroll chat history internally ONLY when new messages are added after initial load
   useEffect(() => {
-    if (bottomRef?.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevMessagesLengthRef.current) {
+      prevMessagesLengthRef.current = messages.length;
+      if (chatViewportRef.current) {
+        chatViewportRef.current.scrollTop = chatViewportRef.current.scrollHeight;
+      }
     }
-  }, [messages, bottomRef]);
+  }, [messages]);
 
   async function handleSendMessage(textToSend) {
     const text = (textToSend || input).trim();
@@ -341,7 +356,7 @@ export default function Assistant() {
           </div>
 
           {/* 3. Main Chat Area */}
-          <div className="asst-chat-viewport">
+          <div className="asst-chat-viewport" ref={chatViewportRef}>
             {/* If fresh conversation, render default welcome message */}
             {messages.length <= 1 ? (
               <div className="asst-chat-message-row asst-msg-incoming">

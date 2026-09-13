@@ -572,10 +572,8 @@
   }
   .top-header-right { gap: 4px; }
   .notif-panel {
-    left: 8px;
-    right: 8px;
-    width: auto;
-    max-width: 340px;
+    right: 0;
+    width: min(340px, calc(100vw - 32px));
   }
   .profile-dropdown {
     width: 210px;

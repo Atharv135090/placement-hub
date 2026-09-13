@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useLongPress } from "../contexts/PrivateControlContext";
@@ -129,6 +129,15 @@ export default function AppShell() {
     window.addEventListener("open-admin-prompt", handleOpenPrompt);
     return () => window.removeEventListener("open-admin-prompt", handleOpenPrompt);
   }, []);
+
+  // Reset page container scroll to top on route navigation
+  useLayoutEffect(() => {
+    const mainViewport = document.querySelector(".main-viewport");
+    if (mainViewport) {
+      mainViewport.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   function handleAdminVerify() {
     if (adminPin === ADMIN_PIN) {
