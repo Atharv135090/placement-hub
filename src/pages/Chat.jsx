@@ -5,7 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../contexts/AuthContext";
 import { useChat } from "../contexts/ChatContext";
 import { db, storage } from "../config/firebase";
-import { getAllStudents, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence, subscribeToStudents, subscribeToAllFollowStatuses, subscribeToRelationship, sendFollowRequest, cancelFollowRequest, acceptFollowRequest, rejectFollowRequest } from "../services/social";
+import { getAllStudents, getOrCreateConversation, getOrCreateAdminConversation, sendAdminChatMessage, subscribeToAdminMessages, markAdminConversationRead, subscribeToUserPresence, subscribeToStudents, subscribeToAllFollowStatuses, subscribeToRelationship, sendFollowRequest, cancelFollowRequest, acceptFollowRequest, rejectFollowRequest } from "../services/social";
 import UserAvatar from "../components/UserAvatar";
 import EmojiPicker from "../components/EmojiPicker";
 import Modal from "../components/Modal";
@@ -285,23 +285,18 @@ export default function Chat() {
           role: targetUser.role || "student",
           branch: targetUser.branch,
         };
-        const status = followStatuses[studentId];
-        if (status === "accepted") {
-          const conv = await startConversation(studentId);
-          if (conv) {
-            setActiveConversation({ ...conv, otherUser: otherUserObj });
+        const existingConv = conversations.find((c) => c.otherUser?.id === studentId);
+        if (existingConv) {
+          setActiveConversation({ ...existingConv, otherUser: existingConv.otherUser || otherUserObj });
+          if (existingConv.id) {
+            markRead(existingConv.id);
           }
         } else {
-          const existingConv = conversations.find((c) => c.otherUser?.id === studentId);
-          if (existingConv) {
-            setActiveConversation(existingConv);
-          } else {
-            setActiveConversation({
-              id: null,
-              otherUser: otherUserObj,
-              participants: [user.uid, studentId],
-            });
-          }
+          setActiveConversation({
+            id: null,
+            otherUser: otherUserObj,
+            participants: [user.uid, studentId],
+          });
         }
       } catch (err) {
         console.error("Failed to select student:", err);
@@ -309,7 +304,7 @@ export default function Chat() {
       setSearchParams({});
     }
     selectStudent();
-  }, [searchParams.get("student"), user?.uid, startConversation, setActiveConversation, setSearchParams, followStatuses, conversations]);
+  }, [searchParams.get("student"), user?.uid, setActiveConversation, setSearchParams, conversations]);
 
   // Subscribe to active conversation partner's presence
   useEffect(() => {
@@ -495,13 +490,14 @@ export default function Chat() {
     let convId = activeConversation.id;
     if (!convId) {
       try {
-        const conv = await startConversation(activeConversation.otherUser.id);
-        if (conv) {
-          convId = conv.id;
-          setActiveConversation((prev) => ({ ...prev, id: conv.id }));
-        } else {
+        const otherId = activeConversation.otherUser.id;
+        const res = await getOrCreateConversation(user.uid, otherId);
+        if (res.error) {
+          console.error("Failed to create conversation:", res.error);
           return;
         }
+        convId = res.data.id;
+        setActiveConversation((prev) => ({ ...prev, id: convId }));
       } catch (err) {
         console.error("Failed to create conversation:", err);
         return;
@@ -543,13 +539,14 @@ export default function Chat() {
     let convId = activeConversation.id;
     if (!convId) {
       try {
-        const conv = await startConversation(activeConversation.otherUser.id);
-        if (conv) {
-          convId = conv.id;
-          setActiveConversation((prev) => ({ ...prev, id: conv.id }));
-        } else {
+        const otherId = activeConversation.otherUser.id;
+        const res = await getOrCreateConversation(user.uid, otherId);
+        if (res.error) {
+          console.error("Failed to create conversation for upload:", res.error);
           return;
         }
+        convId = res.data.id;
+        setActiveConversation((prev) => ({ ...prev, id: convId }));
       } catch (err) {
         console.error("Failed to create conversation for upload:", err);
         return;
