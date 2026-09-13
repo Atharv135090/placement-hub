@@ -11,6 +11,11 @@ import {
   encryptMessage,
   decryptMessage,
   getStudentProfile,
+  getOrCreateAdminConversation,
+  sendAdminChatMessage,
+  subscribeToAdminConversations,
+  subscribeToAdminMessages,
+  markAdminConversationRead,
 } from "../services/social";
 import { ensureECDHKeys } from "../utils/crypto";
 
@@ -43,8 +48,38 @@ export function ChatProvider({ children }) {
     ensureECDHKeys(uid).catch((err) => {
       console.warn("ECDH key init failed, will use legacy encryption:", err);
     });
-    unsubConvRef.current = subscribeToConversations(uid, setConversations);
-    return () => { unsubConvRef.current?.(); };
+
+    // Subscribe to BOTH regular and admin conversations, merge into one list
+    const unsubRegular = subscribeToConversations(uid, (regularConvs) => {
+      const tagged = (regularConvs || []).map((c) => ({ ...c, isAdmin: false }));
+      setConversations((prev) => {
+        const adminConvs = prev.filter((c) => c.isAdmin);
+        // Merge: admin conversations from state, regular from subscription
+        const merged = [...tagged, ...adminConvs];
+        merged.sort((a, b) => {
+          const aTime = a.lastMessageAt?.toMillis?.() || (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
+          const bTime = b.lastMessageAt?.toMillis?.() || (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0);
+          return bTime - aTime;
+        });
+        return merged;
+      });
+    });
+
+    const unsubAdmin = subscribeToAdminConversations(uid, (adminConvs) => {
+      const tagged = (adminConvs || []).map((c) => ({ ...c, isAdmin: true }));
+      setConversations((prev) => {
+        const regularConvs = prev.filter((c) => !c.isAdmin);
+        const merged = [...regularConvs, ...tagged];
+        merged.sort((a, b) => {
+          const aTime = a.lastMessageAt?.toMillis?.() || (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
+          const bTime = b.lastMessageAt?.toMillis?.() || (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0);
+          return bTime - aTime;
+        });
+        return merged;
+      });
+    });
+
+    return () => { unsubRegular?.(); unsubAdmin?.(); };
   }, [uid]);
 
   // Duration mapping for disappearing messages (ms)
@@ -60,6 +95,25 @@ export function ChatProvider({ children }) {
       return;
     }
 
+    const isAdmin = activeConversation.isAdmin || activeConversation.id?.startsWith("admin_");
+
+    // Admin conversations: plaintext, no E2EE
+    if (isAdmin) {
+      unsubMsgRef.current = subscribeToAdminMessages(activeConversation.id, (rawMessages) => {
+        const mapped = (rawMessages || []).map((m) => ({
+          id: m.id,
+          text: m.text || "",
+          senderId: m.senderId,
+          createdAt: m.createdAt,
+          read: m.read,
+          isAdminMessage: true,
+        }));
+        setMessages(mapped);
+      });
+      return () => { unsubMsgRef.current?.(); };
+    }
+
+    // Regular conversations: E2EE
     let disappearingSettingRef = { current: null };
     let clearedAtRef = { current: null };
 
@@ -82,7 +136,7 @@ export function ChatProvider({ children }) {
     })();
 
     unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
-      const otherId = activeConversation.participants.find((p) => p !== uid);
+      const otherId = activeConversation.participants?.find((p) => p !== uid);
       const decrypted = await Promise.all(
         rawMessages.map(async (m) => {
           try {
@@ -138,10 +192,34 @@ export function ChatProvider({ children }) {
       }
     });
     return () => { unsubMsgRef.current?.(); };
-  }, [activeConversation?.id, uid]);
+  }, [activeConversation?.id, activeConversation?.isAdmin, uid]);
 
-  const startConversation = useCallback(async (otherUserId) => {
+  const startConversation = useCallback(async (otherUserId, isAdminTarget = false) => {
     if (!uid) return null;
+
+    // Admin conversations: use admin messaging path
+    if (isAdminTarget) {
+      const res = await getOrCreateAdminConversation(uid, otherUserId);
+      if (res.error) return null;
+      const convId = res.data.id;
+      let otherUser = { id: otherUserId };
+      try {
+        const profileRes = await getStudentProfile(otherUserId);
+        if (profileRes.data) otherUser = { id: otherUserId, ...profileRes.data };
+      } catch {}
+      return {
+        id: convId,
+        participants: [uid, otherUserId],
+        lastMessage: null,
+        lastMessageAt: null,
+        unread1: 0,
+        unread2: 0,
+        otherUser,
+        isAdmin: true,
+      };
+    }
+
+    // Regular conversations
     const res = await getOrCreateConversation(uid, otherUserId);
     if (res.error) return null;
     const convId = res.data.id;
@@ -181,7 +259,6 @@ export function ChatProvider({ children }) {
     if (!uid || !text.trim()) return;
     setSending(true);
     try {
-      // Always prefer explicit overrides; only fall back to closure values as last resort
       const otherId = recipientIdOverride || participantsOverride?.find?.((p) => p !== uid) || null;
       if (!otherId) {
         console.error("sendChatMessage: Could not determine recipient user ID", { recipientIdOverride, participantsOverride });
@@ -189,6 +266,15 @@ export function ChatProvider({ children }) {
       }
       const participants = participantsOverride || [uid, otherId];
 
+      // Admin conversations: plaintext (no E2EE)
+      const isAdmin = activeConversation?.isAdmin || conversationId?.startsWith("admin_");
+      if (isAdmin) {
+        const result = await sendAdminChatMessage(conversationId, uid, text, participants);
+        if (result?.error) throw new Error(result.error);
+        return;
+      }
+
+      // Regular conversations: E2EE
       const { encryptedText, messageVersion } = await encryptMessage(text, uid, otherId);
       const result = await sendMessage(conversationId, uid, encryptedText, participants, messageVersion);
       if (result?.error) {
@@ -200,7 +286,7 @@ export function ChatProvider({ children }) {
     } finally {
       setSending(false);
     }
-  }, [uid]);
+  }, [uid, activeConversation?.isAdmin]);
 
   const markRead = useCallback(async (conversationId) => {
     if (!uid) return;
