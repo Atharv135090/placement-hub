@@ -295,7 +295,21 @@ export default function Chat() {
           role: targetUser.role || "student",
           branch: targetUser.branch,
         };
-        const existingConv = conversations.find((c) => c.otherUser?.id === studentId);
+
+        // Check if target is admin — look for admin conversations first
+        const targetRole = targetUser.role || "student";
+        const isAdminTarget = targetRole === "admin" || targetRole === "owner" || targetRole === "recruiter";
+
+        let existingConv = null;
+        if (isAdminTarget) {
+          existingConv = conversations.find(
+            (c) => c.isAdmin && (c.otherUser?.id === studentId || c.participants?.includes(studentId))
+          );
+        }
+        if (!existingConv) {
+          existingConv = conversations.find((c) => c.otherUser?.id === studentId);
+        }
+
         if (existingConv) {
           setActiveConversation({ ...existingConv, otherUser: existingConv.otherUser || otherUserObj });
           if (existingConv.id) {
@@ -522,12 +536,60 @@ export default function Chat() {
       senderRole === "owner" ||
       senderRole === "recruiter";
 
+    const isAlreadyAdmin = activeConversation?.isAdmin || activeConversation?.id?.startsWith("admin_");
+
+    // For admin-to-user conversations: bypass mutual follow, use admin messaging path
+    if (isAdminOrStaff || isAlreadyAdmin) {
+      let convId = activeConversation?.id;
+      let participants = activeConversation?.participants || [user.uid, targetOtherId];
+
+      if (!convId) {
+        try {
+          console.log("[CHAT_SEND] Creating admin conversation with:", targetOtherId);
+          const res = await getOrCreateAdminConversation(user.uid, targetOtherId);
+          if (res.error || !res.data?.id) {
+            console.error("[CHAT_SEND] Failed to create admin conversation:", res.error);
+            showToast("Unable to create conversation.");
+            return;
+          }
+          convId = res.data.id;
+          participants = [user.uid, targetOtherId];
+          setActiveConversation((prev) => ({
+            ...prev,
+            id: convId,
+            participants,
+            otherUser: prev?.otherUser || partnerProfile || { id: targetOtherId },
+            isAdmin: true,
+          }));
+        } catch (err) {
+          console.error("[CHAT_SEND] Admin conversation init exception:", err);
+          showToast("Unable to create conversation.");
+          return;
+        }
+      }
+
+      setInput("");
+
+      try {
+        console.log("[CHAT_SEND] Sending admin message to conversation:", convId);
+        const result = await sendAdminChatMessage(convId, user.uid, textToSend, participants);
+        if (result?.error) throw new Error(result.error);
+        console.log("[CHAT_SEND] Admin message sent successfully!");
+      } catch (err) {
+        console.error("[CHAT_SEND] Admin message send failed:", err);
+        setInput(textToSend);
+        const msg = err?.message ? `Unable to send message: ${err.message}` : "Unable to send message. Please try again.";
+        showToast(msg);
+      } finally {
+        inputRef.current?.focus();
+      }
+      return;
+    }
+
+    // Regular student-to-student messaging path
     // PRD Requirement 5 & 6: Mutual follow check
-    // If pairRelationship is still loading (null or loading:true), allow the attempt
-    // and let Firestore rules enforce access — don't block on a stale/loading state.
     const relationshipLoaded = pairRelationship && !pairRelationship.loading;
     const isMutual =
-      isAdminOrStaff ||
       pairRelationship?.relationship === "mutual" ||
       pairRelationship?.relationship === "accepted";
     const hasExistingConv = Boolean(activeConversation?.id);
@@ -538,8 +600,8 @@ export default function Chat() {
       return;
     }
 
-    let convId = activeConversation.id;
-    let participants = activeConversation.participants || [user.uid, targetOtherId];
+    let convId = activeConversation?.id;
+    let participants = activeConversation?.participants || [user.uid, targetOtherId];
 
     if (!convId) {
       try {
@@ -812,14 +874,30 @@ export default function Chat() {
   function handleUserClick(targetUser) {
     if (!targetUser || !targetUser.id) return;
     setSelectedDiscoverUser(null);
-    const existingConv = conversations.find(
-      (c) => c.otherUser?.id === targetUser.id || c.participants?.includes(targetUser.id)
-    );
+
+    // Check if the target is admin/owner/recruiter — look for admin conversations first
+    const targetRole = targetUser.role || "student";
+    const isAdminTarget = targetRole === "admin" || targetRole === "owner" || targetRole === "recruiter";
+
+    let existingConv = null;
+    if (isAdminTarget) {
+      // For admin targets, find admin conversation first
+      existingConv = conversations.find(
+        (c) => c.isAdmin && (c.otherUser?.id === targetUser.id || c.participants?.includes(targetUser.id))
+      );
+    }
+    if (!existingConv) {
+      // Fall back to regular conversations
+      existingConv = conversations.find(
+        (c) => c.otherUser?.id === targetUser.id || c.participants?.includes(targetUser.id)
+      );
+    }
+
     const otherUserObj = {
       id: targetUser.id,
       displayName: targetUser.displayName || targetUser.name || "Student",
       photoUrl: targetUser.photoUrl,
-      role: targetUser.role || "student",
+      role: targetRole,
       branch: targetUser.branch || targetUser.course || "",
     };
     if (existingConv) {

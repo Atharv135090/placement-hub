@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import "./AtsChecker.css";
 
 // ── SVG ICONS ──
@@ -491,7 +492,7 @@ export default function AtsChecker() {
       </div>
 
       {/* WATCH PREVIEW OVERLAY MODAL */}
-      {showPreviewModal && (
+      {showPreviewModal && createPortal(
         <div
           className="ats-preview-overlay animate-fade-in"
           onClick={handleClosePreview}
@@ -643,7 +644,8 @@ export default function AtsChecker() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
