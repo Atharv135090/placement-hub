@@ -293,34 +293,7 @@
   opacity: 0.7;
 }
 
-@media (max-width: 768px) {
-  .apps-search-box {
-    min-width: 0;
-    width: 100%;
-  }
-  .apps-table-header {
-    display: none;
-  }
-  .apps-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 16px;
-  }
-  .cell-action {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .apps-bottom-banner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .banner-cta-btn {
-    width: 100%;
-  }
-}
+
 
 /* Notes/Message List */
 .app-notes-list {
@@ -512,6 +485,10 @@
 
 /* Responsive Mobile Applications Card Layout */
 @media (max-width: 768px) {
+  .applications-page {
+    gap: 14px;
+  }
+
   .apps-header {
     flex-direction: column;
     align-items: flex-start;
@@ -530,25 +507,6 @@
     width: 100%;
   }
 
-  .apps-table-header {
-    display: none;
-  }
-
-  .apps-row {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 16px 14px;
-    position: relative;
-  }
-
-  .cell-action {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-  }
-
   .apps-dropdowns {
     width: 100%;
     flex-wrap: wrap;
@@ -560,7 +518,137 @@
     min-width: 130px;
   }
 
+  .apps-table-header {
+    display: none;
+  }
+
+  /* Mobile Application Card Structure */
+  .apps-row-wrapper {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .apps-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: var(--radius-lg);
+  }
+
+  /* Top Row: Logo & Company Name (Left) + 3-Dot Menu (Right) */
+  .cell-comp {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding-right: 44px; /* Reserve space for 3-dot button top right */
+    box-sizing: border-box;
+  }
+
+  .cell-comp strong {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 3-Dot Action Button Top-Right inside Card */
+  .cell-action {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    z-index: 10;
+    box-sizing: border-box;
+  }
+
+  .action-dots-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+
+  .action-dots-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  /* Status Dropdown Menu positioning for Mobile */
+  .status-dropdown-menu {
+    right: 0;
+    width: 190px;
+    max-width: calc(100vw - 32px);
+    box-shadow: var(--shadow-xl);
+    z-index: 100;
+  }
+
+  /* Second Row: Job Title */
+  .cell-role {
+    font-size: 0.94rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 2px;
+    line-height: 1.35;
+    width: 100%;
+    box-sizing: border-box;
+    word-break: break-word;
+  }
+
+  /* Third Row: Application Date */
+  .cell-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 1px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Bottom Row: Status Badge */
+  .cell-status {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .apps-bottom-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
     padding: 14px 18px;
+  }
+
+  .banner-cta-btn {
+    width: 100%;
   }
 }

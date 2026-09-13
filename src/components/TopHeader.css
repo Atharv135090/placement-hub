@@ -572,12 +572,13 @@
   }
   .top-header-right { gap: 4px; }
   .notif-panel {
-    right: 0;
-    width: min(340px, calc(100vw - 32px));
+    right: -48px;
+    width: min(340px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
   }
   .profile-dropdown {
-    width: 210px;
-    right: -4px;
+    width: min(230px, calc(100vw - 24px));
+    right: 0;
   }
 }
 

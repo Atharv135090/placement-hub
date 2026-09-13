@@ -801,6 +801,18 @@
     display: none;
   }
 
+  .admin-notif-panel {
+    right: -48px;
+    width: min(340px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+  }
+
+  .admin-profile-dropdown {
+    right: 0;
+    width: min(240px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+  }
+
   .admin-content-area {
     padding: 16px 12px 80px 12px;
   }
