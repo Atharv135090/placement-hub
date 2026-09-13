@@ -79,7 +79,13 @@ export default function Students() {
     return [...set].sort();
   }, [students]);
 
-  // Filter and sort students
+  // Determine owner/admin UID from the students list (dynamically, never hardcoded)
+  const ownerUid = useMemo(() => {
+    const owner = students.find((s) => s.role === "owner" || s.role === "admin");
+    return owner ? owner.id : null;
+  }, [students]);
+
+  // Filter and sort students — owner always pinned first
   const filteredStudents = useMemo(() => {
     let list = students.filter((s) => {
       const q = search.trim().toLowerCase();
@@ -95,8 +101,12 @@ export default function Students() {
       return matchSearch && matchBranch && matchYear;
     });
 
-    // Sorting
-    list = [...list].sort((a, b) => {
+    // Separate owner from the rest
+    const owner = ownerUid ? list.find((s) => s.id === ownerUid) : null;
+    const others = ownerUid ? list.filter((s) => s.id !== ownerUid) : list;
+
+    // Sort remaining students
+    others.sort((a, b) => {
       if (sortBy === "name_asc") {
         return (a.displayName || "").localeCompare(b.displayName || "");
       }
@@ -114,8 +124,9 @@ export default function Students() {
       return tB - tA;
     });
 
-    return list;
-  }, [students, search, branchFilter, yearFilter, sortBy]);
+    // Owner always first, then the rest
+    return owner ? [owner, ...others] : others;
+  }, [students, search, branchFilter, yearFilter, sortBy, ownerUid]);
 
   // Reset page to 1 whenever filters change
   useEffect(() => {
@@ -443,8 +454,6 @@ export default function Students() {
           {paginatedStudents.map((s) => {
             const status = followStatuses[s.id];
             const isFollowing = status === "accepted";
-            const isRequested = status === "pending";
-            const isIncomingPending = status === "incoming_pending";
             const isPrivate = s.profileVisibility === "private";
             const isProtected = isPrivate && !isFollowing;
             const menuOpen = activeMenuId === s.id;
@@ -526,17 +535,19 @@ export default function Students() {
                             <span>View Profile</span>
                           </button>
 
-                          <button
-                            className="dropdown-item"
-                            onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                            </svg>
-                            <span>Message Student</span>
-                          </button>
+                          {status === "accepted" && (
+                            <button
+                              className="dropdown-item"
+                              onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                              </svg>
+                              <span>Message Student</span>
+                            </button>
+                          )}
 
-                          {isFollowing ? (
+                          {status === "accepted" ? (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
@@ -549,7 +560,19 @@ export default function Students() {
                               </svg>
                               <span>Unfollow</span>
                             </button>
-                          ) : (
+                          ) : status === "pending" ? (
+                            <button
+                              className="dropdown-item"
+                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="15" y1="9" x2="9" y2="15" />
+                                <line x1="9" y1="9" x2="15" y2="15" />
+                              </svg>
+                              <span>Cancel Request</span>
+                            </button>
+                          ) : status !== "accepted" ? (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
@@ -560,9 +583,9 @@ export default function Students() {
                                 <line x1="20" y1="8" x2="20" y2="14" />
                                 <line x1="23" y1="11" x2="17" y2="11" />
                               </svg>
-                              <span>Follow</span>
+                              <span>{status === "follower" || status === "incoming_pending" ? "Follow Back" : "Follow"}</span>
                             </button>
-                          )}
+                          ) : null}
 
                           <button
                             className="dropdown-item"
@@ -656,18 +679,54 @@ export default function Students() {
 
                 {/* Bottom Action Buttons Row */}
                 <div className="student-card-actions">
-                  {/* Message Primary Button matching reference visual */}
-                  <button
-                    className="btn student-action-btn btn-message-primary"
-                    onClick={() => navigate("/chat", { state: { recipientId: s.id } })}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <span>Message</span>
-                  </button>
+                  {status === "accepted" ? (
+                    /* Mutual accepted → Message button */
+                    <button
+                      className="btn student-action-btn btn-message-primary"
+                      onClick={() => navigate("/chat", { state: { recipientId: s.id } })}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span>Message</span>
+                    </button>
+                  ) : status === "pending" ? (
+                    /* Outgoing request pending → Requested (disabled) */
+                    <button
+                      className="btn student-action-btn btn-requested-state"
+                      disabled
+                    >
+                      <span>Requested</span>
+                    </button>
+                  ) : status === "follower" || status === "incoming_pending" ? (
+                    /* They follow you / incoming pending → Follow Back */
+                    <button
+                      className="btn student-action-btn btn-follow-state"
+                      onClick={() => handleFollow(s.id)}
+                      disabled={followLoading[s.id]}
+                    >
+                      <span>{followLoading[s.id] ? "..." : "Follow Back"}</span>
+                    </button>
+                  ) : status === "following" ? (
+                    /* You follow them, not mutual → Following (disabled) */
+                    <button
+                      className="btn student-action-btn btn-following-state"
+                      disabled
+                    >
+                      <span>Following</span>
+                    </button>
+                  ) : (
+                    /* No relationship → Follow */
+                    <button
+                      className="btn student-action-btn btn-follow-state"
+                      onClick={() => handleFollow(s.id)}
+                      disabled={followLoading[s.id]}
+                    >
+                      <span>{followLoading[s.id] ? "..." : "Follow"}</span>
+                    </button>
+                  )}
 
-                  {/* View Profile Secondary Button */}
+                  {/* View Profile always available */}
                   <button
                     className="btn student-view-profile-btn"
                     onClick={() => navigate(`/students/${s.id}`)}

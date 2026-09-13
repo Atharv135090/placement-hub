@@ -1,12 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export function getGeminiApiKey() {
-  const envVal = (
-    (typeof import.meta !== "undefined" && import.meta?.env?.VITE_GEMINI_API_KEY)
-    || (typeof process !== "undefined" && process?.env?.VITE_GEMINI_API_KEY)
-    || ""
-  );
-  return (envVal || "").trim();
+  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  return (key || "").trim();
 }
 
 export function isAIConfigured() {
@@ -116,7 +112,7 @@ export async function generateSmartResponse(query, ctx, messages) {
   const history = formatGeminiHistory(messages);
 
   // 1. Primary Attempt: @google/generative-ai SDK
-  const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  const modelsToTry = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
   let authErrorOccurred = false;
 
   for (const modelName of modelsToTry) {
@@ -153,7 +149,7 @@ export async function generateSmartResponse(query, ctx, messages) {
   }
 
   // 2. Secondary Attempt: Direct REST API Endpoint
-  for (const modelName of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+  for (const modelName of ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
