@@ -16,6 +16,7 @@ import {
   subscribeToAdminConversations,
   subscribeToAdminMessages,
   markAdminConversationRead,
+  reEncryptConversationMessages,
 } from "../services/social";
 import { ensureECDHKeys } from "../utils/crypto";
 
@@ -37,6 +38,8 @@ export function ChatProvider({ children }) {
   const [sending, setSending] = useState(false);
   const unsubMsgRef = useRef(null);
   const ecdhReadyRef = useRef(null);
+  const rawMessagesRef = useRef([]);
+  const [keyVersion, setKeyVersion] = useState(0);
 
   useEffect(() => {
     if (!uid) {
@@ -45,9 +48,11 @@ export function ChatProvider({ children }) {
     }
     // Ensure ECDH keys exist for this user (generates on first login)
     // and publish public key to Firestore for cross-user E2EE
-    ecdhReadyRef.current = ensureECDHKeys(uid).catch((err) => {
-      console.warn("ECDH key init failed, will use legacy encryption:", err);
-    });
+    ecdhReadyRef.current = ensureECDHKeys(uid)
+      .then(() => { setKeyVersion((v) => v + 1); })
+      .catch((err) => {
+        console.warn("ECDH key init failed, will use legacy encryption:", err);
+      });
 
     // Subscribe to BOTH regular and admin conversations, merge into one list
     const unsubRegular = subscribeToConversations(uid, (regularConvs) => {
@@ -136,6 +141,9 @@ export function ChatProvider({ children }) {
     })();
 
     unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
+      // Store raw messages for retry when keys become available
+      rawMessagesRef.current = rawMessages;
+
       // Wait for ECDH key initialization before attempting decryption
       if (ecdhReadyRef.current) await ecdhReadyRef.current;
       const otherId = activeConversation.participants?.find((p) => p !== uid);
@@ -195,6 +203,48 @@ export function ChatProvider({ children }) {
     });
     return () => { unsubMsgRef.current?.(); };
   }, [activeConversation?.id, activeConversation?.isAdmin, uid]);
+
+  // Retry decryption when ECDH keys become available (handles the case where
+  // the subscription fires before keys are fully initialized)
+  useEffect(() => {
+    if (keyVersion < 1 || !activeConversation?.id || activeConversation?.isAdmin || !uid) return;
+    const rawMessages = rawMessagesRef.current;
+    if (!rawMessages || rawMessages.length === 0) return;
+
+    // Only retry if current state has "Unable to decrypt" messages
+    setMessages((prev) => {
+      const hasFailures = prev.some((m) => m.text === "Unable to decrypt this message.");
+      if (!hasFailures) return prev;
+      return prev; // trigger async retry below
+    });
+
+    (async () => {
+      const otherId = activeConversation.participants?.find((p) => p !== uid);
+      const decrypted = await Promise.all(
+        rawMessages.map(async (m) => {
+          try {
+            const text = await decryptMessage(m.encryptedText, uid, otherId, m.messageVersion);
+            return { ...m, text };
+          } catch {
+            return { ...m, text: "Unable to decrypt this message." };
+          }
+        })
+      );
+      setMessages((prev) => {
+        const prevMap = new Map(prev.map((m) => [m.id, m]));
+        let changed = false;
+        const result = decrypted.map((m) => {
+          const prevMsg = prevMap.get(m.id);
+          if (prevMsg?.text === "Unable to decrypt this message." && m.text !== "Unable to decrypt this message.") {
+            changed = true;
+            return m;
+          }
+          return prevMsg || m;
+        });
+        return changed ? result : prev;
+      });
+    })();
+  }, [keyVersion, activeConversation?.id, activeConversation?.isAdmin, uid]);
 
   const startConversation = useCallback(async (otherUserId, isAdminTarget = false) => {
     if (!uid) return null;
@@ -305,6 +355,13 @@ export function ChatProvider({ children }) {
     [conversations]
   );
 
+  const reEncryptOldMessages = useCallback(async (conversationId) => {
+    if (!uid || !conversationId) return 0;
+    const otherId = activeConversation?.participants?.find((p) => p !== uid);
+    if (!otherId) return 0;
+    return reEncryptConversationMessages(conversationId, uid, otherId);
+  }, [uid, activeConversation?.participants]);
+
   const value = useMemo(() => ({
     conversations,
     activeConversation,
@@ -315,7 +372,8 @@ export function ChatProvider({ children }) {
     sendChatMessage,
     markRead,
     totalUnread,
-  }), [conversations, activeConversation, messages, sending, startConversation, sendChatMessage, markRead, totalUnread]);
+    reEncryptOldMessages,
+  }), [conversations, activeConversation, messages, sending, startConversation, sendChatMessage, markRead, totalUnread, reEncryptOldMessages]);
 
   return (
     <ChatContext.Provider value={value}>

@@ -138,6 +138,7 @@ export default function Chat() {
     sendChatMessage,
     markRead,
     startConversation,
+    reEncryptOldMessages,
   } = useChat();
 
   const [input, setInput] = useState("");
@@ -188,6 +189,9 @@ export default function Chat() {
 
   // Clear confirmation state
   const [confirmAction, setConfirmAction] = useState(null); // "clear" | null
+
+  // Re-encrypt state
+  const [reEncrypting, setReEncrypting] = useState(false);
 
   // In-app error toast state (Replaces window.alert per PRD Section 12)
   const [sendErrorToast, setSendErrorToast] = useState("");
@@ -834,6 +838,25 @@ export default function Chat() {
       });
     } catch (err) {
       console.error("Clear chat error:", err);
+    }
+  }
+
+  // Re-encrypt old V1 messages with V2 (ECDH)
+  async function handleReEncrypt() {
+    if (!activeConversation?.id || !user?.uid) return;
+    setReEncrypting(true);
+    try {
+      const count = await reEncryptOldMessages(activeConversation.id);
+      if (count > 0) {
+        showToast(`Re-encrypted ${count} old message(s) with new encryption.`);
+      } else {
+        showToast("No old messages to re-encrypt, or keys not ready.");
+      }
+    } catch (err) {
+      console.error("Re-encrypt error:", err);
+      showToast("Failed to re-encrypt messages.");
+    } finally {
+      setReEncrypting(false);
     }
   }
 
@@ -1495,6 +1518,13 @@ export default function Chat() {
                         >
                           Clear Chat
                         </button>
+                        <button
+                          className="msg-conv-menu-item"
+                          onClick={() => { setShowConvMenu(false); handleReEncrypt(); }}
+                          disabled={reEncrypting}
+                        >
+                          {reEncrypting ? "Re-encrypting..." : "Re-encrypt Old Messages"}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1572,7 +1602,17 @@ export default function Chat() {
                             </>
                           ) : (
                             <>
-                              <p className="msg-bubble-text">{m.text}</p>
+                              {m.text === "Unable to decrypt this message." ? (
+                                <p className="msg-bubble-text msg-bubble-text--locked" title="This message cannot be decrypted. The encryption key is no longer available.">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, verticalAlign: -2 }}>
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                  </svg>
+                                  Message permanently locked
+                                </p>
+                              ) : (
+                                <p className="msg-bubble-text">{m.text}</p>
+                              )}
                               {linkPreview && (
                                 <div
                                   className="msg-link-preview-card"

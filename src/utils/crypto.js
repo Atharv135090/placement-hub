@@ -87,12 +87,26 @@ export async function ensureECDHKeys(uid) {
   // Check if keys already exist in IndexedDB — never overwrite existing keys
   const existingPrivKey = await idbGet(uid);
   if (existingPrivKey) {
-    // Keys exist — just ensure the public key is published to Firestore
     const existingPub = await idbGet(`${uid}:pub`);
     if (existingPub) {
       await publishPublicKey(uid, existingPub).catch(() => {});
       return existingPub;
     }
+    // Private key exists but public key is missing from IndexedDB.
+    // Try to recover the public key from Firestore (where it may have been published earlier).
+    // CRITICAL: Do NOT generate new keys — that would overwrite the private key
+    // and make all old encrypted messages permanently undecryptable.
+    try {
+      const recoveredPub = await fetchECDHPublicKey(uid);
+      if (recoveredPub) {
+        await idbPut(`${uid}:pub`, recoveredPub).catch(() => {});
+        return recoveredPub;
+      }
+    } catch {}
+    // Cannot recover public key. Do NOT overwrite the private key.
+    // Return null — the caller will use V1 fallback encryption.
+    console.warn(`[E2EE] Public key missing for ${uid}, private key preserved. Using V1 fallback.`);
+    return null;
   }
 
   // No keys found — generate a new pair

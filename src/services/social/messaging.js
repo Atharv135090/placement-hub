@@ -293,33 +293,88 @@ export async function encryptMessage(plaintext, senderUid, recipientUid) {
 }
 
 export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
-  try {
-    if (messageVersion === 2) {
-      const myPrivKey = await getECDHPrivateKey(uid1);
-      const theirPubKey = await fetchECDHPublicKey(uid2);
-      if (myPrivKey && theirPubKey) {
-        try {
-          return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
-        } catch (v2Err) {
-          console.warn("decryptMessage V2 decryption failed, trying V1 fallback:", v2Err?.message);
-        }
-      } else {
-        console.warn("decryptMessage V2: missing key material, trying V1 fallback", {
-          hasMyPrivKey: !!myPrivKey,
-          hasTheirPubKey: !!theirPubKey,
-        });
-      }
-      // V2 failed or missing keys — try V1 PBKDF2 fallback (deterministic from UIDs)
-      try {
-        return await decryptV1(cipherText, uid1, uid2);
-      } catch {
-        // V1 also failed — message is genuinely unrecoverable
-      }
-      return "Unable to decrypt this message.";
+  // Try V2 (ECDH) first — works if both keys are available
+  const myPrivKey = await getECDHPrivateKey(uid1);
+  const theirPubKey = await fetchECDHPublicKey(uid2);
+
+  // Attempt V2 decryption
+  if (myPrivKey && theirPubKey) {
+    try {
+      return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+    } catch (v2Err) {
+      // V2 failed — will try V1 below
     }
+  }
+
+  // Attempt V1 (PBKDF2 deterministic from UIDs) — works for V1-encrypted messages
+  try {
     return await decryptV1(cipherText, uid1, uid2);
+  } catch (v1Err) {
+    // V1 also failed
+  }
+
+  // Both failed — message is genuinely unrecoverable
+  return "Unable to decrypt this message.";
+}
+
+/**
+ * Re-encrypt a V1 message with V2 (ECDH).
+ * Returns { encryptedText, messageVersion: 2 } or null if re-encryption fails.
+ */
+export async function reEncryptMessageV1(cipherText, senderUid, recipientUid) {
+  try {
+    const plainText = await decryptV1(cipherText, senderUid, recipientUid);
+    const privateKey = await getECDHPrivateKey(senderUid);
+    const recipientPubKey = await fetchECDHPublicKey(recipientUid);
+    if (!privateKey || !recipientPubKey) return null;
+    const encrypted = await encryptMessageE2EE(plainText, privateKey, recipientPubKey);
+    return { encryptedText: encrypted, messageVersion: 2 };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Re-encrypt all V1 messages in a conversation with V2 (ECDH).
+ * Only works if both users have ECDH keys published to Firestore.
+ * Returns the number of messages re-encrypted.
+ */
+export async function reEncryptConversationMessages(conversationId, senderUid, recipientUid) {
+  try {
+    const privateKey = await getECDHPrivateKey(senderUid);
+    const recipientPubKey = await fetchECDHPublicKey(recipientUid);
+    if (!privateKey || !recipientPubKey) return 0;
+
+    const q = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("createdAt", "asc")
+    );
+    const snapshot = await getDocs(q);
+    let reEncrypted = 0;
+
+    for (const docSnap of snapshot.docs) {
+      const msg = docSnap.data();
+      if (msg.messageVersion === 2) continue; // Already V2
+
+      try {
+        const plainText = msg.messageVersion === 1
+          ? await decryptV1(msg.encryptedText, senderUid, recipientUid)
+          : await decryptV1(msg.encryptedText, senderUid, recipientUid); // Unknown version — try V1
+
+        const encrypted = await encryptMessageE2EE(plainText, privateKey, recipientPubKey);
+        await updateDoc(doc(db, "messages", docSnap.id), {
+          encryptedText: encrypted,
+          messageVersion: 2,
+        });
+        reEncrypted++;
+      } catch {
+        // This message couldn't be decrypted — skip it
+      }
+    }
+    return reEncrypted;
   } catch (err) {
-    console.warn("decryptMessage error:", err?.message, "version:", messageVersion);
-    return "Unable to decrypt this message.";
+    console.error("reEncryptConversationMessages error:", err);
+    return 0;
   }
 }

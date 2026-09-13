@@ -699,6 +699,19 @@
   word-break: break-word;
 }
 
+.msg-bubble-text--locked {
+  opacity: 0.55;
+  font-style: italic;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  color: #999;
+}
+
+[data-theme="dark"] .msg-bubble-text--locked {
+  color: #888;
+}
+
 .msg-bubble-footer {
   display: flex;
   align-items: center;

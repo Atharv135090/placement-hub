@@ -64,6 +64,7 @@ export {
   markConversationRead,
   encryptMessage,
   decryptMessage,
+  reEncryptConversationMessages,
 } from "./messaging";
 
 // Admin Messaging
