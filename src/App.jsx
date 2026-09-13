@@ -25,6 +25,7 @@ const StudentsGate = lazy(() => import("./components/StudentsGate"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const Chat = lazy(() => import("./pages/Chat"));
 const AtsChecker = lazy(() => import("./pages/AtsChecker"));
+const Support = lazy(() => import("./pages/Support"));
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminCompanies = lazy(() => import("./pages/admin/Companies"));
@@ -35,6 +36,7 @@ const AdminAssistant = lazy(() => import("./pages/AdminAssistant"));
 const WebsiteAnalytics = lazy(() => import("./pages/admin/WebsiteAnalytics"));
 const AdminReports = lazy(() => import("./pages/admin/Reports"));
 const AdminChat = lazy(() => import("./pages/admin/AdminChat"));
+const AdminSupport = lazy(() => import("./pages/admin/Support"));
 const Unauthorized = lazy(() => import("./pages/admin/Unauthorized"));
 
 function PageSpinner() {
@@ -105,7 +107,10 @@ export default function App() {
               {/* 07. Chat */}
               <Route path="/chat" element={<Chat />} />
 
-              {/* 08. Profile & Settings */}
+              {/* 08. Support */}
+              <Route path="/support" element={<Support />} />
+
+              {/* 09. Profile & Settings */}
               <Route path="/profile" element={<Settings />} />
               <Route path="/settings" element={<Settings />} />
 
@@ -126,6 +131,7 @@ export default function App() {
               <Route path="reports" element={<AdminReports />} />
               <Route path="chat" element={<AdminChat />} />
               <Route path="chat/:studentId" element={<AdminChat />} />
+              <Route path="support" element={<AdminSupport />} />
               <Route path="unauthorized" element={<Unauthorized />} />
               <Route path="drives" element={<Navigate to="/admin/companies" replace />} />
             </Route>

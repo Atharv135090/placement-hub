@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    PLACEMENT ASSISTANT - FIXED WINDOW & STABILITY REDESIGN
-   Placement Hub Pink Identity + Fixed Chat Workspace
+   Placement Hub Pink Identity + Mobile Minimal Chat UI (PRD 1)
    ═══════════════════════════════════════════════════════ */
 
 /* Main Page Container */
@@ -162,6 +162,7 @@
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  width: 100%;
 }
 
 /* ── DESKTOP SIDEBAR (PRD Section 2) ─────────────────── */
@@ -330,6 +331,7 @@
   background: var(--bg-main, #f8fafc);
   overflow: hidden;
   min-height: 0;
+  width: 100%;
 }
 
 /* ── EMPTY / NEW CHAT WELCOME STATE ───────────────────── */
@@ -479,6 +481,7 @@
   margin: 0 auto;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Fixed Header at Top of Chat Panel */
@@ -786,8 +789,11 @@
   background: #fff1f2;
 }
 
+/* Flexible Input Field with min-width: 0 to prevent overflow */
 .asst-composer-input {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   border: none;
   background: transparent;
   outline: none;
@@ -835,6 +841,8 @@
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .asst-topic-chip {
@@ -1005,7 +1013,7 @@
   color: #cbd5e1;
 }
 
-/* ── RESPONSIVE MOBILE & TABLET (PRD Section 10, 15, 23, 24) ── */
+/* ── RESPONSIVE MOBILE & TABLET ──────────────────────── */
 @media (max-width: 1024px) {
   .asst-action-cards-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1016,103 +1024,172 @@
   .asst-chat-thread-container,
   .asst-composer-wrapper {
     max-width: 100%;
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
 
+/* ── MINIMAL CHAT-ONLY MOBILE EXPERIENCE (PRD 1) ──────── */
 @media (max-width: 768px) {
-  .asst-sidebar {
-    display: none; /* Mobile uses drawer & bottom nav dock */
-  }
-
+  /* Hide Desktop Inner Top Bar on Mobile to preserve Global Placement Hub Header */
   .asst-top-bar {
-    padding: 0 16px;
+    display: none !important;
   }
 
-  .asst-search-box {
-    display: none;
+  /* Hide Desktop Sidebar on Mobile */
+  .asst-sidebar {
+    display: none !important;
   }
 
+  /* Remove Quick Action Cards from Mobile (PRD Section 5) */
+  .asst-action-cards-grid {
+    display: none !important;
+  }
+
+  /* Remove Topic Chips & Disclaimer Subtext from Mobile (PRD Section 7) */
+  .asst-topic-chips-row,
+  .asst-disclaimer-text {
+    display: none !important;
+  }
+
+  /* Mobile Container & Viewport height calculation */
   .asst-container {
-    height: auto;
-    min-height: calc(100vh - 70px);
+    height: calc(100vh - 60px);
+    min-height: calc(100vh - 60px);
+    background: var(--bg-main, #ffffff);
   }
 
   .asst-workspace-body {
-    height: auto;
-    min-height: calc(100vh - 124px);
+    height: 100%;
+    min-height: 0;
   }
 
+  .asst-canvas {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* Minimal Empty Welcome State on Mobile (PRD Section 8) */
   .asst-welcome-wrapper {
-    padding: 20px 16px;
+    padding: 30px 20px;
+    justify-content: center;
+  }
+
+  .asst-sparkle-badge {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 14px;
   }
 
   .asst-welcome-name {
-    font-size: 1.7rem;
+    font-size: 1.6rem;
+    margin-bottom: 4px;
   }
 
   .asst-welcome-question {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     margin-bottom: 10px;
   }
 
   .asst-welcome-description {
     font-size: 0.86rem;
-    margin-bottom: 24px;
+    margin-bottom: 0;
+    max-width: 320px;
   }
 
-  .asst-action-cards-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
-  .asst-action-card {
-    padding: 12px 14px;
-    border-radius: 14px;
-  }
-
-  .asst-action-card-title {
-    font-size: 0.88rem;
-  }
-
-  .asst-action-card-subtext {
-    font-size: 0.74rem;
-  }
-
-  .asst-composer-wrapper {
-    padding: 10px 14px 80px 14px;
+  /* Mobile Chat Thread Container */
+  .asst-chat-thread-container {
     max-width: 100%;
+    width: 100%;
+  }
+
+  .asst-chat-header {
+    height: 42px;
+    padding: 0 14px;
+  }
+
+  .asst-messages-viewport {
+    padding: 16px 14px;
+  }
+
+  /* Mobile Message Bubbles & Icons */
+  .asst-message-bubble {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+
+  .asst-ai-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .asst-user-avatar-wrap {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Responsive Mobile Composer (PRD Section 12-14) */
+  .asst-composer-wrapper {
+    padding: 8px 12px 75px 12px; /* Space above mobile bottom nav dock */
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .asst-composer-capsule {
     height: 48px;
     padding: 4px 6px 4px 14px;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  .asst-composer-btn {
+    padding: 4px;
+    flex-shrink: 0;
   }
 
   .asst-composer-input {
-    font-size: 0.86rem;
-  }
-
-  .asst-topic-chips-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    justify-content: flex-start;
+    flex: 1;
+    min-width: 0;
     width: 100%;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
+    font-size: 0.88rem;
   }
 
-  .asst-topic-chip {
+  .asst-composer-send-btn {
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
   }
 }
 
-@media (max-width: 390px) {
+/* 320px Viewport Optimization (PRD Section 14) */
+@media (max-width: 340px) {
   .asst-welcome-name {
-    font-size: 1.5rem;
+    font-size: 1.45rem;
   }
   .asst-welcome-question {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
+  }
+  .asst-composer-wrapper {
+    padding: 6px 6px 70px 6px;
+  }
+  .asst-composer-capsule {
+    height: 44px;
+    padding: 3px 4px 3px 10px;
+    gap: 4px;
+  }
+  .asst-composer-input {
+    font-size: 0.82rem;
+  }
+  .asst-composer-btn {
+    padding: 2px;
+  }
+  .asst-composer-send-btn {
+    width: 32px;
+    height: 32px;
   }
 }

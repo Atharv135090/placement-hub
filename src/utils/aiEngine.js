@@ -115,7 +115,7 @@ function buildContents(systemPrompt, history, query) {
 }
 
 /**
- * Primary: Use @google/genai SDK.
+ * Primary: Use @google/genai SDK (non-streaming).
  */
 async function trySdk(apiKey, systemPrompt, history, query) {
   const ai = new GoogleGenAI({ apiKey });
@@ -132,6 +132,114 @@ async function trySdk(apiKey, systemPrompt, history, query) {
 
   const response = await chat.sendMessage({ message: query });
   return response.text;
+}
+
+/**
+ * Streaming: Use @google/genai SDK with real-time chunk delivery.
+ * Calls onChunk(text) for each received token.
+ * Returns the full accumulated text when done.
+ */
+async function trySdkStream(apiKey, systemPrompt, history, query, onChunk, signal) {
+  const ai = new GoogleGenAI({ apiKey });
+
+  const chat = ai.chats.create({
+    model: MODEL,
+    config: {
+      systemInstruction: systemPrompt,
+      maxOutputTokens: 2048,
+      temperature: 0.7,
+    },
+    history: history,
+  });
+
+  const stream = await chat.sendMessageStream({ message: query });
+  let full = "";
+
+  for await (const chunk of stream) {
+    if (signal?.aborted) break;
+    const text = chunk.text || "";
+    if (text) {
+      full += text;
+      onChunk(full);
+    }
+  }
+
+  return full;
+}
+
+/**
+ * Streaming fallback: REST API with streamGenerateContent.
+ * Calls onChunk(text) for each received token.
+ * Returns the full accumulated text when done.
+ */
+async function tryRestStream(apiKey, systemPrompt, history, query, onChunk, signal) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify({
+      contents: buildContents(systemPrompt, history, query),
+      generationConfig: {
+        maxOutputTokens: 2048,
+        temperature: 0.7,
+      },
+      systemInstruction: {
+        parts: [{ text: systemPrompt }],
+      },
+    }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const err = errData?.error;
+    if (err?.code === 401 || err?.code === 403 || err?.status === "UNAUTHENTICATED") {
+      throw new Error("AUTH_FAILED");
+    }
+    if (err?.code === 404 || err?.status === "NOT_FOUND") {
+      throw new Error("MODEL_NOT_FOUND");
+    }
+    if (err?.code === 429 || err?.status === "RESOURCE_EXHAUSTED") {
+      throw new Error("RATE_LIMIT");
+    }
+    throw new Error(err?.message || "REST_ERROR");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = "";
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (signal?.aborted) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (text) {
+            full += text;
+            onChunk(full);
+          }
+        } catch {
+          // skip malformed SSE lines
+        }
+      }
+    }
+  }
+
+  return full;
 }
 
 /**
@@ -179,6 +287,66 @@ async function tryRest(apiKey, systemPrompt, history, query) {
   }
 
   throw new Error("EMPTY_RESPONSE");
+}
+
+/**
+ * Streaming entry point. Calls onChunk(accumulatedText) as tokens arrive.
+ * Returns the final full text when generation completes.
+ */
+export async function generateSmartResponseStream(query, ctx, messages, onChunk, signal) {
+  const apiKey = getGeminiApiKey();
+
+  if (!apiKey) {
+    const err = "⚠️ **Configuration Error**: Missing Gemini API Key (`VITE_GEMINI_API_KEY`). Please add a valid Gemini API Key from [Google AI Studio](https://aistudio.google.com/apikey) to your `.env` file and restart the dev server.";
+    onChunk(err);
+    return err;
+  }
+
+  const systemPrompt = buildSystemPrompt(ctx);
+  const history = formatGeminiHistory(messages);
+
+  // 1. Primary: SDK streaming
+  try {
+    const text = await trySdkStream(apiKey, systemPrompt, history, query, onChunk, signal);
+    if (text && text.trim()) return text.trim();
+  } catch (err) {
+    const msg = err?.message || String(err);
+    console.warn(`[Placement AI Engine] SDK stream failed:`, msg);
+    if (msg === "AUTH_FAILED" || msg.includes("401") || msg.includes("403") || msg.includes("API key") || msg.includes("API_KEY_INVALID")) {
+      const errText = "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
+      onChunk(errText);
+      return errText;
+    }
+  }
+
+  // 2. Fallback: REST streaming
+  try {
+    const text = await tryRestStream(apiKey, systemPrompt, history, query, onChunk, signal);
+    if (text && text.trim()) return text.trim();
+  } catch (err) {
+    const msg = err?.message || String(err);
+    console.error(`[Placement AI Engine] REST stream failed:`, msg);
+    if (msg === "AUTH_FAILED") {
+      const errText = "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
+      onChunk(errText);
+      return errText;
+    }
+    if (msg === "MODEL_NOT_FOUND") {
+      const errText = "⚠️ **Model Unavailable**: The configured Gemini model (`" + MODEL + "`) is not available. Please check your Gemini API configuration.";
+      onChunk(errText);
+      return errText;
+    }
+    if (msg === "RATE_LIMIT") {
+      const errText = "⚠️ **Rate Limit Exceeded**: Gemini API quota limit reached. Please wait a moment and try again.";
+      onChunk(errText);
+      return errText;
+    }
+  }
+
+  // 3. All failed
+  const errText = "⚠️ **Service Unavailable**: Unable to reach the Gemini AI service. Please try again in a moment.";
+  onChunk(errText);
+  return errText;
 }
 
 export async function generateSmartResponse(query, ctx, messages) {

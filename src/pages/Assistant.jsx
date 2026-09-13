@@ -1,9 +1,9 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import UserAvatar from "../components/UserAvatar";
-import { getPlacementContext, generateSmartResponse, isAIConfigured } from "../utils/aiEngine";
+import { getPlacementContext, generateSmartResponseStream, isAIConfigured } from "../utils/aiEngine";
 import "./Assistant.css";
 
 // 6 Premium Quick Action Cards matching PRD & reference design
@@ -202,6 +202,9 @@ export default function Assistant() {
     setInput,
     busy,
     setBusy,
+    streamingText,
+    setStreamingText,
+    abortRef,
     clearConversation,
     bottomRef,
     addMsg,
@@ -219,6 +222,7 @@ export default function Assistant() {
   const [speakingIdx, setSpeakingIdx] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [, setTick] = useState(0); // Force re-render to update relative timestamps
+  const userScrolledRef = useRef(false);
   const [recentChats, setRecentChats] = useState(() => {
     try {
       const saved = localStorage.getItem("ph_recent_chats");
@@ -277,6 +281,25 @@ export default function Assistant() {
     }
   }, [messages]);
 
+  // Smart auto-scroll: follow streaming content only if user is near bottom
+  useEffect(() => {
+    if (streamingText === null) return;
+    const el = chatViewportRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < 150 && !userScrolledRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [streamingText]);
+
+  // Track when user manually scrolls away from bottom
+  const handleScroll = useCallback(() => {
+    const el = chatViewportRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledRef.current = distanceFromBottom > 150;
+  }, []);
+
   async function handleSendMessage(textToSend) {
     const text = (textToSend || input).trim();
     if (!text || busy) return;
@@ -284,6 +307,8 @@ export default function Assistant() {
     setInput("");
     addMsg("user", text);
     setBusy(true);
+    setStreamingText("");
+    userScrolledRef.current = false;
 
     // Track in recent chats dynamically
     const title = text.length > 28 ? text.slice(0, 26) + "..." : text;
@@ -294,13 +319,29 @@ export default function Assistant() {
 
     const ctx = getPlacementContext(applications, companies, savedIds, profile, user);
 
+    // Create an AbortController for cancellation
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const response = await generateSmartResponse(text, ctx, messages);
+      const response = await generateSmartResponseStream(
+        text,
+        ctx,
+        messages,
+        (accumulated) => {
+          setStreamingText(accumulated);
+        },
+        controller.signal
+      );
       addMsg("assistant", response);
     } catch (err) {
-      addMsg("assistant", "Sorry, I encountered an error while processing your request. Please try again.");
+      if (err.name !== "AbortError") {
+        addMsg("assistant", "Sorry, I encountered an error while processing your request. Please try again.");
+      }
     } finally {
+      setStreamingText(null);
       setBusy(false);
+      abortRef.current = null;
     }
   }
 
@@ -577,7 +618,7 @@ export default function Assistant() {
               </div>
 
               {/* Scrollable Messages Viewport */}
-              <div className="asst-messages-viewport" ref={chatViewportRef}>
+              <div className="asst-messages-viewport" ref={chatViewportRef} onScroll={handleScroll}>
                 <div className="asst-messages-list">
                   {messages.map((msg, i) => {
                     const isAssistant = msg.role === "assistant";
@@ -683,12 +724,19 @@ export default function Assistant() {
                         </svg>
                       </div>
                       <div className="asst-message-content">
-                        <div className="asst-message-bubble asst-bubble-ai asst-typing-bubble">
-                          <div className="asst-typing-dots">
-                            <span className="dot" />
-                            <span className="dot" />
-                            <span className="dot" />
-                          </div>
+                        <div className="asst-message-bubble asst-bubble-ai">
+                          {streamingText !== null && streamingText.length > 0 ? (
+                            <div
+                              className="asst-markdown-body"
+                              dangerouslySetInnerHTML={{ __html: renderMarkdown(streamingText) }}
+                            />
+                          ) : (
+                            <div className="asst-typing-dots">
+                              <span className="dot" />
+                              <span className="dot" />
+                              <span className="dot" />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

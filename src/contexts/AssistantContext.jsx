@@ -12,7 +12,9 @@ export function AssistantProvider({ children }) {
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [streamingText, setStreamingText] = useState(null);
   const bottomRef = useRef(null);
+  const abortRef = useRef(null);
 
   function addMsg(role, text, extra = {}) {
     setMessages((prev) => [
@@ -22,6 +24,12 @@ export function AssistantProvider({ children }) {
   }
 
   function clearConversation() {
+    setStreamingText(null);
+    setBusy(false);
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
     setMessages([
       {
         role: "assistant",
@@ -40,6 +48,9 @@ export function AssistantProvider({ children }) {
         setInput,
         busy,
         setBusy,
+        streamingText,
+        setStreamingText,
+        abortRef,
         clearConversation,
         bottomRef,
         addMsg,

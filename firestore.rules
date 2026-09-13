@@ -236,6 +236,25 @@ service cloud.firestore {
         && request.auth.uid in get(/databases/$(database)/documents/adminConversations/$(request.resource.data.conversationId)).data.participants;
     }
 
+    // ─── SUPPORT TICKETS ──────────────────────────────────────
+
+    match /supportTickets/{ticketId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isOwnerOrAdmin() || hasAdminRole());
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && (resource.data.userId == request.auth.uid || isOwnerOrAdmin() || hasAdminRole());
+      allow delete: if isOwnerOrAdmin() || hasAdminRole();
+
+      match /messages/{messageId} {
+        allow read: if isAuth()
+          && (get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
+            || isOwnerOrAdmin() || hasAdminRole());
+
+        allow create: if isAuth()
+          && (get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
+            || isOwnerOrAdmin() || hasAdminRole());
+      }
+    }
+
     // ─── DENY ALL OTHER COLLECTIONS ───────────────────────────
 
     match /{document=**} {

@@ -27,6 +27,7 @@ export const APPLICATIONS = "applications";
 export const ANNOUNCEMENTS = "announcements";
 export const ATTACHMENTS = "attachments";
 export const NOTIFICATIONS = "notifications";
+export const SUPPORT_TICKETS = "supportTickets";
 
 // ─── HELPERS ──────────────────────────────────────────────────
 

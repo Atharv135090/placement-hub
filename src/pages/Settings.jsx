@@ -55,6 +55,8 @@ export default function Settings() {
 
   // Profile fields
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dob, setDob] = useState("");
   const [branch, setBranch] = useState("");
   const [location, setLocation] = useState("");
   const [college, setCollege] = useState("");
@@ -134,15 +136,19 @@ export default function Settings() {
     if (profile) {
       const profileData = {
         name: profile.displayName || user?.displayName || "",
+        phone: profile.phoneNumber || profile.phone || "",
+        dob: profile.dateOfBirth || profile.dob || "",
         branch: profile.branch || "",
         location: profile.location || "",
-        college: profile.college || "",
+        college: profile.institution || profile.college || "",
         about: profile.about || "",
         graduationYear: profile.graduationYear || "",
         placementStatus: profile.placementStatus || "Not set",
         profileVisibility: profile.profileVisibility || "public",
       };
       setName(profileData.name);
+      setPhone(profileData.phone);
+      setDob(profileData.dob);
       setBranch(profileData.branch);
       setLocation(profileData.location);
       setCollege(profileData.college);
@@ -176,6 +182,8 @@ export default function Settings() {
     if (!savedData) return false;
     return (
       name !== savedData.name ||
+      phone !== savedData.phone ||
+      dob !== savedData.dob ||
       branch !== savedData.branch ||
       location !== savedData.location ||
       college !== savedData.college ||
@@ -184,7 +192,7 @@ export default function Settings() {
       placementStatus !== savedData.placementStatus ||
       profileVisibility !== savedData.profileVisibility
     );
-  }, [name, branch, location, college, about, graduationYear, placementStatus, profileVisibility, savedData]);
+  }, [name, phone, dob, branch, location, college, about, graduationYear, placementStatus, profileVisibility, savedData]);
 
   // Profile completion calculation
   const profileCompletion = useMemo(() => {
@@ -240,9 +248,14 @@ export default function Settings() {
     try {
       const updates = {
         displayName: trimmedName,
+        phoneNumber: phone,
+        phone: phone,
+        dateOfBirth: dob,
+        dob: dob,
         branch,
         location,
-        college,
+        institution: college,
+        college: college,
         about,
         graduationYear,
         placementStatus,
@@ -289,6 +302,8 @@ export default function Settings() {
       // Update savedData to reflect successful save
       setSavedData({
         name: trimmedName,
+        phone,
+        dob,
         branch,
         location,
         college,
@@ -327,13 +342,15 @@ export default function Settings() {
   function performCancelEdit() {
     if (savedData) {
       setName(savedData.name);
-      setBranch(savedData.branch);
-      setLocation(savedData.location);
-      setCollege(savedData.college);
-      setAbout(savedData.about);
-      setGraduationYear(savedData.graduationYear);
-      setPlacementStatus(savedData.placementStatus);
-      setProfileVisibility(savedData.profileVisibility);
+      setPhone(savedData.phone || "");
+      setDob(savedData.dob || "");
+      setBranch(savedData.branch || "");
+      setLocation(savedData.location || "");
+      setCollege(savedData.college || "");
+      setAbout(savedData.about || "");
+      setGraduationYear(savedData.graduationYear || "");
+      setPlacementStatus(savedData.placementStatus || "Not set");
+      setProfileVisibility(savedData.profileVisibility || "public");
     }
     setIsEditing(false);
     setShowCancelConfirm(false);
@@ -512,14 +529,13 @@ export default function Settings() {
       try {
         await reauthenticateWithPopup(user, new GoogleAuthProvider());
       } catch {
-        // Reauthentication might fail if popup is blocked; proceed anyway
+        // Reauthentication optional
       }
 
       try {
         await deleteUser(user);
       } catch {
-        // Auth deletion may fail on Spark plan or if reauth failed
-        // The Firestore data is already cleaned up
+        // Spark plan fallback
       }
 
       await logOut();
@@ -572,292 +588,6 @@ export default function Settings() {
         style={{ display: "none" }}
         onChange={handleProfilePictureSelect}
       />
-
-      {/* ═══════════════════════════════════════════════════════════
-          1. TOP HEADER (PROFILE & SETTINGS)
-          ═══════════════════════════════════════════════════════════ */}
-      <div className="profile-hero-banner glass">
-        <div className="banner-left-content">
-          <div className="banner-icon-badge">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-          </div>
-
-          <div className="banner-text-group">
-            <span className="banner-tagline-label">PROFILE &amp; SETTINGS</span>
-            <h1 className="banner-main-title">
-              Manage Your <span className="title-crimson-gradient">Journey</span>
-            </h1>
-            <p className="banner-subtitle-text">
-              Update your profile, preferences, and account.
-            </p>
-            <div className="banner-micro-motto">
-              SAME DISCIPLINE. BRIGHTER TOMORROWS.
-            </div>
-          </div>
-        </div>
-
-        <div className="banner-right-visual">
-          {/* Tilted 3D floating glass card layers */}
-          <div className="banner-glass-cards-layer">
-            <div className="floating-glass-card card-rear"></div>
-            <div className="floating-glass-card card-mid"></div>
-            <div className="floating-glass-card card-front"></div>
-          </div>
-
-          <div className="banner-vertical-divider"></div>
-
-          <div className="banner-vertical-motto">
-            <span>LEARN</span>
-            <span>BUILD</span>
-            <span>CONNECT</span>
-            <span className="motto-green-accent">ACHIEVE</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════
-          2. TOP PROFILE HERO (AVATAR, BIO, STATS)
-          ═══════════════════════════════════════════════════════════ */}
-      <div className="profile-hero-card glass">
-        <div className="hero-top-left">
-          {/* Avatar with crimson ring & camera button */}
-          <div className="hero-avatar-wrapper">
-            <div className="avatar-glowing-ring">
-              <UserAvatar
-                user={user}
-                profile={profile}
-                style={{ width: 104, height: 104 }}
-                alt="Profile Avatar"
-              />
-            </div>
-            <button
-              className="avatar-camera-btn"
-              title="Change Profile Photo"
-              onClick={() => profileFileInputRef.current?.click()}
-              disabled={uploadingPhoto}
-            >
-              {uploadingPhoto ? (
-                <span className="camera-spin">⏳</span>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          {/* Identity block */}
-          <div className="hero-identity-block">
-            <div className="hero-name-row">
-              <h2 className="hero-name-text">{name || "Student"}</h2>
-              <span className="hero-verified-badge" title="Verified Account">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="#e11d48">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              </span>
-              <span className="hero-online-status-pill">
-                <span className="online-green-pulse"></span>
-                <span>Online</span>
-              </span>
-            </div>
-
-            <div className="hero-email-text">{user?.email || "No email"}</div>
-
-            <div className="hero-meta-pills-row">
-              {location && (
-                <span className="hero-meta-pill">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  <span>{location}</span>
-                </span>
-              )}
-
-              {graduationYear && (
-                <span className="hero-meta-pill">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  <span>{graduationYear.includes("Year") ? graduationYear : `Class of ${graduationYear}`}</span>
-                </span>
-              )}
-
-              {branch && (
-                <span className="hero-meta-pill">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
-                  </svg>
-                  <span>{branch}</span>
-                </span>
-              )}
-            </div>
-
-            <p className="hero-about-excerpt">
-              {about || "Passionate about technology, problem solving and building useful products."}
-            </p>
-          </div>
-        </div>
-
-          {/* Hero right: Edit Profile button & 4 Stat Cards */}
-          <div className="hero-top-right">
-            <div className="hero-actions-bar">
-              {!isEditing ? (
-                <button
-                  className="btn btn-primary hero-edit-profile-btn"
-                  onClick={handleEditProfile}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <span>Edit Profile</span>
-                </button>
-              ) : (
-                <>
-                  <button
-                    className="btn btn-primary hero-edit-profile-btn"
-                    onClick={handleSaveProfile}
-                    disabled={saving}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                      <polyline points="17 21 17 13 7 13 7 21" />
-                      <polyline points="7 3 7 8 15 8" />
-                    </svg>
-                    <span>{saving ? "Saving..." : "Save Changes"}</span>
-                  </button>
-                  <button
-                    className="btn btn-secondary hero-edit-profile-btn hero-cancel-btn"
-                    onClick={handleCancelEdit}
-                    disabled={saving}
-                  >
-                    <span>Cancel</span>
-                  </button>
-                </>
-              )}
-
-              <div className="hero-menu-container" ref={heroMenuRef}>
-                <button
-                  className="hero-three-dots-btn"
-                  onClick={() => setShowHeroMenu((prev) => !prev)}
-                  title="Options"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="1.75" />
-                    <circle cx="12" cy="12" r="1.75" />
-                    <circle cx="12" cy="19" r="1.75" />
-                  </svg>
-                </button>
-
-                {showHeroMenu && (
-                  <div className="hero-dropdown-menu glass-heavy animate-fade-in">
-                    <button
-                      className="menu-option-btn"
-                      onClick={() => {
-                        setShowHeroMenu(false);
-                        profileFileInputRef.current?.click();
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                        <circle cx="12" cy="13" r="4" />
-                      </svg>
-                      <span>Change Photo</span>
-                    </button>
-
-                    <button
-                      className="menu-option-btn"
-                      onClick={() => {
-                        setShowHeroMenu(false);
-                        handleRestoreDefaultPhoto();
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                      </svg>
-                      <span>Restore Default Avatar</span>
-                    </button>
-
-                    <button
-                      className="menu-option-btn"
-                      onClick={() => {
-                        setShowHeroMenu(false);
-                        copyAccountId();
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      <span>Copy Account ID</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-          {/* 4 Compact Glass Application Stat Cards */}
-          <div className="hero-stat-cards-grid">
-            <div className="compact-glass-stat stat-applications">
-              <div className="stat-icon-badge red-badge">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              </div>
-              <div className="stat-count-value">{stats?.total || 0}</div>
-              <div className="stat-label-text">Applications</div>
-            </div>
-
-            <div className="compact-glass-stat stat-shortlisted">
-              <div className="stat-icon-badge blue-badge">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                </svg>
-              </div>
-              <div className="stat-count-value">{stats?.shortlisted || 0}</div>
-              <div className="stat-label-text">Shortlisted</div>
-            </div>
-
-            <div className="compact-glass-stat stat-interviews">
-              <div className="stat-icon-badge green-badge">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </div>
-              <div className="stat-count-value">{stats?.interview || 0}</div>
-              <div className="stat-label-text">Interviews</div>
-            </div>
-
-            <div className="compact-glass-stat stat-offers">
-              <div className="stat-icon-badge orange-badge">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                  <path d="M4 22h16" />
-                  <path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34" />
-                  <path d="M18 4H6v7a6 6 0 0 0 12 0V4z" />
-                </svg>
-              </div>
-              <div className="stat-count-value">{stats?.offer || 0}</div>
-              <div className="stat-label-text">Offers</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ═══════════════════════════════════════════════════════════
           3. NAVIGATION TABS & PROFILE COMPLETION ROW
@@ -938,546 +668,595 @@ export default function Settings() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-          TAB 1: MY PROFILE (MAIN FUTURISTIC CONTENT)
+          REDESIGNED PROFILE WORKSPACE (DESKTOP + MOBILE)
           ═══════════════════════════════════════════════════════════ */}
       {activeTab === "profile" && (
-        <div className="profile-tab-body">
-          {/* 4. PERSONAL DETAILS CARD */}
-          <div className="futuristic-card glass personal-details-card">
-            <div className="card-header-row">
-              <div className="card-header-left">
-                <div className="card-header-icon-badge user-badge">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="card-section-title">Personal Details</h3>
-                  <p className="card-section-subtitle">Keep your information up to date.</p>
-                </div>
+        <div className="ph-profile-wrapper animate-fade-in">
+          {/* 1. PROFILE HERO CARD */}
+          <div className="ph-profile-hero">
+            <div className="ph-hero-left">
+              <div className="ph-avatar-container">
+                <UserAvatar
+                  user={user}
+                  profile={profile}
+                  style={{ width: 104, height: 104 }}
+                  alt="Profile Avatar"
+                />
+                <button
+                  type="button"
+                  className="ph-camera-badge-btn"
+                  title="Change Profile Photo"
+                  onClick={() => profileFileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto ? (
+                    <span className="camera-spin">⏳</span>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                  )}
+                </button>
               </div>
 
-              <div className="card-header-actions">
-                {!isEditing ? (
+              <div className="ph-hero-info">
+                <div className="ph-name-role-row">
+                  <h1 className="ph-hero-name">{name || user?.displayName || "Student"}</h1>
+                  <span className="ph-role-badge">
+                    <span className="role-sparkle">✦</span>
+                    <span>{profile?.role === "owner" ? "Owner" : profile?.role === "admin" ? "Admin" : "Student"}</span>
+                  </span>
+                </div>
+                <div className="ph-hero-email">{user?.email || ""}</div>
+                <p className="ph-hero-bio">
+                  {about || "Passionate about technology, problem solving and building useful products."}
+                </p>
+
+                <div className="ph-hero-skills-row">
+                  {(skills.length > 0 ? skills.slice(0, 3) : ["Computer Science", "Web Development", "Problem Solving"]).map((sk) => (
+                    <span key={sk} className="ph-hero-skill-chip">{sk}</span>
+                  ))}
                   <button
                     type="button"
-                    className="btn btn-secondary card-edit-toggle-btn"
-                    onClick={handleEditProfile}
+                    className="ph-hero-add-skill-btn"
+                    onClick={() => setShowAddSkill(true)}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                    </svg>
-                    <span>Edit Profile</span>
+                    + Add
                   </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-primary card-edit-toggle-btn"
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                      </svg>
-                      <span>{saving ? "Saving..." : "Save Changes"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary card-edit-toggle-btn"
-                      onClick={handleCancelEdit}
-                      disabled={saving}
-                    >
-                      <span>Cancel</span>
-                    </button>
-                  </>
-                )}
+                </div>
               </div>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="personal-details-grid">
-              {/* Left Column: Input Fields */}
-              <div className="form-fields-column">
-                <div className="futuristic-input-field">
-                  <label className="field-label">Full Name</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <span className="field-prefix-icon">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="ph-hero-right">
+              {!isEditing ? (
+                <button
+                  type="button"
+                  className="ph-edit-profile-btn"
+                  onClick={handleEditProfile}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span>Edit Profile</span>
+                </button>
+              ) : (
+                <div className="ph-edit-actions-row">
+                  <button
+                    type="button"
+                    className="ph-edit-profile-btn ph-save-btn"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                  >
+                    <span>{saving ? "Saving..." : "Save Changes"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="ph-edit-profile-btn ph-cancel-btn"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    <span>Cancel</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. STATS CARD */}
+          <div className="ph-stats-card">
+            <div className="ph-stat-col">
+              <div className="ph-stat-icon-circle ph-icon-pink">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              </div>
+              <div className="ph-stat-num">{stats?.total || 0}</div>
+              <div className="ph-stat-label">Applications</div>
+            </div>
+
+            <div className="ph-stat-col">
+              <div className="ph-stat-icon-circle ph-icon-blue">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                </svg>
+              </div>
+              <div className="ph-stat-num">{stats?.shortlisted || 0}</div>
+              <div className="ph-stat-label">Shortlisted</div>
+            </div>
+
+            <div className="ph-stat-col">
+              <div className="ph-stat-icon-circle ph-icon-green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </div>
+              <div className="ph-stat-num">{stats?.interview || 0}</div>
+              <div className="ph-stat-label">Interviews</div>
+            </div>
+
+            <div className="ph-stat-col">
+              <div className="ph-stat-icon-circle ph-icon-gold">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                  <path d="M4 22h16" />
+                  <path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34" />
+                  <path d="M18 4H6v7a6 6 0 0 0 12 0V4z" />
+                </svg>
+              </div>
+              <div className="ph-stat-num">{stats?.offer || 0}</div>
+              <div className="ph-stat-label">Offers</div>
+            </div>
+          </div>
+
+          {/* 3. TWO COLUMN CONTENT GRID */}
+          <div className="ph-content-grid">
+            {/* LEFT COLUMN: Personal Information */}
+            <div className="ph-grid-left">
+              <div className="ph-card">
+                <div className="ph-card-header">
+                  <div className="ph-header-title">
+                    <div className="ph-header-icon-pink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                    </span>
-                    <input
-                      type="text"
-                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      readOnly={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    />
+                    </div>
+                    <h3>Personal Information</h3>
                   </div>
+                  {!isEditing ? (
+                    <button type="button" className="ph-card-action-btn" onClick={handleEditProfile}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                      <span>Edit</span>
+                    </button>
+                  ) : null}
                 </div>
 
-                <div className="futuristic-input-field">
-                  <label className="field-label">Email Address</label>
-                  <div className="field-input-wrapper disabled-wrap">
-                    <span className="field-prefix-icon">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="ph-personal-info-body">
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      <span className="ph-info-label">Full Name</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Full Name"
+                        />
+                      ) : (
+                        <span>{name || "Not Specified"}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                         <polyline points="22,6 12,13 2,6" />
                       </svg>
-                    </span>
-                    <input
-                      type="email"
-                      className="glass-text-input disabled"
-                      value={user?.email || ""}
-                      disabled
-                      title="Email is linked to authentication"
-                    />
+                      <span className="ph-info-label">Email Address</span>
+                    </div>
+                    <div className="ph-info-val">
+                      <span>{user?.email || "Not Specified"}</span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="futuristic-input-field">
-                  <label className="field-label">Branch / Degree</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <span className="field-prefix-icon">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
-                    </span>
-                    <input
-                      type="text"
-                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                      placeholder="e.g. Computer Science Engineering"
-                      readOnly={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    />
+                      <span className="ph-info-label">Phone Number</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+91 98765 43210"
+                        />
+                      ) : (
+                        <span>{phone || "Not Specified"}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="futuristic-input-field">
-                  <label className="field-label">Graduation Year</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <span className="field-prefix-icon">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
                         <line x1="8" y1="2" x2="8" y2="6" />
                         <line x1="3" y1="10" x2="21" y2="10" />
                       </svg>
-                    </span>
-                    <input
-                      type="text"
-                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
-                      value={graduationYear}
-                      onChange={(e) => setGraduationYear(e.target.value)}
-                      placeholder="e.g. 2026"
-                      readOnly={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    />
+                      <span className="ph-info-label">Date of Birth</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          placeholder="Aug 15, 2002"
+                        />
+                      ) : (
+                        <span>{dob || "Not Specified"}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="futuristic-input-field">
-                  <label className="field-label">Location</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <span className="field-prefix-icon">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                         <circle cx="12" cy="10" r="3" />
                       </svg>
-                    </span>
-                    <input
-                      type="text"
-                      className={`glass-text-input ${!isEditing ? "readonly" : ""}`}
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. Pune, Maharashtra"
-                      readOnly={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    />
+                      <span className="ph-info-label">Location</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="Pune, Maharashtra"
+                        />
+                      ) : (
+                        <span>{location || "Not Specified"}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="futuristic-input-field">
-                  <label className="field-label">Placement Status</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <select
-                      className={`glass-text-input glass-select ${!isEditing ? "readonly" : ""}`}
-                      value={placementStatus}
-                      onChange={(e) => setPlacementStatus(e.target.value)}
-                      disabled={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    >
-                      <option value="Not set">Not set</option>
-                      <option value="Actively Looking">Actively Looking</option>
-                      <option value="Interviewing">Interviewing</option>
-                      <option value="Placed">Placed</option>
-                      <option value="Higher Studies">Higher Studies</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="futuristic-input-field">
-                  <label className="field-label">Profile Visibility</label>
-                  <div className={`field-input-wrapper ${!isEditing ? "readonly-wrap" : ""}`}>
-                    <select
-                      className={`glass-text-input glass-select ${!isEditing ? "readonly" : ""}`}
-                      value={profileVisibility}
-                      onChange={(e) => setProfileVisibility(e.target.value)}
-                      disabled={!isEditing}
-                      tabIndex={isEditing ? 0 : -1}
-                    >
-                      <option value="public">Public - Anyone can view your profile</option>
-                      <option value="private">Private - Require follow approval</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: About You textarea */}
-              <div className="about-column">
-                <div className="futuristic-input-field about-field-full">
-                  <div className="about-header-label">
-                    <label className="field-label">About You</label>
-                    <span className="about-counter-pill">{about.length}/500</span>
-                  </div>
-                  <textarea
-                    className={`glass-textarea ${!isEditing ? "readonly" : ""}`}
-                    rows="9"
-                    maxLength={500}
-                    value={about}
-                    onChange={(e) => setAbout(e.target.value)}
-                    placeholder="Passionate about technology, problem solving and building useful products."
-                    readOnly={!isEditing}
-                    tabIndex={isEditing ? 0 : -1}
-                  ></textarea>
-                </div>
-              </div>
-            </form>
-
-            {/* Rotating Motivational Quote Highlight */}
-            <div className="personal-details-quote-strip">
-              <span className="quote-mark-icon">“</span>
-              <span className="quote-content-text">
-                {MOTIVATIONAL_QUOTES[quoteIndex]}
-              </span>
-              <span className="quote-mark-icon">”</span>
-            </div>
-          </div>
-
-          {/* 5. SKILLS & EXPERTISE CARD */}
-          <div className="futuristic-card glass skills-card-section">
-            <div className="card-header-row">
-              <div className="card-header-left">
-                <div className="card-header-icon-badge grid-badge">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="card-section-title">Skills &amp; Expertise</h3>
-                  <p className="card-section-subtitle">Showcase your skills to connect with the right opportunities.</p>
-                </div>
-              </div>
-
-              <div className="card-header-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary card-add-skill-btn"
-                  onClick={() => setShowAddSkill((prev) => !prev)}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Add Skill</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="skills-content-layout">
-              <div className="skills-pills-cloud">
-                {skills.map((skill) => (
-                  <span key={skill} className="futuristic-skill-pill">
-                    <span>{skill}</span>
-                    <button
-                      type="button"
-                      className="skill-remove-cross"
-                      onClick={() => handleRemoveSkill(skill)}
-                      title="Remove skill"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-
-                {showAddSkill ? (
-                  <div className="add-skill-inline-pill">
-                    <input
-                      type="text"
-                      className="skill-inline-input"
-                      placeholder="e.g. Python"
-                      value={newSkillInput}
-                      onChange={(e) => setNewSkillInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSkill())}
-                      autoFocus
-                    />
-                    <button type="button" className="btn-skill-save" onClick={handleAddSkill}>Add</button>
-                    <button type="button" className="btn-skill-cancel" onClick={() => setShowAddSkill(false)}>✕</button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="skill-pill-plus-trigger"
-                    onClick={() => setShowAddSkill(true)}
-                    title="Add skill"
-                  >
-                    +
-                  </button>
-                )}
-              </div>
-
-              {/* Right 3D Isometric Glass Cube Graphic */}
-              <div className="skills-3d-visual-pane">
-                <div className="isometric-glass-cube">
-                  <div className="cube-face face-top"></div>
-                  <div className="cube-face face-left"></div>
-                  <div className="cube-face face-right"></div>
-                  <div className="cube-glow-core"></div>
-                </div>
-
-                <div className="visual-slogan-col">
-                  <span>SKILLS</span>
-                  <span>CREATE</span>
-                  <span>OPPORTUNITIES</span>
-                  <div className="slogan-crimson-underline"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 6. RESUME / CV CARD */}
-          <div className="futuristic-card glass resume-card-section">
-            <div className="card-header-row">
-              <div className="card-header-left">
-                <div className="card-header-icon-badge doc-badge">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="card-section-title">Resume / CV</h3>
-                  <p className="card-section-subtitle">Upload your latest resume to help others know you better.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="resume-content-layout">
-              <div className="resume-file-display-box glass-card">
-                <div className="resume-box-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="1.8">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                    <polyline points="10 9 9 9 8 9" />
-                  </svg>
-                </div>
-
-                <div className="resume-box-info">
-                  <strong className="resume-file-name-text">
-                    {resumeFileName || "No resume uploaded yet"}
-                  </strong>
-                  <span className="resume-file-hint-text">
-                    {resumeFileName
-                      ? "PDF • Updated recently"
-                      : "Upload your resume in PDF format (Max 5 MB)"}
-                  </span>
-                </div>
-
-                <div className="resume-box-actions">
-                  {resumeViewUrl && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary resume-action-btn"
-                      onClick={handleViewResume}
-                    >
-                      View
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-primary resume-action-btn"
-                    onClick={() => setShowResumeModal(true)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>{resumeFileName ? "Update Resume" : "Upload Resume"}</span>
-                  </button>
-                  {resumeFileName && (
-                    <button
-                      type="button"
-                      className="btn btn-danger resume-action-btn"
-                      onClick={handleResumeDelete}
-                      disabled={deletingResume}
-                    >
-                      {deletingResume ? "Deleting..." : "Delete"}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Right 3D Glowing Document Stack Graphic */}
-              <div className="resume-3d-visual-pane">
-                <div className="layered-doc-stack">
-                  <div className="doc-page doc-page-3"></div>
-                  <div className="doc-page doc-page-2"></div>
-                  <div className="doc-page doc-page-1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="visual-slogan-col">
-                  <span>YOUR STORY</span>
-                  <span>OPENS</span>
-                  <span>DOORS</span>
-                  <div className="slogan-crimson-underline"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 7. ACCOUNT INFORMATION CARD */}
-          <div className="futuristic-card glass account-info-card-section">
-            <div className="card-header-row">
-              <div className="card-header-left">
-                <div className="card-header-icon-badge shield-badge">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="card-section-title">Account Information</h3>
-                  <p className="card-section-subtitle">View your account details and role.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="account-info-layout">
-              <div className="account-info-metrics-row">
-                <div className="account-meta-col">
-                  <span className="account-meta-label">Account Role</span>
-                  <div className="account-meta-pill role-pill">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#e11d48">
-                      <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
-                    </svg>
-                    <span>{profile?.role === "admin" ? "Admin" : profile?.role === "owner" ? "Owner" : "Student"}</span>
-                  </div>
-                </div>
-
-                <div className="account-meta-col">
-                  <span className="account-meta-label">Member Since</span>
-                  <div className="account-meta-pill">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                    </svg>
-                    <span>{memberSince}</span>
-                  </div>
-                </div>
-
-                <div className="account-meta-col">
-                  <span className="account-meta-label">Account ID</span>
-                  <div className="account-meta-pill uid-pill" onClick={copyAccountId} title="Click to copy full Account ID">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="4" width="18" height="16" rx="2" />
-                      <line x1="7" y1="8" x2="17" y2="8" />
-                      <line x1="7" y1="12" x2="17" y2="12" />
-                    </svg>
-                    <span>{user?.uid ? `${user.uid.slice(0, 14)}...` : "N/A"}</span>
-                    <button type="button" className="uid-copy-inline-btn" title="Copy Account ID">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                        <path d="M6 12v5c3 3 9 3 12 0v-5" />
                       </svg>
+                      <span className="ph-info-label">Institution</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={college}
+                          onChange={(e) => setCollege(e.target.value)}
+                          placeholder="Pune University"
+                        />
+                      ) : (
+                        <span>{college || "Not Specified"}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                      </svg>
+                      <span className="ph-info-label">Branch / Degree</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          placeholder="B.Tech in Computer Science"
+                        />
+                      ) : (
+                        <span>{branch || "Not Specified"}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ph-info-row">
+                    <div className="ph-info-label-group">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      <span className="ph-info-label">Graduation Year</span>
+                    </div>
+                    <div className="ph-info-val">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          className="ph-info-input"
+                          value={graduationYear}
+                          onChange={(e) => setGraduationYear(e.target.value)}
+                          placeholder="2026"
+                        />
+                      ) : (
+                        <span>{graduationYear || "Not Specified"}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="ph-grid-right">
+              {/* ABOUT ME CARD */}
+              <div className="ph-card">
+                <div className="ph-card-header">
+                  <div className="ph-header-title">
+                    <div className="ph-header-icon-pink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <h3>About Me</h3>
+                  </div>
+                  {!isEditing ? (
+                    <button type="button" className="ph-card-action-btn" onClick={handleEditProfile}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                      <span>Edit</span>
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="ph-card-body">
+                  {isEditing ? (
+                    <textarea
+                      className="ph-about-textarea"
+                      rows="4"
+                      value={about}
+                      onChange={(e) => setAbout(e.target.value)}
+                      placeholder="Write your bio..."
+                    />
+                  ) : (
+                    <p className="ph-about-text">
+                      {about || "Passionate about technology, problem solving and building useful products. I love working on real-world projects and learning new skills."}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* SKILLS CARD */}
+              <div className="ph-card">
+                <div className="ph-card-header">
+                  <div className="ph-header-title">
+                    <div className="ph-header-icon-pink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                      </svg>
+                    </div>
+                    <h3>Skills</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className="ph-card-action-btn ph-btn-add-skill"
+                    onClick={() => setShowAddSkill((prev) => !prev)}
+                  >
+                    + Add Skill
+                  </button>
+                </div>
+
+                <div className="ph-card-body">
+                  <div className="ph-skills-chips-wrapper">
+                    {(skills.length > 0
+                      ? skills
+                      : ["C++", "Python", "JavaScript", "React", "Node.js", "Data Structures", "Algorithms", "HTML", "CSS"]
+                    ).map((skill) => (
+                      <span key={skill} className="ph-skill-chip">
+                        <span>{skill}</span>
+                        {skills.includes(skill) && (
+                          <button
+                            type="button"
+                            className="ph-skill-remove-btn"
+                            onClick={() => handleRemoveSkill(skill)}
+                            title="Remove skill"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </span>
+                    ))}
+
+                    {showAddSkill ? (
+                      <div className="ph-inline-add-skill-box">
+                        <input
+                          type="text"
+                          className="ph-add-skill-input"
+                          placeholder="Skill name..."
+                          value={newSkillInput}
+                          onChange={(e) => setNewSkillInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddSkill())}
+                          autoFocus
+                        />
+                        <button type="button" className="ph-btn-skill-save" onClick={handleAddSkill}>Add</button>
+                        <button type="button" className="ph-btn-skill-cancel" onClick={() => setShowAddSkill(false)}>✕</button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* RESUME CARD */}
+              <div className="ph-card">
+                <div className="ph-card-header">
+                  <div className="ph-header-title">
+                    <div className="ph-header-icon-pink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </div>
+                    <h3>Resume</h3>
+                  </div>
+                </div>
+
+                <div className="ph-card-body">
+                  {!resumeFileName ? (
+                    <div className="ph-no-resume-box">
+                      <div className="ph-no-resume-title">No resume uploaded yet</div>
+                      <p className="ph-no-resume-desc">Upload your resume to get better opportunities</p>
+                      <button
+                        type="button"
+                        className="ph-btn-upload-resume-pink"
+                        onClick={() => setShowResumeModal(true)}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>Upload Resume</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="ph-resume-active-box">
+                      <div className="ph-resume-meta-row">
+                        <span className="ph-pdf-icon-badge">PDF</span>
+                        <div className="ph-resume-details">
+                          <strong className="ph-resume-filename">{resumeFileName}</strong>
+                          <span className="ph-resume-status-text">Uploaded &amp; verified</span>
+                        </div>
+                      </div>
+
+                      <div className="ph-resume-actions">
+                        {resumeViewUrl && (
+                          <button type="button" className="ph-btn-resume-sub" onClick={handleViewResume}>
+                            View
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="ph-btn-upload-resume-pink"
+                          onClick={() => setShowResumeModal(true)}
+                        >
+                          Update
+                        </button>
+                        <button
+                          type="button"
+                          className="ph-btn-resume-danger"
+                          onClick={handleResumeDelete}
+                          disabled={deletingResume}
+                        >
+                          {deletingResume ? "Deleting..." : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ACCOUNT SETTINGS CARD */}
+              <div className="ph-card">
+                <div className="ph-card-header">
+                  <div className="ph-header-title">
+                    <div className="ph-header-icon-pink">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    </div>
+                    <h3>Account Settings</h3>
+                  </div>
+                </div>
+
+                <div className="ph-card-body">
+                  <div className="ph-settings-options-list">
+                    <button
+                      type="button"
+                      className="ph-settings-option-item"
+                      onClick={() => handleTabChange("security")}
+                    >
+                      <div className="ph-option-left">
+                        <span className="ph-option-icon">🔒</span>
+                        <span className="ph-option-text">Change Password</span>
+                      </div>
+                      <span className="ph-option-arrow">›</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ph-settings-option-item"
+                      onClick={() => handleTabChange("notifications")}
+                    >
+                      <div className="ph-option-left">
+                        <span className="ph-option-icon">🔔</span>
+                        <span className="ph-option-text">Manage Notifications</span>
+                      </div>
+                      <span className="ph-option-arrow">›</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ph-settings-option-item"
+                      onClick={() => handleTabChange("preferences")}
+                    >
+                      <div className="ph-option-left">
+                        <span className="ph-option-icon">🛡️</span>
+                        <span className="ph-option-text">Privacy &amp; Security</span>
+                      </div>
+                      <span className="ph-option-arrow">›</span>
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Right 3D Glowing Security Shield Graphic */}
-              <div className="account-3d-visual-pane">
-                <div className="holographic-shield">
-                  <div className="shield-outer-ring"></div>
-                  <div className="shield-inner-plate">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="visual-slogan-col">
-                  <span>SECURE</span>
-                  <span>LEARN</span>
-                  <span>GROW</span>
-                  <div className="slogan-crimson-underline"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 8. MOTIVATIONAL PANORAMIC FOOTER BANNER */}
-          <div className="motivational-panoramic-card glass">
-            <img
-              src="/profile_keep_growing_banner.jpg"
-              alt="Keep Growing"
-              className="panoramic-banner-bg-img"
-            />
-            <div className="panoramic-banner-overlay"></div>
-
-            <div className="panoramic-content-left">
-              <h2 className="panoramic-banner-title">
-                Keep <span className="panoramic-crimson-gradient">Growing</span>
-              </h2>
-              <p className="panoramic-banner-desc">
-                Update your profile, showcase your skills, and stay ready for the next big opportunity.
-              </p>
-              <div className="panoramic-brand-tag">
-                PLACEMENT HUB
-              </div>
-            </div>
-
-            <div className="panoramic-content-right">
-              <div className="panoramic-slogan-col">
-                <span>SAME PEOPLE</span>
-                <span>BRIGHTER</span>
-                <span>TOMORROWS</span>
-                <div className="panoramic-slogan-bar"></div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+
 
       {/* ═══════════════════════════════════════════════════════════
           TAB 2: PREFERENCES (THEME & APPEARANCE)

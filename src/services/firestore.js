@@ -94,3 +94,17 @@ export {
   adminDeleteUser,
   adminBlockUser,
 } from "./firestore/admin";
+
+// Support
+export {
+  generateTicketId,
+  createSupportTicket,
+  subscribeUserTickets,
+  subscribeAllTickets,
+  subscribeTicketMessages,
+  addTicketMessage,
+  updateTicketStatus,
+  markTicketRead,
+  uploadSupportAttachment,
+} from "./firestore/support";
+
