@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export function getGeminiApiKey() {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
+  const key =
+    (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+    (typeof process !== "undefined" && process.env && process.env.VITE_GEMINI_API_KEY);
   return (key || "").trim();
 }
 
@@ -111,85 +113,41 @@ export async function generateSmartResponse(query, ctx, messages) {
   const systemPrompt = buildSystemPrompt(ctx);
   const history = formatGeminiHistory(messages);
 
+  const MODEL = "gemini-3.5-flash";
+
   // 1. Primary Attempt: @google/generative-ai SDK
-  const modelsToTry = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
   let authErrorOccurred = false;
 
-  for (const modelName of modelsToTry) {
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemPrompt,
-      });
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: MODEL,
+      systemInstruction: systemPrompt,
+    });
 
-      const chat = model.startChat({
-        history: history,
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.7,
-        },
-      });
+    const chat = model.startChat({
+      history: history,
+      generationConfig: {
+        maxOutputTokens: 2048,
+        temperature: 0.7,
+      },
+    });
 
-      const result = await chat.sendMessage(query);
-      const responseText = result?.response?.text();
+    const result = await chat.sendMessage(query);
+    const responseText = result?.response?.text();
 
-      if (responseText && responseText.trim()) {
-        return responseText.trim();
-      }
-    } catch (err) {
-      const msg = err?.message || String(err);
-      console.warn(`[Placement AI Engine] SDK model '${modelName}' attempt failed:`, msg);
-
-      if (msg.includes("401") || msg.includes("403") || msg.includes("API key") || msg.includes("authentication") || msg.includes("API_KEY_INVALID")) {
-        authErrorOccurred = true;
-        break; // Stop trying other models if API key is unauthorized/invalid
-      }
+    if (responseText && responseText.trim()) {
+      return responseText.trim();
     }
-  }
+  } catch (err) {
+    const msg = err?.message || String(err);
+    console.warn(`[Placement AI Engine] SDK model '${MODEL}' failed:`, msg);
 
-  // 2. Secondary Attempt: Direct REST API Endpoint
-  for (const modelName of ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-      const contents = [
-        { role: "user", parts: [{ text: `[System Context: ${systemPrompt}]` }] },
-        { role: "model", parts: [{ text: "Understood. I am ready to assist as Placement Hub Assistant!" }] },
-        ...history,
-        { role: "user", parts: [{ text: query }] },
-      ];
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: contents,
-          generationConfig: {
-            maxOutputTokens: 2048,
-            temperature: 0.7,
-          },
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return data.candidates[0].content.parts[0].text.trim();
-      }
-
-      if (data?.error) {
-        console.error(`[Placement AI Engine REST Error] ${modelName} returned HTTP ${res.status}:`, data.error.message || data.error);
-
-        if (data.error.code === 401 || data.error.code === 403 || data.error.status === "UNAUTHENTICATED" || data.error.message?.includes("API key")) {
-          return "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
-        }
-        if (data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED") {
-          return "⚠️ **Rate Limit Exceeded**: Gemini API quota limit reached. Please wait a moment and try again.";
-        }
-      }
-    } catch (restErr) {
-      console.error(`[Placement AI Engine REST Exception] ${modelName} fetch failed:`, restErr);
+    if (msg.includes("401") || msg.includes("403") || msg.includes("API key") || msg.includes("authentication") || msg.includes("API_KEY_INVALID")) {
+      authErrorOccurred = true;
+    } else {
+      // SDK failed for non-auth reason, try REST as fallback
+      console.warn(`[Placement AI Engine] SDK failed, attempting REST fallback...`);
     }
   }
 
@@ -197,7 +155,56 @@ export async function generateSmartResponse(query, ctx, messages) {
     return "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
   }
 
+  // 2. Secondary Attempt: Direct REST API Endpoint
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+    const contents = [
+      { role: "user", parts: [{ text: `[System Context: ${systemPrompt}]` }] },
+      { role: "model", parts: [{ text: "Understood. I am ready to assist as Placement Hub Assistant!" }] },
+      ...history,
+      { role: "user", parts: [{ text: query }] },
+    ];
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: contents,
+        generationConfig: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      return data.candidates[0].content.parts[0].text.trim();
+    }
+
+    if (data?.error) {
+      console.error(`[Placement AI Engine REST Error] ${MODEL} returned HTTP ${res.status}:`, data.error.message || data.error);
+
+      if (data.error.code === 401 || data.error.code === 403 || data.error.status === "UNAUTHENTICATED" || data.error.message?.includes("API key")) {
+        return "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
+      }
+      if (data.error.code === 404 || data.error.status === "NOT_FOUND") {
+        return "⚠️ **Model Unavailable**: The configured Gemini model (`" + MODEL + "`) is not available. Please check your Gemini API configuration.";
+      }
+      if (data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED") {
+        return "⚠️ **Rate Limit Exceeded**: Gemini API quota limit reached. Please wait a moment and try again.";
+      }
+    }
+  } catch (restErr) {
+    console.error(`[Placement AI Engine REST Exception] ${MODEL} fetch failed:`, restErr);
+  }
+
   // 3. Fallback when AI service cannot be reached
   console.error("[Placement AI Engine Error] All Gemini AI API requests failed. Check network or VITE_GEMINI_API_KEY.");
-  return "⚠️ **Service Unavailable**: Unable to reach the Gemini AI service. Diagnostic logs have been recorded in the browser console. Please try again in a moment.";
+  return "⚠️ **Service Unavailable**: Unable to reach the Gemini AI service. Please try again in a moment.";
 }

@@ -4,10 +4,10 @@ const envContent = fs.readFileSync(".env", "utf8");
 const match = envContent.match(/VITE_GEMINI_API_KEY=(.*)/);
 const apiKey = match ? match[1].trim() : "";
 
-console.log("Testing REST endpoint with API key:", apiKey);
+console.log("Testing REST endpoint, API key configured:", Boolean(apiKey));
 
 async function testRest() {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
   try {
     const res = await fetch(url, {
       method: "POST",

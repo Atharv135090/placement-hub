@@ -5,12 +5,12 @@ const envContent = fs.readFileSync(".env", "utf8");
 const match = envContent.match(/VITE_GEMINI_API_KEY=(.*)/);
 const apiKey = match ? match[1].trim() : "";
 
-console.log("API Key:", apiKey);
+console.log("API Key configured:", Boolean(apiKey));
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
 async function testModels() {
-  const modelsToTest = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-pro"];
+  const modelsToTest = ["gemini-3.5-flash"];
   for (const modelName of modelsToTest) {
     try {
       console.log(`\nTesting model: ${modelName}...`);

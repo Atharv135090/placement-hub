@@ -581,21 +581,25 @@ export default function Assistant() {
               </button>
             </div>
             <div className="asst-recent-chats-list">
-              {recentChats.map((rc) => (
-                <div
-                  key={rc.id}
-                  className="asst-recent-chat-item"
-                  onClick={() => handlePromptClick(rc.prompt)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="asst-recent-chat-left">
-                    <span className="asst-recent-chat-bubble-icon">💬</span>
-                    <span className="asst-recent-chat-title">{rc.title}</span>
+              {recentChats.length === 0 ? (
+                <div className="asst-recent-empty">No recent chats yet</div>
+              ) : (
+                recentChats.map((rc) => (
+                  <div
+                    key={rc.id}
+                    className="asst-recent-chat-item"
+                    onClick={() => handlePromptClick(rc.prompt)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="asst-recent-chat-left">
+                      <span className="asst-recent-chat-bubble-icon">💬</span>
+                      <span className="asst-recent-chat-title">{rc.title}</span>
+                    </div>
+                    <span className="asst-recent-chat-time">{rc.time}</span>
                   </div>
-                  <span className="asst-recent-chat-time">{rc.time}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
