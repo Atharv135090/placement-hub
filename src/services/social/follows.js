@@ -64,7 +64,9 @@ export async function acceptFollowRequest(fromUserId, toUserId) {
 
     const reverseSnap = await getDoc(doc(db, "follows", reverseDocId));
     if (reverseSnap.exists() && reverseSnap.data().status === "pending") {
-      await deleteDoc(doc(db, "follows", reverseDocId));
+      await updateDoc(doc(db, "follows", reverseDocId), { status: "accepted" });
+      await updateDoc(doc(db, "users", toUserId), { followingCount: increment(1) });
+      await updateDoc(doc(db, "users", fromUserId), { followersCount: increment(1) });
     }
 
     return { data: { id: docId }, error: null };
@@ -463,8 +465,11 @@ export function subscribeToRelationship(currentUserId, otherUserId, callback) {
   const docIdIn = `${otherUserId}_${currentUserId}`;
 
   const statuses = { outgoing: null, incoming: null };
+  let outLoaded = false;
+  let inLoaded = false;
 
   function emit() {
+    const loading = !outLoaded || !inLoaded;
     const relationship = getRelationship(statuses.outgoing, statuses.incoming);
     console.log("[PAIR_REL]", currentUserId.slice(0, 6), "<->", otherUserId.slice(0, 6), ":", {
       OUT_DOC: docIdOut,
@@ -472,24 +477,29 @@ export function subscribeToRelationship(currentUserId, otherUserId, callback) {
       IN_DOC: docIdIn,
       IN_STATUS: statuses.incoming,
       RELATIONSHIP: relationship,
+      LOADING: loading,
     });
-    callback({ outgoing: statuses.outgoing, incoming: statuses.incoming, relationship });
+    callback({ outgoing: statuses.outgoing, incoming: statuses.incoming, relationship, loading });
   }
 
   const unsubOut = onSnapshot(doc(db, "follows", docIdOut), (docSnap) => {
+    outLoaded = true;
     statuses.outgoing = docSnap.exists() ? docSnap.data().status : null;
     emit();
   }, (error) => {
     console.error("[subscribeToRelationship] outgoing error:", error);
+    outLoaded = true;
     statuses.outgoing = null;
     emit();
   });
 
   const unsubIn = onSnapshot(doc(db, "follows", docIdIn), (docSnap) => {
+    inLoaded = true;
     statuses.incoming = docSnap.exists() ? docSnap.data().status : null;
     emit();
   }, (error) => {
     console.error("[subscribeToRelationship] incoming error:", error);
+    inLoaded = true;
     statuses.incoming = null;
     emit();
   });

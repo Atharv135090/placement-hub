@@ -1,173 +1,203 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+const GEMINI_API_KEY = (
+  (typeof import.meta !== "undefined" && import.meta?.env?.VITE_GEMINI_API_KEY)
+  || (typeof process !== "undefined" && process?.env?.VITE_GEMINI_API_KEY)
+  || ""
+).trim();
 
-let genAI = null;
-let model = null;
-
-function isValidGeminiKey(key) {
-  return typeof key === "string" && key.trim().length > 10;
+if (typeof window !== "undefined") {
+  console.log("[aiEngine] VITE_GEMINI_API_KEY loaded:", GEMINI_API_KEY ? `present (${GEMINI_API_KEY.length} chars, starts with ${GEMINI_API_KEY.slice(0, 6)}...)` : "MISSING");
 }
 
 export function isAIConfigured() {
-  return isValidGeminiKey(GEMINI_API_KEY);
-}
-
-function getGeminiModel() {
-  if (!model && isValidGeminiKey(GEMINI_API_KEY)) {
-    try {
-      genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-      model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    } catch (err) {
-      console.error("Failed to initialize Gemini:", err);
-      model = null;
-    }
-  }
-  return model;
+  return Boolean(GEMINI_API_KEY && GEMINI_API_KEY.length > 5);
 }
 
 export function getPlacementContext(applications, companies, savedIds, profile, user) {
-  var savedCompanies = companies.filter(function(c) { return savedIds.includes(c.id); });
-  var interviews = applications.filter(function(a) { return a.status === "interview"; });
-  var shortlisted = applications.filter(function(a) { return a.status === "shortlisted"; });
+  const savedCompanies = (companies || []).filter((c) => (savedIds || []).includes(c.id));
+  const interviews = (applications || []).filter((a) => a.status === "interview");
+  const shortlisted = (applications || []).filter((a) => a.status === "shortlisted");
+  const applied = (applications || []).filter((a) => a.status === "applied");
+  const offers = (applications || []).filter((a) => a.status === "offer" || a.status === "selected");
+  const rejected = (applications || []).filter((a) => a.status === "rejected");
+
   return {
-    totalApplications: applications.length,
-    applied: applications.filter(function(a) { return a.status === "applied"; }).length,
+    totalApplications: (applications || []).length,
+    applied: applied.length,
     shortlisted: shortlisted.length,
     interviews: interviews.length,
-    offers: applications.filter(function(a) { return a.status === "offer" || a.status === "selected"; }).length,
-    rejected: applications.filter(function(a) { return a.status === "rejected"; }).length,
-    applicationDetails: applications.map(function(a) { return a.companyName + " — " + (a.role || "N/A") + " (" + a.status + ")"; }),
-    savedCompanyNames: savedCompanies.map(function(c) { return c.name; }),
-    totalCompanies: companies.length,
+    offers: offers.length,
+    rejected: rejected.length,
+    applicationDetails: (applications || []).map((a) => `${a.companyName || "Company"} — ${a.role || "N/A"} (${a.status || "Applied"})`),
+    savedCompanyNames: savedCompanies.map((c) => c.name || "Company"),
+    totalCompanies: (companies || []).length,
+    companyList: (companies || []).map((c) => `${c.name || "Company"} (${c.role || "Role"}, Package: ${c.package || "N/A"})`),
     branch: (profile && profile.branch) || "Not specified",
     gradYear: (profile && profile.gradYear) || "Not specified",
-    userName: (profile && profile.displayName) || (user && user.displayName) || "there",
+    userName: (profile && profile.displayName) || (user && user.displayName) || "Student",
   };
 }
 
 function buildSystemPrompt(ctx) {
-  var prompt = "You are Placement Hub Assistant — a helpful, friendly AI for college students.\n" +
-    "You can answer ANY question: coding, CS concepts, general knowledge, career advice, daily life, jokes, translations, study plans, email writing, and more.\n" +
-    "You also have access to the user's placement data. Use it when relevant.\n" +
-    "Respond naturally and conversationally. Use markdown for code blocks and formatting.\n" +
-    "Keep answers concise but complete. If the user asks for code, provide working code examples.\n" +
-    "Do not restrict yourself to placement topics — answer everything like a general-purpose AI assistant.";
+  let prompt = `You are Placement Hub Assistant — an intelligent, helpful, and friendly AI placement copilot and general-purpose AI assistant.
+
+Role & Capabilities:
+- You are an expert general AI assistant. You can answer ANY query: general greetings ("hi", "hello"), personal questions ("what's your name?", "what are you doing?", "why?"), technical explanations ("explain binary search"), career & interview prep ("give me interview tips"), creative writing ("tell me a joke"), coding, DSA, science, math, translations, and general conversation.
+- Your name is "Placement Hub Assistant" (or AI placement copilot).
+- When asked "what's your name?" or "who are you?", introduce yourself as Placement Hub Assistant, your AI placement copilot.
+- Respond naturally, conversationally, and informatively.
+- Use Markdown formatting for headings, bullet points, and code blocks.
+- Do NOT restrict yourself only to placement topics. Answer any question the user asks.`;
 
   if (ctx) {
-    prompt += "\n\nUser's placement data:\n" +
-      "- Name: " + (ctx.userName || "Student") + "\n" +
-      "- Branch: " + (ctx.branch || "N/A") + "\n" +
-      "- Graduation Year: " + (ctx.gradYear || "N/A") + "\n" +
-      "- Total Applications: " + (ctx.totalApplications || 0) + "\n" +
-      "- Applied: " + (ctx.applied || 0) + "\n" +
-      "- Shortlisted: " + (ctx.shortlisted || 0) + "\n" +
-      "- Interviews: " + (ctx.interviews || 0) + "\n" +
-      "- Offers: " + (ctx.offers || 0) + "\n" +
-      "- Rejected: " + (ctx.rejected || 0) + "\n" +
-      "- Application Details: " + (ctx.applicationDetails || []).join("; ") + "\n" +
-      "- Total Companies: " + (ctx.totalCompanies || 0);
+    prompt += `\n\nUser Profile & Placement Data:
+- User Name: ${ctx.userName}
+- Branch: ${ctx.branch}
+- Graduation Year: ${ctx.gradYear}
+- Total Applications: ${ctx.totalApplications}
+- Application Breakdown: ${ctx.applied} Applied, ${ctx.shortlisted} Shortlisted, ${ctx.interviews} Interviews, ${ctx.offers} Offers, ${ctx.rejected} Rejected
+- Application List: ${ctx.applicationDetails.length > 0 ? ctx.applicationDetails.join("; ") : "No applications logged yet"}
+- Saved Companies: ${ctx.savedCompanyNames.length > 0 ? ctx.savedCompanyNames.join(", ") : "None"}
+- Available Companies in Hub (${ctx.totalCompanies}): ${ctx.companyList.length > 0 ? ctx.companyList.slice(0, 15).join("; ") : "None"}`;
   }
 
   return prompt;
 }
 
+/**
+ * Format and sanitize multi-turn conversation history for Gemini API.
+ * Ensures roles strictly alternate (user -> model -> user -> model) starting with 'user'.
+ */
+function formatGeminiHistory(messages) {
+  if (!Array.isArray(messages) || messages.length <= 1) return [];
+
+  // Exclude current/last query which will be sent as the new prompt
+  const prior = messages.slice(0, -1);
+  const formatted = [];
+  let expectedRole = "user";
+
+  for (const m of prior) {
+    const text = (m.text || "").trim();
+    if (!text) continue;
+
+    const role = m.role === "assistant" || m.role === "model" ? "model" : "user";
+
+    if (role === expectedRole) {
+      formatted.push({
+        role: role,
+        parts: [{ text: text }],
+      });
+      expectedRole = role === "user" ? "model" : "user";
+    }
+  }
+
+  // Ensure history ends on model turn if non-empty
+  if (formatted.length > 0 && formatted[formatted.length - 1].role === "user") {
+    formatted.pop();
+  }
+
+  return formatted;
+}
+
 export async function generateSmartResponse(query, ctx, messages) {
-  var geminiModel = getGeminiModel();
+  const apiKey = GEMINI_API_KEY;
 
-  if (geminiModel) {
+  if (!apiKey) {
+    console.error("[Placement AI Engine Error] VITE_GEMINI_API_KEY is not defined in .env file.");
+    return "⚠️ **Configuration Error**: Missing Gemini API Key (`VITE_GEMINI_API_KEY`). Please add a valid Gemini API Key from [Google AI Studio](https://aistudio.google.com/apikey) to your `.env` file and restart the dev server.";
+  }
+
+  const systemPrompt = buildSystemPrompt(ctx);
+  const history = formatGeminiHistory(messages);
+
+  // 1. Primary Attempt: @google/generative-ai SDK
+  const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+
+  for (const modelName of modelsToTry) {
     try {
-      var systemPrompt = buildSystemPrompt(ctx);
-
-      var chatHistory = (messages || []).slice(0, -1).map(function(m) {
-        return {
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.text }],
-        };
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
       });
 
-      var chat = geminiModel.startChat({
-        history: [
-          { role: "user", parts: [{ text: systemPrompt }] },
-          { role: "model", parts: [{ text: "Understood. I'm ready to help with anything!" }] },
-        ].concat(chatHistory),
+      const chat = model.startChat({
+        history: history,
         generationConfig: {
           maxOutputTokens: 2048,
           temperature: 0.7,
-          topP: 0.9,
         },
       });
 
-      var result = await chat.sendMessage(query);
-      var responseText = result.response.text();
+      const result = await chat.sendMessage(query);
+      const responseText = result?.response?.text();
+
       if (responseText && responseText.trim()) {
-        return responseText;
+        return responseText.trim();
       }
-      return generateFallbackResponse(query, ctx);
     } catch (err) {
-      console.error("Gemini API error:", err.message || err);
-      if (err.message && err.message.includes("API key")) {
-        console.warn("Invalid API key. Using fallback responses.");
+      console.warn(`[Placement AI Engine] SDK model '${modelName}' attempt failed:`, err.message || err);
+
+      if (err.message && (err.message.includes("401") || err.message.includes("403") || err.message.includes("API key") || err.message.includes("authentication"))) {
+        console.error("[Placement AI Engine Technical Error] Gemini API Key Authentication Failure:", {
+          model: modelName,
+          apiKeySnippet: apiKey.slice(0, 8) + "...",
+          error: err,
+        });
+        break; // Stop trying other models if API key is unauthorized/invalid
       }
-      return generateFallbackResponse(query, ctx);
     }
   }
 
-  console.warn("Gemini model not available. Using fallback responses.");
-  return generateFallbackResponse(query, ctx);
-}
+  // 2. Secondary Attempt: Direct REST API Endpoint
+  for (const modelName of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-function generateFallbackResponse(query, ctx) {
-  var lower = query.toLowerCase().trim();
+      const contents = [
+        { role: "user", parts: [{ text: `[System Context: ${systemPrompt}]` }] },
+        { role: "model", parts: [{ text: "Understood. I am ready to assist as Placement Hub Assistant!" }] },
+        ...history,
+        { role: "user", parts: [{ text: query }] },
+      ];
 
-  if (/^(hi|hello|hey|howdy|sup|yo|hola|namaste|good\s*(morning|afternoon|evening|night)|greetings)/i.test(lower)) {
-    var time = new Date().getHours();
-    var greeting = time < 12 ? "Good morning" : time < 17 ? "Good afternoon" : "Good evening";
-    return greeting + ", " + ctx.userName + "! I'm your Placement Hub Assistant. I can help with coding, placement prep, general questions, or just chat. What's on your mind?";
-  }
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: {
+            maxOutputTokens: 2048,
+            temperature: 0.7,
+          },
+        }),
+      });
 
-  if (/^(bye|goodbye|see you|ttyl|gn|goodnight)/i.test(lower)) {
-    return "Goodbye, " + ctx.userName + "! Feel free to come back anytime. Good luck with your placement journey!";
-  }
+      const data = await res.json();
 
-  if (/^(thanks|thank you|thx|ty|tysm|appreciate)/i.test(lower)) {
-    return "You're welcome, " + ctx.userName + "! Happy to help. Let me know if there's anything else.";
-  }
+      if (res.ok && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text.trim();
+      }
 
-  if (/^(who are you|what are you|your name|what's your name|ur name)/i.test(lower)) {
-    return "I'm your **Placement Hub Assistant** — your AI copilot for placements and beyond. I can help with coding, CS concepts, interview prep, career advice, and general questions. Just ask me anything!";
-  }
+      if (data?.error) {
+        console.error(`[Placement AI Engine REST Error] ${modelName} returned HTTP ${res.status}:`, {
+          code: data.error.code,
+          status: data.error.status,
+          message: data.error.message,
+          details: data.error.details,
+        });
 
-  if (/^(what is my name|my name|who am i|what's my name)/i.test(lower)) {
-    return "You're **" + ctx.userName + "**! You're logged into Placement Hub.";
-  }
-
-  if (/which companies|what companies|my applications|companies have i applied/i.test(lower)) {
-    if (ctx.applicationDetails.length === 0) {
-      return "You haven't applied to any companies yet. Browse the **Companies** page to find available placement drives and start applying!";
+        if (data.error.code === 401 || data.error.code === 403 || data.error.status === "UNAUTHENTICATED") {
+          return `⚠️ **Gemini AI API Error (${data.error.code} ${data.error.status})**: ${data.error.message}\n\n*Technical Details:* The \`VITE_GEMINI_API_KEY\` defined in your \`.env\` file is invalid or unauthorized. Please get a free API key from [Google AI Studio](https://aistudio.google.com/apikey) and update your \`.env\` file.`;
+        }
+      }
+    } catch (restErr) {
+      console.error(`[Placement AI Engine REST Exception] ${modelName} fetch failed:`, restErr);
     }
-    return "Here are the companies you've applied to:\n\n" + ctx.applicationDetails.map(function(a) { return "- **" + a + "**"; }).join("\n") + "\n\n**Total: " + ctx.totalApplications + "** application(s).";
   }
 
-  if (/how many.*(applied|application)|count.*(applied|application)|total application/i.test(lower)) {
-    return "You have **" + ctx.totalApplications + "** application(s):\n\n- Applied: **" + ctx.applied + "**\n- Shortlisted: **" + ctx.shortlisted + "**\n- Interviews: **" + ctx.interviews + "**\n- Offers: **" + ctx.offers + "**\n- Rejected: **" + ctx.rejected + "**";
-  }
-
-  if (/joke|funny|laugh/i.test(lower)) {
-    var jokes = [
-      "Why do programmers prefer dark mode? Because light attracts bugs!",
-      "Why was the JavaScript developer sad? Because he didn't Node how to Express himself!",
-      "A SQL query walks into a bar, sees two tables, and asks... 'Can I JOIN you?'",
-      "Why do Java developers wear glasses? Because they can't C#!",
-      "What's a programmer's favorite hangout place? Foo Bar!",
-      "How many programmers does it take to change a light bulb? None — that's a hardware problem!",
-    ];
-    return jokes[Math.floor(Math.random() * jokes.length)];
-  }
-
-  if (/^what time|^current time|^tell.*time/i.test(lower)) {
-    return "The current time is **" + new Date().toLocaleTimeString() + "** and the date is **" + new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) + "**.";
-  }
-
-  return "I'm temporarily unable to connect to the AI service. Please try again in a moment.";
+  // 3. Fallback when AI service cannot be reached
+  console.error("[Placement AI Engine Error] All Gemini AI API requests failed. Check network or VITE_GEMINI_API_KEY.");
+  return "⚠️ **AI Connection Error**: Unable to reach the Gemini AI service. Full technical diagnostic logs have been output to your browser console (F12). Please verify your `VITE_GEMINI_API_KEY` in `.env`.";
 }

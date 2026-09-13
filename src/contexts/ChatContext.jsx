@@ -177,18 +177,20 @@ export function ChatProvider({ children }) {
     return convData;
   }, [uid]);
 
-  const sendChatMessage = useCallback(async (conversationId, text) => {
+  const sendChatMessage = useCallback(async (conversationId, text, recipientIdOverride = null, participantsOverride = null) => {
     if (!uid || !text.trim()) return;
     setSending(true);
     try {
-      const otherId = activeConversation?.participants?.find((p) => p !== uid)
-        || activeConversation?.otherUser?.id;
+      // Always prefer explicit overrides; only fall back to closure values as last resort
+      const otherId = recipientIdOverride || participantsOverride?.find?.((p) => p !== uid) || null;
       if (!otherId) {
-        console.error("sendChatMessage: Could not determine other user ID", activeConversation);
-        return;
+        console.error("sendChatMessage: Could not determine recipient user ID", { recipientIdOverride, participantsOverride });
+        throw new Error("Could not determine recipient user ID");
       }
+      const participants = participantsOverride || [uid, otherId];
+
       const { encryptedText, messageVersion } = await encryptMessage(text, uid, otherId);
-      const result = await sendMessage(conversationId, uid, encryptedText, activeConversation?.participants, messageVersion);
+      const result = await sendMessage(conversationId, uid, encryptedText, participants, messageVersion);
       if (result?.error) {
         throw new Error(result.error);
       }
@@ -198,7 +200,7 @@ export function ChatProvider({ children }) {
     } finally {
       setSending(false);
     }
-  }, [uid, activeConversation?.participants, activeConversation?.otherUser?.id]);
+  }, [uid]);
 
   const markRead = useCallback(async (conversationId) => {
     if (!uid) return;

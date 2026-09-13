@@ -57,7 +57,11 @@ export default function AdminUsers() {
     setLoading(true);
     const q = query(collection(db, "users"));
     usersUnsubRef.current = onSnapshot(q, (snap) => {
-      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setUsers(
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((u) => u.accountDeleted !== true)
+      );
       setLoading(false);
     }, (err) => {
       console.error("Admin users listener error:", err);
@@ -143,22 +147,30 @@ export default function AdminUsers() {
   }
 
   async function handleDeleteUser() {
-    if (!deleteModal || deleting) return;
+    if (!deleteModal || deleting || deleteConfirmText !== "DELETE") return;
     setDeleting(true);
+    const targetUser = deleteModal;
+    const targetUserId = targetUser.id;
     try {
-      const { error } = await adminDeleteUser(deleteModal.id);
+      const { error } = await adminDeleteUser(targetUserId);
       if (!error) {
-        setFeedback(`${deleteModal.displayName || deleteModal.email} has been deleted.`);
+        // Immediate local state update (PRD Requirement 4 & 7)
+        setUsers((prev) => prev.filter((u) => u.id !== targetUserId));
+        // Reset modal state & close modal (PRD Requirement 3)
+        setDeleteModal(null);
+        setDeleteConfirmText("");
+        setFeedback(`${targetUser.displayName || targetUser.email} has been deleted.`);
       } else {
-        setFeedback(`Delete failed: ${typeof error === "string" ? error : "Unknown error"}`);
+        // Failure: keep modal open, stop loading (PRD Requirement 3 & 11)
+        const errMsg = typeof error === "string" ? error : (error?.message || "Unable to delete this account. Please try again.");
+        setFeedback(`Delete failed: ${errMsg}`);
       }
     } catch (err) {
-      setFeedback(`Delete failed: ${err?.message || "Network error"}`);
+      setFeedback(`Delete failed: ${err?.message || "Unable to delete this account. Please try again."}`);
+    } finally {
+      setDeleting(false);
+      setTimeout(() => setFeedback(""), 4000);
     }
-    setDeleting(false);
-    setDeleteModal(null);
-    setDeleteConfirmText("");
-    setTimeout(() => setFeedback(""), 3000);
   }
 
   async function handleBlockUser() {
@@ -532,7 +544,7 @@ export default function AdminUsers() {
       </Modal>
 
       {/* Delete Account Modal */}
-      <Modal open={!!deleteModal} onClose={() => { if (!deleting) { setDeleteModal(null); setDeleteConfirmText(""); } }} title="Delete Account">
+      <Modal open={!!deleteModal} onClose={() => { setDeleteModal(null); setDeleteConfirmText(""); setDeleting(false); }} title="Delete Account">
         <div className="au-modal-danger">
           <div className="au-modal-danger-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -558,7 +570,7 @@ export default function AdminUsers() {
           />
         </div>
         <div className="au-modal-actions">
-          <button className="btn btn-secondary" onClick={() => { setDeleteModal(null); setDeleteConfirmText(""); }} disabled={deleting}>Cancel</button>
+          <button className="btn btn-secondary" onClick={() => { setDeleteModal(null); setDeleteConfirmText(""); setDeleting(false); }}>Cancel</button>
           <button
             className="btn btn-danger"
             onClick={handleDeleteUser}

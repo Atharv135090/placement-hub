@@ -126,7 +126,7 @@ function detectLinkPreview(text) {
 }
 
 export default function Chat() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -187,6 +187,16 @@ export default function Chat() {
 
   // Clear confirmation state
   const [confirmAction, setConfirmAction] = useState(null); // "clear" | null
+
+  // In-app error toast state (Replaces window.alert per PRD Section 12)
+  const [sendErrorToast, setSendErrorToast] = useState("");
+
+  function showToast(msg) {
+    setSendErrorToast(msg);
+    setTimeout(() => {
+      setSendErrorToast((prev) => (prev === msg ? "" : prev));
+    }, 4500);
+  }
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
   const ALLOWED_TYPES = [
@@ -486,32 +496,95 @@ export default function Chat() {
 
   // Send message handler
   async function handleSend() {
-    if (!input.trim() || sending || !activeConversation?.otherUser?.id) return;
+    const textToSend = input.trim();
+    if (!textToSend || sending || uploading) return;
+
+    const targetOtherId = activePartner?.id
+      || activeConversation?.otherUser?.id
+      || activeConversation?.participants?.find((p) => p !== user?.uid);
+
+    if (!targetOtherId) {
+      console.error("[CHAT_SEND] Target user ID could not be determined", activeConversation);
+      showToast("Unable to identify message recipient.");
+      return;
+    }
+
+    // Determine roles for sender and recipient
+    const targetRole = activePartner?.role || activeConversation?.otherUser?.role;
+    const senderRole = profile?.role;
+
+    // Admins, owners, and recruiters bypass student-to-student mutual follow requirements
+    const isAdminOrStaff =
+      targetRole === "admin" ||
+      targetRole === "owner" ||
+      targetRole === "recruiter" ||
+      senderRole === "admin" ||
+      senderRole === "owner" ||
+      senderRole === "recruiter";
+
+    // PRD Requirement 5 & 6: Mutual follow check
+    // If pairRelationship is still loading (null or loading:true), allow the attempt
+    // and let Firestore rules enforce access — don't block on a stale/loading state.
+    const relationshipLoaded = pairRelationship && !pairRelationship.loading;
+    const isMutual =
+      isAdminOrStaff ||
+      pairRelationship?.relationship === "mutual" ||
+      pairRelationship?.relationship === "accepted";
+    const hasExistingConv = Boolean(activeConversation?.id);
+
+    if (relationshipLoaded && !isMutual && !hasExistingConv) {
+      console.warn("[CHAT_SEND] Blocked: relationship is not mutual", pairRelationship);
+      showToast("Messaging is only permitted for users with a mutual follow relationship.");
+      return;
+    }
+
     let convId = activeConversation.id;
+    let participants = activeConversation.participants || [user.uid, targetOtherId];
+
     if (!convId) {
       try {
-        const otherId = activeConversation.otherUser.id;
-        const res = await getOrCreateConversation(user.uid, otherId);
-        if (res.error) {
-          console.error("Failed to create conversation:", res.error);
+        console.log("[CHAT_SEND] Creating conversation with:", targetOtherId);
+        const res = await getOrCreateConversation(user.uid, targetOtherId);
+        if (res.error || !res.data?.id) {
+          console.error("[CHAT_SEND] Failed to create conversation:", res.error);
+          showToast("Unable to create conversation.");
           return;
         }
         convId = res.data.id;
-        setActiveConversation((prev) => ({ ...prev, id: convId }));
+        participants = [user.uid, targetOtherId];
+        setActiveConversation((prev) => ({
+          ...prev,
+          id: convId,
+          participants,
+          otherUser: prev?.otherUser || partnerProfile || { id: targetOtherId },
+        }));
       } catch (err) {
-        console.error("Failed to create conversation:", err);
+        console.error("[CHAT_SEND] Conversation init exception:", err);
+        showToast("Unable to create conversation.");
         return;
       }
     }
-    const textToSend = input.trim();
-    setInput("");
-    try {
-      await sendChatMessage(convId, textToSend);
-    } catch (err) {
-      console.error("Message send failed:", err);
-      setInput(textToSend);
+
+    if (!convId) {
+      console.error("[CHAT_SEND] Missing conversation ID");
+      showToast("Unable to create conversation.");
+      return;
     }
-    inputRef.current?.focus();
+
+    setInput("");
+
+    try {
+      console.log("[CHAT_SEND] Sending message to conversation:", convId);
+      await sendChatMessage(convId, textToSend, targetOtherId, participants);
+      console.log("[CHAT_SEND] Message sent successfully!");
+    } catch (err) {
+      console.error("[CHAT_SEND] Message send failed:", err);
+      setInput(textToSend); // Keep typed message on failure
+      const msg = err?.message ? `Unable to send message: ${err.message}` : "Unable to send message. Please try again.";
+      showToast(msg);
+    } finally {
+      inputRef.current?.focus();
+    }
   }
 
   function handleKeyDown(e) {
@@ -1451,6 +1524,12 @@ export default function Chat() {
 
               {/* ─── 7. MESSAGE COMPOSER ─────────── */}
               <div className="msg-composer-outer">
+                {sendErrorToast && (
+                  <div className="msg-error-toast glass-card animate-fade-in">
+                    <span>⚠️ {sendErrorToast}</span>
+                    <button type="button" className="msg-error-toast-close" onClick={() => setSendErrorToast("")}>✕</button>
+                  </div>
+                )}
                 {uploading && (
                   <div className="msg-upload-progress">
                     <span>Uploading...</span>
@@ -1460,7 +1539,14 @@ export default function Chat() {
                     <span>{uploadProgress}%</span>
                   </div>
                 )}
-                <div className="msg-composer-capsule" style={{ position: "relative" }}>
+                <form
+                  className="msg-composer-capsule"
+                  style={{ position: "relative" }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                  }}
+                >
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1507,15 +1593,14 @@ export default function Chat() {
                   </div>
 
                   <button
-                    type="button"
+                    type="submit"
                     className="msg-composer-send-btn"
-                    onClick={handleSend}
                     disabled={!input.trim() || sending || uploading}
                     title="Send message"
                   >
                     <SendAirplaneIcon />
                   </button>
-                </div>
+                </form>
               </div>
             </>
           )}
