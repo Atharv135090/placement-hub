@@ -290,8 +290,13 @@ export function ChatProvider({ children }) {
 
   const markRead = useCallback(async (conversationId) => {
     if (!uid) return;
-    await markConversationRead(conversationId, uid, activeConversation?.participants);
-  }, [uid, activeConversation?.participants]);
+    const isAdmin = activeConversation?.isAdmin || conversationId?.startsWith("admin_");
+    if (isAdmin) {
+      await markAdminConversationRead(conversationId, uid);
+    } else {
+      await markConversationRead(conversationId, uid, activeConversation?.participants);
+    }
+  }, [uid, activeConversation?.isAdmin, activeConversation?.participants]);
 
   const totalUnread = useMemo(
     () => conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
