@@ -35,7 +35,6 @@ export function ChatProvider({ children }) {
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
-  const unsubConvRef = useRef(null);
   const unsubMsgRef = useRef(null);
 
   useEffect(() => {

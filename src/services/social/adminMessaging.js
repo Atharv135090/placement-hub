@@ -61,6 +61,27 @@ export async function sendAdminChatMessage(conversationId, senderId, text, parti
       [unreadField]: increment(1),
     });
 
+    // Create notification for the recipient
+    try {
+      const recipientId = participants?.find((p) => p !== senderId);
+      if (recipientId) {
+        await addDoc(collection(db, "notifications"), {
+          title: "New Message",
+          message: "You have a new message from admin",
+          type: "message",
+          senderId,
+          targetUserId: recipientId,
+          conversationId,
+          messageId: msgRef.id,
+          link: `/chat?student=${senderId}`,
+          readBy: [],
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (notifErr) {
+      console.warn("Failed to create admin message notification:", notifErr);
+    }
+
     return { data: { id: msgRef.id }, error: null };
   } catch (error) {
     return handleSocialError(error);

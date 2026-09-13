@@ -4,7 +4,7 @@ import { getUserProfile, createUserProfile, updateUserProfile } from "../service
 import { OWNER_EMAIL } from "../config/owner";
 import { getAutoAssignedPhoto } from "../utils/avatar";
 import { db } from "../config/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, deleteDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import { setUserOnline, setUserOffline, rebuildFollowerCounts } from "../services/social";
@@ -36,7 +36,20 @@ export function AuthProvider({ children }) {
             return;
           }
           if (data.accountDeleted) {
-            await signOut(auth);
+            // Delete leftover legacy deleted doc and auto-create a fresh user profile
+            await deleteDoc(doc(db, "users", firebaseUser.uid)).catch(() => {});
+            const isOwnerEmail = typeof firebaseUser.email === "string"
+              && firebaseUser.email.trim().toLowerCase() === OWNER_EMAIL.trim().toLowerCase();
+            const googlePhoto = firebaseUser.photoURL;
+            const autoPhoto = googlePhoto || getAutoAssignedPhoto(firebaseUser);
+            const { data: newProfile } = await createUserProfile(firebaseUser.uid, {
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || "",
+              photoUrl: autoPhoto,
+              role: isOwnerEmail ? "owner" : "student",
+            });
+            setProfile(newProfile ? { uid: firebaseUser.uid, ...newProfile } : null);
+            setLoading(false);
             return;
           }
           if (data.forceLogout) {
@@ -97,9 +110,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || loading || !profile) return;
     const unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
-      if (!snap.exists()) return;
+      if (!snap.exists()) {
+        signOut(auth);
+        return;
+      }
       const d = snap.data();
       if (d.blocked) {
         setBlockedMessage("Your account has been blocked by Placement Hub. Please contact support if you believe this was a mistake.");
@@ -114,7 +130,7 @@ export function AuthProvider({ children }) {
       }
     }, () => {});
     return () => unsub();
-  }, [user?.uid]);
+  }, [user?.uid, loading, profile]);
 
   // Presence: set online on mount, offline on unmount, update on visibility change
   useEffect(() => {

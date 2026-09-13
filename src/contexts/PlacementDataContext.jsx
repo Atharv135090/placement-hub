@@ -5,6 +5,7 @@ import { db } from "../config/firebase";
 import {
   addApplication,
   updateApplication,
+  deleteApplication,
   addApplicationMessage,
   deleteApplicationMessage,
   addCompany,
@@ -143,7 +144,7 @@ export function PlacementDataProvider({ children }) {
   }
 
   async function removeApplication(applicationId) {
-    const res = await updateApplication(applicationId, { status: "removed", updatedAt: new Date().toISOString() });
+    const res = await deleteApplication(applicationId);
     if (res.error) return { error: res.error };
     return { error: null };
   }

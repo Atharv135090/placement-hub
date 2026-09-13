@@ -241,19 +241,16 @@ export default function StudentProfile() {
 
   async function handleStartChat() {
     if (blocked || chatLoading) return;
-    const canChat = profile?.profileVisibility === "public" || followStatus === "accepted" || incomingFollowStatus === "accepted";
-    if (!canChat) return;
     setChatLoading(true);
     setChatError("");
     try {
-      const conv = await startConversation(studentId);
-      if (conv) {
-        navigate(`/chat?student=${studentId}`);
-      } else {
-        setChatError("Could not start conversation.");
-      }
+      const targetRole = profile?.role || "student";
+      const isAdminTarget = targetRole === "admin" || targetRole === "owner" || targetRole === "recruiter";
+      await startConversation(studentId, isAdminTarget);
+      navigate(`/chat?student=${studentId}`);
     } catch (err) {
-      setChatError("Error: " + err.message);
+      console.warn("handleStartChat error, attempting direct navigation:", err);
+      navigate(`/chat?student=${studentId}`);
     } finally {
       setChatLoading(false);
     }

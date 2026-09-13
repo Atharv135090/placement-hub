@@ -155,6 +155,7 @@ export default function Chat() {
 
   // Partner presence state
   const [partnerPresence, setPartnerPresence] = useState({ online: false, lastSeenAt: null });
+  const [, setTick] = useState(0); // Forces re-render every 60s so "Last seen X min ago" stays fresh
 
   // New Message Modal State
   const [newMsgModalOpen, setNewMsgModalOpen] = useState(false);
@@ -336,6 +337,12 @@ export default function Chat() {
     const unsub = subscribeToUserPresence(activeConversation.otherUser.id, setPartnerPresence);
     return () => unsub();
   }, [activeConversation?.otherUser?.id]);
+
+  // Re-render every 60s so "Last seen X min ago" stays fresh
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   function formatLastSeen(lastSeenAt) {
     if (!lastSeenAt) return "";
@@ -671,6 +678,14 @@ export default function Chat() {
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !activeConversation?.otherUser?.id) return;
+
+    // Admin conversations don't support file attachments
+    if (activeConversation?.isAdmin || activeConversation?.id?.startsWith("admin_")) {
+      showToast("File attachments are not supported in admin conversations.");
+      e.target.value = "";
+      return;
+    }
+
     let convId = activeConversation.id;
     if (!convId) {
       try {

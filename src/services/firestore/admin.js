@@ -76,16 +76,11 @@ export async function adminLogoutUser(userId) {
 
 export async function adminDeleteUser(userId) {
   try {
-    // 1. Mark user document as deleted and force logout
+    // 1. Delete user document from Firestore (so user can re-register/re-login fresh with empty data)
     try {
-      await updateDoc(doc(db, "users", userId), {
-        forceLogout: true,
-        forceLogoutAt: new Date().toISOString(),
-        accountDeleted: true,
-        deletedAt: new Date().toISOString(),
-      });
+      await deleteDoc(doc(db, "users", userId));
     } catch (e) {
-      console.warn("adminDeleteUser: user doc update error", e);
+      console.warn("adminDeleteUser: user doc delete error", e);
     }
 
     // 2. Best-effort cleanup of secondary collections

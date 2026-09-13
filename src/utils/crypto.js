@@ -84,6 +84,18 @@ async function idbGet(key) {
  * Returns the public key as a base64 string.
  */
 export async function ensureECDHKeys(uid) {
+  // Check if keys already exist in IndexedDB — never overwrite existing keys
+  const existingPrivKey = await idbGet(uid);
+  if (existingPrivKey) {
+    // Keys exist — just ensure the public key is published to Firestore
+    const existingPub = await idbGet(`${uid}:pub`);
+    if (existingPub) {
+      await publishPublicKey(uid, existingPub).catch(() => {});
+      return existingPub;
+    }
+  }
+
+  // No keys found — generate a new pair
   const keyPair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
     true,

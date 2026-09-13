@@ -1,17 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = (
-  (typeof import.meta !== "undefined" && import.meta?.env?.VITE_GEMINI_API_KEY)
-  || (typeof process !== "undefined" && process?.env?.VITE_GEMINI_API_KEY)
-  || ""
-).trim();
-
-if (typeof window !== "undefined") {
-  console.log("[aiEngine] VITE_GEMINI_API_KEY loaded:", GEMINI_API_KEY ? `present (${GEMINI_API_KEY.length} chars, starts with ${GEMINI_API_KEY.slice(0, 6)}...)` : "MISSING");
+export function getGeminiApiKey() {
+  const envVal = (
+    (typeof import.meta !== "undefined" && import.meta?.env?.VITE_GEMINI_API_KEY)
+    || (typeof process !== "undefined" && process?.env?.VITE_GEMINI_API_KEY)
+    || ""
+  );
+  return (envVal || "").trim();
 }
 
 export function isAIConfigured() {
-  return Boolean(GEMINI_API_KEY && GEMINI_API_KEY.length > 5);
+  const key = getGeminiApiKey();
+  return Boolean(key);
+}
+
+if (typeof window !== "undefined") {
+  console.log("[Placement AI Engine] Gemini API Key configured:", isAIConfigured());
 }
 
 export function getPlacementContext(applications, companies, savedIds, profile, user) {
@@ -101,7 +105,7 @@ function formatGeminiHistory(messages) {
 }
 
 export async function generateSmartResponse(query, ctx, messages) {
-  const apiKey = GEMINI_API_KEY;
+  const apiKey = getGeminiApiKey();
 
   if (!apiKey) {
     console.error("[Placement AI Engine Error] VITE_GEMINI_API_KEY is not defined in .env file.");
@@ -113,6 +117,7 @@ export async function generateSmartResponse(query, ctx, messages) {
 
   // 1. Primary Attempt: @google/generative-ai SDK
   const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+  let authErrorOccurred = false;
 
   for (const modelName of modelsToTry) {
     try {
@@ -137,14 +142,11 @@ export async function generateSmartResponse(query, ctx, messages) {
         return responseText.trim();
       }
     } catch (err) {
-      console.warn(`[Placement AI Engine] SDK model '${modelName}' attempt failed:`, err.message || err);
+      const msg = err?.message || String(err);
+      console.warn(`[Placement AI Engine] SDK model '${modelName}' attempt failed:`, msg);
 
-      if (err.message && (err.message.includes("401") || err.message.includes("403") || err.message.includes("API key") || err.message.includes("authentication"))) {
-        console.error("[Placement AI Engine Technical Error] Gemini API Key Authentication Failure:", {
-          model: modelName,
-          apiKeySnippet: apiKey.slice(0, 8) + "...",
-          error: err,
-        });
+      if (msg.includes("401") || msg.includes("403") || msg.includes("API key") || msg.includes("authentication") || msg.includes("API_KEY_INVALID")) {
+        authErrorOccurred = true;
         break; // Stop trying other models if API key is unauthorized/invalid
       }
     }
@@ -181,15 +183,13 @@ export async function generateSmartResponse(query, ctx, messages) {
       }
 
       if (data?.error) {
-        console.error(`[Placement AI Engine REST Error] ${modelName} returned HTTP ${res.status}:`, {
-          code: data.error.code,
-          status: data.error.status,
-          message: data.error.message,
-          details: data.error.details,
-        });
+        console.error(`[Placement AI Engine REST Error] ${modelName} returned HTTP ${res.status}:`, data.error.message || data.error);
 
-        if (data.error.code === 401 || data.error.code === 403 || data.error.status === "UNAUTHENTICATED") {
-          return `⚠️ **Gemini AI API Error (${data.error.code} ${data.error.status})**: ${data.error.message}\n\n*Technical Details:* The \`VITE_GEMINI_API_KEY\` defined in your \`.env\` file is invalid or unauthorized. Please get a free API key from [Google AI Studio](https://aistudio.google.com/apikey) and update your \`.env\` file.`;
+        if (data.error.code === 401 || data.error.code === 403 || data.error.status === "UNAUTHENTICATED" || data.error.message?.includes("API key")) {
+          return "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
+        }
+        if (data.error.code === 429 || data.error.status === "RESOURCE_EXHAUSTED") {
+          return "⚠️ **Rate Limit Exceeded**: Gemini API quota limit reached. Please wait a moment and try again.";
         }
       }
     } catch (restErr) {
@@ -197,7 +197,11 @@ export async function generateSmartResponse(query, ctx, messages) {
     }
   }
 
+  if (authErrorOccurred) {
+    return "⚠️ **Authentication Failure**: Gemini API request failed due to an invalid or unauthorized API key. Please check your `VITE_GEMINI_API_KEY` in `.env`.";
+  }
+
   // 3. Fallback when AI service cannot be reached
   console.error("[Placement AI Engine Error] All Gemini AI API requests failed. Check network or VITE_GEMINI_API_KEY.");
-  return "⚠️ **AI Connection Error**: Unable to reach the Gemini AI service. Full technical diagnostic logs have been output to your browser console (F12). Please verify your `VITE_GEMINI_API_KEY` in `.env`.";
+  return "⚠️ **Service Unavailable**: Unable to reach the Gemini AI service. Diagnostic logs have been recorded in the browser console. Please try again in a moment.";
 }
