@@ -1231,7 +1231,16 @@ export default function Chat() {
                   <BackArrowIcon />
                 </button>
 
-                <div className="msg-active-user-meta">
+                <div
+                  className="msg-active-user-meta"
+                  onClick={() => {
+                    if (activePartner?.id) {
+                      navigate(`/students/${activePartner.id}`);
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view profile"
+                >
                   <div className="msg-active-avatar-wrap">
                     <UserAvatar
                       user={{ uid: activePartner?.id }}
@@ -1331,35 +1340,6 @@ export default function Chat() {
 
               {/* Message History Body */}
               <div className="msg-history-body">
-                {/* Profile Summary Card (Screen 4) */}
-                <div className="msg-profile-summary-card">
-                  <div className="msg-profile-summary-avatar">
-                    <UserAvatar
-                      user={{ uid: activePartner?.id }}
-                      profile={activePartner}
-                      style={{ width: 52, height: 52 }}
-                    />
-                  </div>
-                  <div className="msg-profile-summary-info">
-                    <h4 className="msg-profile-summary-name">
-                      {activePartner?.displayName || activePartner?.name || "Student"}
-                    </h4>
-                    <span className="msg-profile-summary-role">
-                      {activePartner?.role === "owner" ? "Owner" : activePartner?.role === "admin" ? "Admin" : "Student"}
-                    </span>
-                    <span className="msg-profile-summary-branch">
-                      {activePartner?.branch || activePartner?.course || activePartner?.department || "Computer Engineering, SPPU"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="msg-profile-summary-btn"
-                    onClick={() => navigate(`/students/${activePartner?.id || ""}`)}
-                  >
-                    View Profile
-                  </button>
-                </div>
-
                 {/* Date separator */}
                 <div className="msg-date-divider">
                   <span className="msg-date-pill">Today</span>
