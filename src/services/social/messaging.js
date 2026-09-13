@@ -296,17 +296,25 @@ export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
   try {
     if (messageVersion === 2) {
       const myPrivKey = await getECDHPrivateKey(uid1);
-      // Fetch the OTHER user's REAL public key from Firestore
       const theirPubKey = await fetchECDHPublicKey(uid2);
       if (myPrivKey && theirPubKey) {
-        return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+        try {
+          return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+        } catch (v2Err) {
+          console.warn("decryptMessage V2 decryption failed, trying V1 fallback:", v2Err?.message);
+        }
+      } else {
+        console.warn("decryptMessage V2: missing key material, trying V1 fallback", {
+          hasMyPrivKey: !!myPrivKey,
+          hasTheirPubKey: !!theirPubKey,
+        });
       }
-      console.warn("decryptMessage V2: missing key material", {
-        hasMyPrivKey: !!myPrivKey,
-        hasTheirPubKey: !!theirPubKey,
-        uid1,
-        uid2,
-      });
+      // V2 failed or missing keys — try V1 PBKDF2 fallback (deterministic from UIDs)
+      try {
+        return await decryptV1(cipherText, uid1, uid2);
+      } catch {
+        // V1 also failed — message is genuinely unrecoverable
+      }
       return "Unable to decrypt this message.";
     }
     return await decryptV1(cipherText, uid1, uid2);
