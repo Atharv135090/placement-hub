@@ -45,7 +45,9 @@ service cloud.firestore {
 
       allow create: if isOwnerDoc(userId);
 
-      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
+      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole()
+        // Allow any authenticated user to update follower/following counts
+        || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["followersCount", "followingCount"]));
 
       // Users can delete their own account (self-deletion)
       // Admin/owner can delete any non-owner account
@@ -125,9 +127,10 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.fromUserId
         && request.resource.data.toUserId != request.auth.uid;
 
-      // Only the target can update (accept/reject)
+      // Either participant can update (accept, auto-accept, follow-back)
       allow update: if isAuth()
-        && request.auth.uid == resource.data.toUserId;
+        && (request.auth.uid == resource.data.fromUserId
+          || request.auth.uid == resource.data.toUserId);
 
       // Either participant can delete (cancel, unfollow, remove)
       allow delete: if isAuth()

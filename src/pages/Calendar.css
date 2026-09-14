@@ -387,4 +387,17 @@
   .chip-time {
     display: none;
   }
+  .cal-month-title {
+    font-size: 1.1rem;
+  }
+  .cal-nav-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .cal-day-name {
+    font-size: 0.7rem;
+  }
+  .cal-day-num {
+    font-size: 0.78rem;
+  }
 }

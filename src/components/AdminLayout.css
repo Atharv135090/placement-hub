@@ -802,9 +802,9 @@
   }
 
   .admin-notif-panel {
-    right: -48px;
-    width: min(340px, calc(100vw - 24px));
-    max-width: calc(100vw - 24px);
+    right: 8px;
+    width: min(340px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
   }
 
   .admin-profile-dropdown {
@@ -814,6 +814,6 @@
   }
 
   .admin-content-area {
-    padding: 16px 12px 80px 12px;
+    padding: 14px 12px calc(76px + env(safe-area-inset-bottom, 0px)) 12px;
   }
 }

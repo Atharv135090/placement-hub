@@ -331,7 +331,10 @@
   }
 
   .main-content {
-    padding: 16px 12px 90px 12px;
+    padding: 14px 12px calc(76px + env(safe-area-inset-bottom, 0px)) 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* Bottom Navigation Dock */

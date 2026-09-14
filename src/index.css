@@ -529,6 +529,67 @@ input, select, textarea { font-family: inherit; }
   margin-top: 4px;
 }
 
+/* ─── GLOBAL MOBILE RESPONSIVE UTILITIES ─────────────────── */
+/* Prevent any element from creating horizontal overflow */
+img, video, svg, canvas { max-width: 100%; height: auto; }
+table { max-width: 100%; table-layout: fixed; }
+
+/* Mobile page-level resets applied at 768px and below */
+@media (max-width: 768px) {
+  /* Scale down page titles on mobile */
+  .page-title {
+    font-size: 1.25rem;
+  }
+  .page-subtitle {
+    font-size: 0.78rem;
+  }
+
+  /* Buttons should never overflow their container */
+  .btn {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  /* Tables become horizontally scrollable on mobile */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent iOS auto-zoom on input focus — all inputs/selects/textareas must be >= 16px */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="url"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Dropdown menus must not overflow viewport */
+  .dropdown-menu,
+  .status-dropdown-menu,
+  .crc-dropdown-menu,
+  .student-dropdown-menu {
+    max-width: calc(100vw - 32px);
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.1rem;
+  }
+  .btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+}
+
 /* ─── SKELETON LOADER ────────────────────────────────── */
 .skeleton-card {
   border-radius: var(--radius-lg);

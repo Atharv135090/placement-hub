@@ -216,3 +216,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .pg-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .pg-stat-card {
+    padding: 14px;
+  }
+}
