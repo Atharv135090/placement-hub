@@ -70,6 +70,8 @@ export async function uploadProfilePicture(userId, file) {
     const dataUrl = await fileToBase64(file);
     await updateDoc(doc(db, USERS, userId), {
       photoUrl: dataUrl,
+      // Mark as custom-uploaded so AuthContext's Google photo sync never overwrites it
+      photoSource: "custom",
       updatedAt: timestamp(),
     });
     return { data: { photoUrl: dataUrl }, error: null };
@@ -77,6 +79,7 @@ export async function uploadProfilePicture(userId, file) {
     return handleFirestoreError(error);
   }
 }
+
 
 export async function uploadResume(userId, file) {
   try {

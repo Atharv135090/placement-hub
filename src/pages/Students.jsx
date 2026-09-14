@@ -33,6 +33,9 @@ export default function Students() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [toastMsg, setToastMsg] = useState("");
 
+  // Tick every 60s so "Last seen X min ago" refreshes automatically (same as Chat page)
+  const [, setTick] = useState(0);
+
   const menuRef = useRef(null);
 
   // Close 3-dot menu when clicking outside
@@ -50,6 +53,9 @@ export default function Students() {
     let unsubStudents = null;
     let unsubFollowStatuses = null;
 
+    // subscribeToStudents returns realtime user documents that already include
+    // the `online` boolean and `lastSeenAt` timestamp written by setUserOnline/setUserOffline.
+    // No separate per-card presence listeners needed.
     unsubStudents = subscribeToStudents((allUsers) => {
       const list = (allUsers || []).filter((s) => s.id !== user?.uid);
       setStudents(list);
@@ -62,9 +68,13 @@ export default function Students() {
       });
     }
 
+    // Refresh "X min ago" text every 60 seconds (same as Chat page behavior)
+    const tickInterval = setInterval(() => setTick((t) => t + 1), 60000);
+
     return () => {
       unsubStudents?.();
       unsubFollowStatuses?.();
+      clearInterval(tickInterval);
     };
   }, [user?.uid]);
 
@@ -145,7 +155,7 @@ export default function Students() {
     setFollowLoading((prev) => ({ ...prev, [studentId]: true }));
     try {
       const status = followStatuses[studentId];
-      if (status === "accepted") {
+      if (status === "accepted" || status === "following") {
         if (!window.confirm("Are you sure you want to unfollow this student?")) {
           setFollowLoading((prev) => ({ ...prev, [studentId]: false }));
           return;
@@ -228,6 +238,29 @@ export default function Students() {
     } catch (err) {
       console.error("Block error:", err);
     }
+  }
+
+  // ─── PRESENCE FORMATTING ──────────────────────────────────────
+  // Exact same logic as Chat.jsx formatLastSeen — reused, not duplicated.
+  function formatLastSeen(lastSeenAt) {
+    if (!lastSeenAt) return "";
+    const d = lastSeenAt.toDate ? lastSeenAt.toDate() : new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Last seen just now";
+    if (diffMin < 60) return `Last seen ${diffMin} min ago`;
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const seenDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (today.getTime() === seenDay.getTime()) {
+      return `Last seen today at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (seenDay.getTime() === yesterday.getTime()) {
+      return `Last seen yesterday at ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+    }
+    return `Last seen ${d.toLocaleDateString()}`;
   }
 
   // Format graduation year into clean student tag
@@ -473,10 +506,25 @@ export default function Students() {
 
                     <div className="student-profile-info-block">
                       <div className="student-name-status-row">
-                        <span className="student-online-pill" title="Active student">
-                          <span className="online-green-dot" />
-                          <span>Online</span>
-                        </span>
+                        {/* Presence status — only shown for mutual connections (accepted follow) */}
+                        {isFollowing && (
+                          s.online ? (
+                            <span className="student-online-pill" title="Currently online">
+                              <span className="online-green-dot" />
+                              <span>Online</span>
+                            </span>
+                          ) : s.lastSeenAt ? (
+                            <span className="student-online-pill student-online-pill--offline" title={formatLastSeen(s.lastSeenAt)}>
+                              <span className="online-grey-dot" />
+                              <span>{formatLastSeen(s.lastSeenAt)}</span>
+                            </span>
+                          ) : (
+                            <span className="student-online-pill student-online-pill--offline" title="Offline">
+                              <span className="online-grey-dot" />
+                              <span>Offline</span>
+                            </span>
+                          )
+                        )}
                         <div
                           className="student-name-text"
                           onClick={() => navigate(`/students/${s.id}`)}
@@ -547,7 +595,7 @@ export default function Students() {
                             </button>
                           )}
 
-                          {status === "accepted" ? (
+                          {status === "accepted" || status === "following" ? (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}

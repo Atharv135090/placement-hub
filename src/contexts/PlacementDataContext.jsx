@@ -119,7 +119,26 @@ export function PlacementDataProvider({ children }) {
     };
   }, [stats]);
 
-  async function applyToDrive(jobId, companyName, role, compId) {
+  // ── SAVED — persisted to Firestore under user document ──────
+  const toggleSaveItem = useCallback(async (companyId) => {
+    if (!uid) return;
+    const isCurrentlySaved = savedIds.includes(companyId);
+    setSavedIds(prev =>
+      isCurrentlySaved ? prev.filter(id => id !== companyId) : [...prev, companyId]
+    );
+    const res = await toggleSaveJob(uid, companyId, isCurrentlySaved);
+    if (res.error) {
+      setSavedIds(prev =>
+        isCurrentlySaved ? [...prev, companyId] : prev.filter(id => id !== companyId)
+      );
+    }
+  }, [uid, savedIds]);
+
+  const isSaved = useCallback((id) => {
+    return savedIds.includes(id);
+  }, [savedIds]);
+
+  const applyToDrive = useCallback(async (jobId, companyName, role, compId) => {
     const existing = applications.find(a => a.jobId === jobId || (compId && a.companyId === compId));
     if (existing) return { error: "already_applied", data: existing };
     const newApp = {
@@ -135,33 +154,31 @@ export function PlacementDataProvider({ children }) {
     const res = await addApplication(newApp);
     if (res.error) return { error: res.error, data: null };
     return { data: newApp, error: null };
-  }
+  }, [uid, applications]);
 
-  async function updateAppStatus(applicationId, newStatus) {
+  const updateAppStatus = useCallback(async (applicationId, newStatus) => {
     const res = await updateApplication(applicationId, { status: newStatus, updatedAt: new Date().toISOString() });
     if (res.error) return { error: res.error };
     return { error: null };
-  }
+  }, []);
 
-  async function removeApplication(applicationId) {
+  const removeApplication = useCallback(async (applicationId) => {
     const res = await deleteApplication(applicationId);
     if (res.error) return { error: res.error };
     return { error: null };
-  }
+  }, []);
 
-  async function addMessageToApplication(applicationId, text) {
+  const addMessageToApplication = useCallback(async (applicationId, text) => {
     return await addApplicationMessage(applicationId, { text });
-  }
+  }, []);
 
-  async function deleteMessageFromApplication(applicationId, messageId) {
+  const deleteMessageFromApplication = useCallback(async (applicationId, messageId) => {
     return await deleteApplicationMessage(applicationId, messageId);
-  }
+  }, []);
 
-  async function addNewCompany(data) {
-    // PRD §17: Database data only used for duplicate check, not to fill missing fields
+  const addNewCompany = useCallback(async (data) => {
     const existing = companies.find(c => c.name.toLowerCase() === data.name.toLowerCase());
     if (existing) return { error: "exists", data: existing };
-    // PRD §13: Fresh transaction object — only explicitly supplied values
     const newComp = {
       name: data.name,
       normalizedName: data.name.toLowerCase().replace(/[^a-z0-9]/g, ""),
@@ -184,40 +201,19 @@ export function PlacementDataProvider({ children }) {
       link: "/companies",
     }).catch(() => { });
     return { data: { id: res.data.id, ...newComp }, error: null };
-  }
+  }, [companies]);
 
-  async function updateExistingCompany(id, updates) {
+  const updateExistingCompany = useCallback(async (id, updates) => {
     const res = await updateCompany(id, updates);
     if (res.error) return { error: res.error };
     return { data: { id }, error: null };
-  }
+  }, []);
 
-  async function removeCompany(id) {
+  const removeCompany = useCallback(async (id) => {
     const res = await deleteCompany(id);
     if (res.error) return { error: res.error };
     return { data: { id }, error: null };
-  }
-
-  // ── SAVED — persisted to Firestore under user document ──────
-  const toggleSaveItem = useCallback(async (companyId) => {
-    if (!uid) return;
-    const isCurrentlySaved = savedIds.includes(companyId);
-    // Optimistic update
-    setSavedIds(prev =>
-      isCurrentlySaved ? prev.filter(id => id !== companyId) : [...prev, companyId]
-    );
-    const res = await toggleSaveJob(uid, companyId, isCurrentlySaved);
-    if (res.error) {
-      // Revert on error
-      setSavedIds(prev =>
-        isCurrentlySaved ? [...prev, companyId] : prev.filter(id => id !== companyId)
-      );
-    }
-  }, [uid, savedIds]);
-
-  function isSaved(id) {
-    return savedIds.includes(id);
-  }
+  }, []);
 
   const value = useMemo(() => ({
     companies,
@@ -236,7 +232,7 @@ export function PlacementDataProvider({ children }) {
     removeCompany,
     toggleSaveItem,
     isSaved,
-  }), [companies, applications, savedIds, loading, stats, conversionMetrics, toggleSaveItem]);
+  }), [companies, applications, savedIds, loading, stats, conversionMetrics, toggleSaveItem, applyToDrive, updateAppStatus, removeApplication, addMessageToApplication, deleteMessageFromApplication, addNewCompany, updateExistingCompany, removeCompany, isSaved]);
 
   return (
     <PlacementDataContext.Provider value={value}>

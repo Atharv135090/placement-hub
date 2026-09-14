@@ -209,6 +209,10 @@ export default function Assistant() {
     bottomRef,
     addMsg,
     setMessages,
+    updateActivity,
+    isGenerationInProgress,
+    startGeneration,
+    endGeneration,
   } = useAssistant();
 
   const { applications, companies, savedIds } = usePlacementData();
@@ -302,13 +306,20 @@ export default function Assistant() {
 
   async function handleSendMessage(textToSend) {
     const text = (textToSend || input).trim();
-    if (!text || busy) return;
+    // §15: Duplicate send protection — ignore if busy or generation in progress
+    if (!text || busy || isGenerationInProgress()) return;
 
     setInput("");
     addMsg("user", text);
     setBusy(true);
     setStreamingText("");
     userScrolledRef.current = false;
+
+    // §15: Mark generation as started
+    startGeneration();
+
+    // §13: Update last activity timestamp
+    updateActivity();
 
     // Track in recent chats dynamically
     const title = text.length > 28 ? text.slice(0, 26) + "..." : text;
@@ -335,6 +346,7 @@ export default function Assistant() {
       );
       addMsg("assistant", response);
     } catch (err) {
+      // §24: Preserve user's typed message — do NOT lose it on failure
       if (err.name !== "AbortError") {
         addMsg("assistant", "Sorry, I encountered an error while processing your request. Please try again.");
       }
@@ -342,6 +354,8 @@ export default function Assistant() {
       setStreamingText(null);
       setBusy(false);
       abortRef.current = null;
+      // §15: Mark generation as finished
+      endGeneration();
     }
   }
 
@@ -487,7 +501,7 @@ export default function Assistant() {
         </div>
       </header>
 
-      {/* ── AI SETUP WARNING BANNER (Shown if API key missing) ── */}
+      {/* ── AI SETUP WARNING BANNER (Shown if no provider key configured) ── */}
       {!aiReady && (
         <div className="asst-setup-warning">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -496,7 +510,8 @@ export default function Assistant() {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <span>
-            <strong>Gemini AI API Key missing:</strong> Add <code>VITE_GEMINI_API_KEY=your_key</code> in your <code>.env</code> file to enable live AI responses.
+            <strong>AI API Key missing:</strong> Add at least one free API key to your <code>.env</code> file:
+            <code>VITE_GEMINI_API_KEY</code>, <code>VITE_GROQ_API_KEY</code>, <code>VITE_OPENROUTER_API_KEY</code>, <code>VITE_CEREBRAS_API_KEY</code>, <code>VITE_MISTRAL_API_KEY</code>, <code>VITE_DEEPSEEK_API_KEY</code>, <code>VITE_XAI_API_KEY</code>, or <code>VITE_CLOUDFLARE_API_TOKEN</code>.
           </span>
         </div>
       )}

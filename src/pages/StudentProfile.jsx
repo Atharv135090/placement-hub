@@ -20,6 +20,7 @@ import {
   subscribeToStudentProfile,
   subscribeToFollowers,
   subscribeToFollowing,
+  getRelationship,
 } from "../services/social";
 import { createNotification } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
@@ -51,6 +52,10 @@ export default function StudentProfile() {
   const [chatError, setChatError] = useState("");
 
   const isOwnProfile = user?.uid === studentId;
+
+  const relationship = useMemo(() => {
+    return getRelationship(followStatus, incomingFollowStatus);
+  }, [followStatus, incomingFollowStatus]);
 
   useEffect(() => {
     let unsubFollowStatus = null;
@@ -104,21 +109,17 @@ export default function StudentProfile() {
     if (followLoading) return;
     setFollowLoading(true);
     try {
-      if (followStatus === "accepted") {
+      if (relationship === "mutual" || relationship === "following") {
         if (!window.confirm("Are you sure you want to unfollow this student?")) {
           setFollowLoading(false);
           return;
         }
         await unfollowUser(user.uid, studentId);
-      } else if (followStatus === "pending") {
+      } else if (relationship === "pending") {
         await cancelFollowRequest(user.uid, studentId);
-      } else if (incomingFollowStatus === "accepted") {
-        if (!window.confirm("Are you sure you want to remove this follower?")) {
-          setFollowLoading(false);
-          return;
-        }
-        await removeFollower(user.uid, studentId);
-      } else if (incomingFollowStatus === "pending") {
+      } else if (relationship === "follower") {
+        await sendFollowRequest(user.uid, studentId);
+      } else if (relationship === "incoming_pending") {
         await acceptFollowRequest(studentId, user.uid);
         createNotification({
           title: "Follow Request Accepted",
@@ -164,11 +165,14 @@ export default function StudentProfile() {
   }
 
   function getFollowLabel() {
-    if (followStatus === "accepted") return "Following";
-    if (followStatus === "pending") return "Requested";
-    if (incomingFollowStatus === "accepted") return "Following";
-    if (incomingFollowStatus === "pending") return "Accept Request";
-    return "Follow";
+    switch (relationship) {
+      case "mutual": return "↗ Following";
+      case "following": return "↗ Following";
+      case "pending": return "Requested";
+      case "follower": return "Follow Back";
+      case "incoming_pending": return "Accept Request";
+      default: return "Follow";
+    }
   }
 
   async function handleAcceptRequest(fromId) {
@@ -259,19 +263,17 @@ export default function StudentProfile() {
   const canViewDetails = useMemo(() => {
     if (isOwnProfile) return true;
     if (profile?.profileVisibility === "public") return true;
-    if (followStatus === "accepted") return true;
-    if (incomingFollowStatus === "accepted") return true;
+    if (relationship === "mutual" || relationship === "following" || relationship === "follower") return true;
     return false;
-  }, [isOwnProfile, profile?.profileVisibility, followStatus, incomingFollowStatus]);
+  }, [isOwnProfile, profile?.profileVisibility, relationship]);
 
   const canChat = useMemo(() => {
     if (isOwnProfile) return false;
     if (blocked) return false;
     if (profile?.profileVisibility === "public") return true;
-    if (followStatus === "accepted") return true;
-    if (incomingFollowStatus === "accepted") return true;
+    if (relationship === "mutual") return true;
     return false;
-  }, [isOwnProfile, blocked, profile?.profileVisibility, followStatus, incomingFollowStatus]);
+  }, [isOwnProfile, blocked, profile?.profileVisibility, relationship]);
 
   if (loading) {
     return (
@@ -333,22 +335,16 @@ export default function StudentProfile() {
           <div className="sp-hero-actions">
             <button
               className={`btn ${
-                followStatus === "accepted" || incomingFollowStatus === "accepted"
+                relationship === "mutual" || relationship === "following"
                   ? "btn-following-state"
-                  : followStatus === "pending"
+                  : relationship === "pending"
                   ? "btn-requested-state"
                   : "btn-follow-state"
               }`}
               onClick={handleFollow}
               disabled={blocked || followLoading}
             >
-              {followStatus === "accepted" || incomingFollowStatus === "accepted"
-                ? "↗ Following"
-                : followStatus === "pending"
-                ? "Requested"
-                : incomingFollowStatus === "pending"
-                ? "Accept Request"
-                : "Follow"}
+              {getFollowLabel()}
             </button>
             {incomingFollowStatus === "pending" && (
               <button

@@ -405,6 +405,33 @@
   box-shadow: 0 0 5px rgba(34, 197, 94, 0.6);
 }
 
+/* Offline / Last seen variant of the status pill */
+.student-online-pill--offline {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.2);
+  font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-online-pill--offline span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.online-grey-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+
+
 .student-name-text {
   font-size: 1.02rem;
   font-weight: 800;

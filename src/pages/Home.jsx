@@ -155,6 +155,9 @@ export default function Home() {
             src="/assets/car_banner.jpg"
             alt="Placement Journey Performance"
             className="hero-car-img"
+            loading="lazy"
+            width="400"
+            height="300"
           />
           <div className="hero-car-overlay" />
           <div className="hero-car-quote">
@@ -471,6 +474,9 @@ export default function Home() {
               src="/assets/car_banner.jpg"
               alt="Dream Big"
               className="big-dreams-img"
+              loading="lazy"
+              width="400"
+              height="300"
             />
             <div className="big-dreams-overlay" />
             <div className="big-dreams-slogan">

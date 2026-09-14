@@ -1,57 +1,27 @@
-import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment, limit } from "firebase/firestore";
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
 import {
   getECDHPrivateKey,
+  getECDHPublicKey,
   fetchECDHPublicKey,
   encryptMessageE2EE,
   decryptMessageE2EE,
 } from "../../utils/crypto";
 
-const MAX_MESSAGES = 50;
-const INACTIVE_DAYS = 4;
+// NOTE: Automatic message cleanup (age/count-based deletion) has been intentionally
+// REMOVED from user-to-user Chat. Messages must remain readable indefinitely
+// until the user explicitly clears them via Clear Chat.
+// The cleanupConversationMessages function is no longer called.
 
 function getConversationId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
 
-export async function cleanupConversationMessages(conversationId) {
-  try {
-    const msgQuery = query(
-      collection(db, "messages"),
-      where("conversationId", "==", conversationId),
-      orderBy("createdAt", "asc")
-    );
-    const snapshot = await getDocs(msgQuery);
-    const messages = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-    if (messages.length <= MAX_MESSAGES) {
-      const convSnap = await getDoc(doc(db, "conversations", conversationId));
-      if (!convSnap.exists()) return;
-      const convData = convSnap.data();
-      const lastActivityAt = convData.lastActivityAt;
-      if (!lastActivityAt) return;
-
-      const lastMs = lastActivityAt.toMillis ? lastActivityAt.toMillis() : new Date(lastActivityAt).getTime();
-      const nowMs = Date.now();
-      const daysSinceInactive = (nowMs - lastMs) / (1000 * 60 * 60 * 24);
-
-      if (daysSinceInactive >= INACTIVE_DAYS && messages.length > 2) {
-        const halfCount = Math.floor(messages.length / 2);
-        const toDelete = messages.slice(0, halfCount);
-        await Promise.all(toDelete.map((m) => deleteDoc(doc(db, "messages", m.id))));
-      }
-      return;
-    }
-
-    const excessCount = messages.length - MAX_MESSAGES;
-    const toDelete = messages.slice(0, excessCount);
-    await Promise.all(toDelete.map((m) => deleteDoc(doc(db, "messages", m.id))));
-  } catch (error) {
-    console.error("cleanupConversationMessages error:", error);
-  }
-}
+// cleanupConversationMessages intentionally removed.
+// User-to-user messages must never be automatically deleted by age or count.
+// Deletion happens ONLY when the user explicitly uses Clear Chat.
 
 export async function getOrCreateConversation(uid1, uid2) {
   try {
@@ -123,15 +93,22 @@ export async function getConversations(userId) {
   }
 }
 
-export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2) {
-  const msgRef = await addDoc(collection(db, "messages"), {
+export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2, senderPubKey = null, recipientPubKey = null) {
+  // Build message doc — include public key metadata so future decryption
+  // never depends on key availability at decryption time.
+  const msgData = {
     conversationId,
     senderId,
     encryptedText,
     messageVersion,
     createdAt: serverTimestamp(),
     read: false,
-  });
+  };
+  // Persist sender/recipient public keys with the message for permanent E2EE metadata
+  if (senderPubKey) msgData.senderPubKey = senderPubKey;
+  if (recipientPubKey) msgData.recipientPubKey = recipientPubKey;
+
+  const msgRef = await addDoc(collection(db, "messages"), msgData);
 
   const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
   await updateDoc(doc(db, "conversations", conversationId), {
@@ -162,14 +139,12 @@ export async function sendMessage(conversationId, senderId, encryptedText, parti
     console.warn("Failed to create message notification:", notifErr);
   }
 
-  cleanupConversationMessages(conversationId).catch(() => {});
-
+  // NOTE: No automatic cleanup — messages persist indefinitely.
   return { data: { id: msgRef.id }, error: null };
 }
 
 export function subscribeToMessages(conversationId, callback) {
-  cleanupConversationMessages(conversationId).catch(() => {});
-
+  // No automatic cleanup — messages persist indefinitely for user-to-user Chat.
   const q = query(
     collection(db, "messages"),
     where("conversationId", "==", conversationId),
@@ -272,11 +247,16 @@ export async function encryptMessage(plaintext, senderUid, recipientUid) {
   const privateKey = await getECDHPrivateKey(senderUid);
   // Fetch recipient's REAL public key from Firestore (not local IndexedDB)
   const recipientPubKey = await fetchECDHPublicKey(recipientUid);
+  // Also get sender's own public key to persist with the message
+  const senderPubKey = await getECDHPublicKey(senderUid);
 
   if (privateKey && recipientPubKey) {
     try {
       const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
-      return { encryptedText: encrypted, messageVersion: 2 };
+      // Return pubkey metadata so it can be stored alongside the message.
+      // This ensures future decryption always has the required keys regardless
+      // of time elapsed or key rotation.
+      return { encryptedText: encrypted, messageVersion: 2, senderPubKey, recipientPubKey };
     } catch (err) {
       console.warn("V2 encryption failed, falling back to V1:", err);
     }
@@ -289,33 +269,69 @@ export async function encryptMessage(plaintext, senderUid, recipientUid) {
   const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
   const ivHex = Array.from(iv).map((b) => b.toString(16).padStart(2, "0")).join("");
   const encHex = Array.from(new Uint8Array(enc)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return { encryptedText: `${ivHex}:${encHex}`, messageVersion: 1 };
+  return { encryptedText: `${ivHex}:${encHex}`, messageVersion: 1, senderPubKey: null, recipientPubKey: null };
 }
 
-export async function decryptMessage(cipherText, uid1, uid2, messageVersion) {
-  // Try V2 (ECDH) first — works if both keys are available
+/**
+ * Decrypt a message, using embedded public-key metadata first.
+ * Priority order:
+ *   1. V2 ECDH using keys embedded in the message document (senderPubKey / recipientPubKey)
+ *   2. V2 ECDH using Firestore-fetched public key
+ *   3. V1 PBKDF2 deterministic fallback
+ *
+ * Message age is NEVER a factor in decryption decisions.
+ */
+export async function decryptMessage(cipherText, uid1, uid2, messageVersion, msgSenderPubKey = null, msgRecipientPubKey = null) {
   const myPrivKey = await getECDHPrivateKey(uid1);
-  const theirPubKey = await fetchECDHPublicKey(uid2);
 
-  // Attempt V2 decryption
-  if (myPrivKey && theirPubKey) {
-    try {
-      return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
-    } catch (v2Err) {
-      // V2 failed — will try V1 below
+  // ── Strategy 1: try both public keys embedded in the message document ──
+  // Since ECDH is symmetric (ECDH(A_priv, B_pub) = ECDH(B_priv, A_pub)),
+  // one of the two stored keys must belong to the other party.
+  // We try both without needing to know who was the sender.
+  // This path works indefinitely regardless of time elapsed or Firestore key changes.
+  if (myPrivKey) {
+    if (msgSenderPubKey) {
+      try {
+        return await decryptMessageE2EE(cipherText, myPrivKey, msgSenderPubKey);
+      } catch {
+        // This key was our own — try the other embedded key
+      }
+    }
+    if (msgRecipientPubKey) {
+      try {
+        return await decryptMessageE2EE(cipherText, myPrivKey, msgRecipientPubKey);
+      } catch {
+        // Neither embedded key worked — fall through to Firestore lookup
+      }
     }
   }
 
-  // Attempt V1 (PBKDF2 deterministic from UIDs) — works for V1-encrypted messages
-  try {
-    return await decryptV1(cipherText, uid1, uid2);
-  } catch (v1Err) {
-    // V1 also failed
+  // ── Strategy 2: V2 ECDH with Firestore-fetched current public key ──
+  // Works if neither key pair has changed since the message was sent.
+  if (myPrivKey) {
+    const theirPubKey = await fetchECDHPublicKey(uid2);
+    if (theirPubKey) {
+      try {
+        return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
+      } catch {
+        // V2 with current Firestore key failed — try V1
+      }
+    }
   }
 
-  // Both failed — message is genuinely unrecoverable
+  // ── Strategy 3: V1 PBKDF2 deterministic fallback ──
+  // Works for all V1-encrypted messages regardless of key state.
+  try {
+    return await decryptV1(cipherText, uid1, uid2);
+  } catch {
+    // V1 also failed — message is genuinely unrecoverable
+  }
+
+  // All strategies exhausted — message is genuinely unrecoverable with current keys.
+  // This is not age-based; it means the required private key is not available on this device.
   return "Unable to decrypt this message.";
 }
+
 
 /**
  * Re-encrypt a V1 message with V2 (ECDH).

@@ -286,6 +286,9 @@ export default function Drives() {
                 src="/assets/skyscraper.jpg"
                 alt="City skyscrapers"
                 className="skyscraper-img"
+                loading="lazy"
+                width="400"
+                height="300"
               />
               <div className="skyscraper-overlay" />
             </div>

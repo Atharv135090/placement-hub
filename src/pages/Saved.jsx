@@ -202,7 +202,7 @@ export default function Saved() {
           </p>
         </div>
         <div className="hero-car-card">
-          <img src="/assets/car_banner.jpg" alt="Performance" className="hero-car-img" />
+           <img src="/assets/car_banner.jpg" alt="Performance" className="hero-car-img" loading="lazy" width="400" height="300" />
           <div className="hero-car-overlay" />
           <div className="hero-car-quote">
             <span>STAY FOCUSED</span>

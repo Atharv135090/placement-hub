@@ -170,6 +170,7 @@ export default function IntegratedStudentsChat({
     messages,
     sendChatMessage,
     markRead,
+    clearChat,
     activeConversation,
     setActiveConversation,
     sending,
@@ -577,13 +578,10 @@ export default function IntegratedStudentsChat({
                   onClick={() => onSelectStudent(s.id)}
                 >
                   <div className="isc-row-avatar-wrap">
-                    {s.photoUrl ? (
-                      <UserAvatar user={{ uid: s.id }} profile={s} style={{ width: 44, height: 44 }} />
-                    ) : (
-                      <div className="isc-avatar-circle" style={{ backgroundColor: isSelected ? "#ea580c" : "#f97316" }}>
-                        {initialLetter}
-                      </div>
-                    )}
+                    {/* Always use UserAvatar — it applies the centralized photo priority:
+                        custom upload → Google photo → deterministic car fallback.
+                        Never use a separate letter/color circle that bypasses the resolver. */}
+                    <UserAvatar user={{ uid: s.id }} profile={s} style={{ width: 44, height: 44 }} />
                     <span className="isc-avatar-dot" />
                   </div>
 
@@ -670,17 +668,12 @@ export default function IntegratedStudentsChat({
                   </svg>
                 </button>
 
-                {selectedStudent.photoUrl ? (
-                  <UserAvatar
-                    user={{ uid: selectedStudent.id }}
-                    profile={selectedStudent}
-                    style={{ width: 44, height: 44 }}
-                  />
-                ) : (
-                  <div className="isc-chat-header-avatar">
-                    {(selectedStudent.displayName || selectedStudent.name || "D").charAt(0).toUpperCase()}
-                  </div>
-                )}
+                {/* Always use UserAvatar for the chat header — centralized photo resolver */}
+                <UserAvatar
+                  user={{ uid: selectedStudent.id }}
+                  profile={selectedStudent}
+                  style={{ width: 44, height: 44 }}
+                />
 
                 <div className="isc-chat-user-details">
                   <div className="isc-chat-user-top">
@@ -781,8 +774,14 @@ export default function IntegratedStudentsChat({
                       <button
                         type="button"
                         className="isc-dropdown-item"
-                        onClick={() => {
+                        onClick={async () => {
                           setChatMenuOpen(false);
+                          if (!activeConversation?.id) return;
+                          try {
+                            await clearChat(activeConversation.id);
+                          } catch (err) {
+                            console.error("Clear chat error:", err);
+                          }
                         }}
                       >
                         <TrashIcon />

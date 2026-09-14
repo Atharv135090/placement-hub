@@ -451,9 +451,9 @@ export function subscribeToAllFollowStatuses(userId, callback) {
 
 export function getRelationship(outgoingStatus, incomingStatus) {
   if (outgoingStatus === "accepted" && incomingStatus === "accepted") return "mutual";
-  if (outgoingStatus === "pending") return "pending";
-  if (outgoingStatus === "accepted") return "following";
   if (incomingStatus === "accepted") return "follower";
+  if (outgoingStatus === "accepted") return "following";
+  if (outgoingStatus === "pending") return "pending";
   if (incomingStatus === "pending") return "incoming_pending";
   return "none";
 }

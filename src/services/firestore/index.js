@@ -93,3 +93,16 @@ export {
   adminLogoutUser,
   adminDeleteUser,
 } from "./admin";
+
+// Support
+export {
+  createSupportTicket,
+  subscribeUserTickets,
+  subscribeAllTickets,
+  subscribeTicketMessages,
+  addTicketMessage,
+  updateTicketStatus,
+  markTicketRead,
+  uploadSupportAttachment,
+  generateTicketId,
+} from "./support";

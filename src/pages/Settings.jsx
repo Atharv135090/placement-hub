@@ -393,10 +393,13 @@ export default function Settings() {
 
   async function handleRestoreDefaultPhoto() {
     if (!user?.uid) return;
+    // Use Google photo if available, otherwise null (AuthContext will assign deterministic fallback)
     const defaultPhoto = user?.photoURL || null;
-    await updateUserProfile(user.uid, { photoUrl: defaultPhoto });
+    // Clear photoSource so AuthContext's Google photo sync can manage it again on next login
+    await updateUserProfile(user.uid, { photoUrl: defaultPhoto, photoSource: defaultPhoto ? "google" : "auto" });
     setProfile((prev) => ({ ...prev, photoUrl: defaultPhoto }));
   }
+
 
   // Resume error state
   const [resumeError, setResumeError] = useState("");

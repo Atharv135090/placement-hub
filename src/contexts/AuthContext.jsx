@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { onAuthChange } from "../services/auth";
 import { getUserProfile, createUserProfile, updateUserProfile } from "../services/firestore";
 import { OWNER_EMAIL } from "../config/owner";
-import { getAutoAssignedPhoto } from "../utils/avatar";
+import { getAutoAssignedPhoto, isAutoFallbackPhoto } from "../utils/avatar";
 import { db } from "../config/firebase";
 import { doc, onSnapshot, deleteDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
@@ -73,12 +73,40 @@ export function AuthProvider({ children }) {
             setProfile((prev) => prev ? { ...prev, originalName: data.displayName } : prev);
           }
 
-          if (!data.photoUrl) {
-            const googlePhoto = firebaseUser.photoURL;
-            const autoPhoto = googlePhoto || getAutoAssignedPhoto(firebaseUser);
-            await updateUserProfile(firebaseUser.uid, { photoUrl: autoPhoto });
-            setProfile((prev) => prev ? { ...prev, photoUrl: autoPhoto } : prev);
+          // ── PHOTO SYNC LOGIC ──────────────────────────────────────────────────
+          // Determine if the stored photoUrl is a user-uploaded custom photo.
+          // Custom photos are base64 data URLs ("data:image/...").
+          // Auto-assigned car fallbacks are Unsplash URLs.
+          // Google/provider photos are any other https:// URL.
+          //
+          // Rules:
+          //   • Never overwrite a custom-uploaded (base64) photo with Google photo.
+          //   • Always sync/update to the latest Google photo if no custom photo exists.
+          //   • If no real photo exists at all, assign a deterministic car fallback.
+          const currentPhotoUrl = data.photoUrl || "";
+          const isCustomUploaded = currentPhotoUrl.startsWith("data:");
+          const googlePhoto = firebaseUser.photoURL;
+
+          if (!isCustomUploaded) {
+            if (googlePhoto) {
+              // Always keep in sync with the latest Google/provider photo
+              // (Google can rotate URLs; existing users may have a stale URL or a car fallback)
+              if (currentPhotoUrl !== googlePhoto) {
+                await updateUserProfile(firebaseUser.uid, { photoUrl: googlePhoto });
+                setProfile((prev) => prev ? { ...prev, photoUrl: googlePhoto } : prev);
+              }
+            } else if (!currentPhotoUrl || isAutoFallbackPhoto(currentPhotoUrl)) {
+              // No photo and no Google photo — assign/keep deterministic car fallback
+              const autoPhoto = getAutoAssignedPhoto(firebaseUser);
+              if (currentPhotoUrl !== autoPhoto) {
+                await updateUserProfile(firebaseUser.uid, { photoUrl: autoPhoto });
+                setProfile((prev) => prev ? { ...prev, photoUrl: autoPhoto } : prev);
+              }
+            }
+            // else: already has a non-auto, non-google URL that isn’t custom-uploaded
+            // (shouldn’t happen, but leave it as-is)
           }
+          // If isCustomUploaded: do nothing — preserve the user’s explicit upload
 
           try {
             await firebaseUser.getIdToken(true);

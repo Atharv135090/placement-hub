@@ -137,6 +137,7 @@ export default function Chat() {
     sending,
     sendChatMessage,
     markRead,
+    clearChat,
     startConversation,
     reEncryptOldMessages,
   } = useChat();
@@ -601,8 +602,7 @@ export default function Chat() {
     // PRD Requirement 5 & 6: Mutual follow check
     const relationshipLoaded = pairRelationship && !pairRelationship.loading;
     const isMutual =
-      pairRelationship?.relationship === "mutual" ||
-      pairRelationship?.relationship === "accepted";
+      pairRelationship?.relationship === "mutual";
     const hasExistingConv = Boolean(activeConversation?.id);
 
     if (relationshipLoaded && !isMutual && !hasExistingConv) {
@@ -828,14 +828,13 @@ export default function Chat() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showDisappearingPopup]);
 
-  // Clear chat messages (per-user: marks clearedAt so messages are hidden for this user only)
+  // Clear chat messages (per-user: marks clearedAt so messages are hidden for this user only).
+  // The conversation relationship and Firestore messages remain intact — only this user's view clears.
   async function handleClearChat() {
     if (!activeConversation?.id || !user?.uid) return;
     setConfirmAction(null);
     try {
-      await updateDoc(doc(db, "conversations", activeConversation.id), {
-        [`clearedAt.${user.uid}`]: Date.now(),
-      });
+      await clearChat(activeConversation.id);
     } catch (err) {
       console.error("Clear chat error:", err);
     }
@@ -1603,12 +1602,12 @@ export default function Chat() {
                           ) : (
                             <>
                               {m.text === "Unable to decrypt this message." ? (
-                                <p className="msg-bubble-text msg-bubble-text--locked" title="This message cannot be decrypted. The encryption key is no longer available.">
+                                <p className="msg-bubble-text msg-bubble-text--locked" title="This message could not be decrypted. The encryption key may not be available on this device or session.">
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, verticalAlign: -2 }}>
                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                                   </svg>
-                                  Message permanently locked
+                                  Unable to decrypt — encryption key unavailable on this device
                                 </p>
                               ) : (
                                 <p className="msg-bubble-text">{m.text}</p>
