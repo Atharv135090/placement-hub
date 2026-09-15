@@ -70,8 +70,10 @@ export default function StudentProfile() {
       setLoading(false);
     });
 
-    if (!isOwnProfile) {
+    if (!isOwnProfile && user?.uid) {
+      console.log("[PROFILE_PAGE] subscribing to follow status:", { from: user.uid, to: studentId });
       unsubFollowStatus = subscribeToFollowStatus(user.uid, studentId, ({ status, incomingStatus }) => {
+        console.log("[PROFILE_PAGE] follow status received:", { status, incomingStatus });
         setFollowStatus(status);
         setIncomingFollowStatus(incomingStatus);
       });
@@ -109,6 +111,13 @@ export default function StudentProfile() {
     if (followLoading) return;
     setFollowLoading(true);
     try {
+      console.log("[PROFILE_FOLLOW_ACTION]", {
+        currentUid: user.uid,
+        targetUid: studentId,
+        relationship,
+        followStatus,
+        incomingFollowStatus,
+      });
       if (relationship === "mutual" || relationship === "following") {
         if (!window.confirm("Are you sure you want to unfollow this student?")) {
           setFollowLoading(false);
@@ -117,19 +126,23 @@ export default function StudentProfile() {
         await unfollowUser(user.uid, studentId);
       } else if (relationship === "pending") {
         await cancelFollowRequest(user.uid, studentId);
-      } else if (relationship === "follower") {
+      } else if (relationship === "follower" || relationship === "incoming_pending") {
+        // Accept the incoming request first, then send outgoing follow.
+        // sendFollowRequest will auto-accept because reverse is now "accepted",
+        // resulting in mutual → Message.
+        if (relationship === "incoming_pending") {
+          await acceptFollowRequest(studentId, user.uid);
+          createNotification({
+            title: "Follow Request Accepted",
+            message: `${user.displayName || "Someone"} accepted your follow request.`,
+            type: "follow_accepted",
+            link: `/students/${user.uid}`,
+            targetUserId: studentId,
+            senderId: user.uid,
+            relatedUserId: studentId,
+          }).catch(() => {});
+        }
         await sendFollowRequest(user.uid, studentId);
-      } else if (relationship === "incoming_pending") {
-        await acceptFollowRequest(studentId, user.uid);
-        createNotification({
-          title: "Follow Request Accepted",
-          message: `${user.displayName || "Someone"} accepted your follow request.`,
-          type: "follow_accepted",
-          link: `/students/${user.uid}`,
-          targetUserId: studentId,
-          senderId: user.uid,
-          relatedUserId: studentId,
-        }).catch(() => {});
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
         if (error === "blocked") {
@@ -166,7 +179,7 @@ export default function StudentProfile() {
 
   function getFollowLabel() {
     switch (relationship) {
-      case "mutual": return "↗ Following";
+      case "mutual": return "Message";
       case "following": return "↗ Following";
       case "pending": return "Requested";
       case "follower": return "Follow Back";
@@ -177,6 +190,7 @@ export default function StudentProfile() {
 
   async function handleAcceptRequest(fromId) {
     await acceptFollowRequest(fromId, user.uid);
+    await sendFollowRequest(user.uid, fromId);
     createNotification({
       title: "Follow Request Accepted",
       message: `${user.displayName || "Someone"} accepted your follow request.`,
@@ -333,19 +347,29 @@ export default function StudentProfile() {
 
         {!isOwnProfile && (
           <div className="sp-hero-actions">
-            <button
-              className={`btn ${
-                relationship === "mutual" || relationship === "following"
-                  ? "btn-following-state"
-                  : relationship === "pending"
-                  ? "btn-requested-state"
-                  : "btn-follow-state"
-              }`}
-              onClick={handleFollow}
-              disabled={blocked || followLoading}
-            >
-              {getFollowLabel()}
-            </button>
+            {relationship === "mutual" ? (
+              <button
+                className="btn btn-primary"
+                onClick={handleStartChat}
+                disabled={blocked || chatLoading}
+              >
+                {chatLoading ? "Opening..." : "Message"}
+              </button>
+            ) : (
+              <button
+                className={`btn ${
+                  relationship === "following"
+                    ? "btn-following-state"
+                    : relationship === "pending"
+                    ? "btn-requested-state"
+                    : "btn-follow-state"
+                }`}
+                onClick={handleFollow}
+                disabled={blocked || followLoading}
+              >
+                {getFollowLabel()}
+              </button>
+            )}
             {incomingFollowStatus === "pending" && (
               <button
                 className="btn btn-ghost"
@@ -355,7 +379,7 @@ export default function StudentProfile() {
                 Reject
               </button>
             )}
-            {canChat && (
+            {canChat && relationship !== "mutual" && (
               <button className="btn btn-primary" onClick={handleStartChat} disabled={chatLoading}>
                 {chatLoading ? "Opening..." : "Message"}
               </button>

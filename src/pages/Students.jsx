@@ -57,13 +57,14 @@ export default function Students() {
     // the `online` boolean and `lastSeenAt` timestamp written by setUserOnline/setUserOffline.
     // No separate per-card presence listeners needed.
     unsubStudents = subscribeToStudents((allUsers) => {
-      const list = (allUsers || []).filter((s) => s.id !== user?.uid);
-      setStudents(list);
+      setStudents(allUsers || []);
       setLoading(false);
     });
 
     if (user?.uid) {
+      console.log("[STUDENTS_PAGE] subscribing to follow statuses for uid:", user.uid);
       unsubFollowStatuses = subscribeToAllFollowStatuses(user.uid, (statuses) => {
+        console.log("[STUDENTS_PAGE] follow statuses received:", statuses);
         setFollowStatuses(statuses || {});
       });
     }
@@ -149,13 +150,18 @@ export default function Students() {
     return filteredStudents.slice(start, start + pageSize);
   }, [filteredStudents, currentPage, pageSize]);
 
-  // Follow handler
+  // Follow handler — NO optimistic state. Firebase subscription is the single source of truth.
   async function handleFollow(studentId) {
     if (followLoading[studentId] || !user?.uid) return;
     setFollowLoading((prev) => ({ ...prev, [studentId]: true }));
     try {
       const status = followStatuses[studentId];
-      if (status === "accepted" || status === "following") {
+      console.log("[STUDENT_FOLLOW_ACTION]", {
+        currentUid: user.uid,
+        targetUid: studentId,
+        currentStatus: status,
+      });
+      if (status === "mutual" || status === "following") {
         if (!window.confirm("Are you sure you want to unfollow this student?")) {
           setFollowLoading((prev) => ({ ...prev, [studentId]: false }));
           return;
@@ -163,17 +169,23 @@ export default function Students() {
         await unfollowUser(user.uid, studentId);
       } else if (status === "pending") {
         await cancelFollowRequest(user.uid, studentId);
-      } else if (status === "incoming_pending") {
-        await acceptFollowRequest(studentId, user.uid);
-        createNotification({
-          title: "Follow Request Accepted",
-          message: `${user.displayName || "Someone"} accepted your follow request.`,
-          type: "follow_accepted",
-          link: `/students/${user.uid}`,
-          targetUserId: studentId,
-          senderId: user.uid,
-          relatedUserId: studentId,
-        }).catch(() => {});
+      } else if (status === "incoming_pending" || status === "follower") {
+        // Follow Back flow:
+        // - If incoming is "pending": accept it first, then send outgoing follow.
+        // - If incoming is "accepted" (follower): just send outgoing follow (reverse already accepted).
+        if (status === "incoming_pending") {
+          await acceptFollowRequest(studentId, user.uid);
+          createNotification({
+            title: "Follow Request Accepted",
+            message: `${user.displayName || "Someone"} accepted your follow request.`,
+            type: "follow_accepted",
+            link: `/students/${user.uid}`,
+            targetUserId: studentId,
+            senderId: user.uid,
+            relatedUserId: studentId,
+          }).catch(() => {});
+        }
+        await sendFollowRequest(user.uid, studentId);
       } else {
         const { data, error } = await sendFollowRequest(user.uid, studentId);
         if (error === "blocked") {
@@ -191,21 +203,19 @@ export default function Students() {
           setTimeout(() => setToastMsg(""), 3000);
           return;
         }
-        if (data) {
-          setFollowStatuses((prev) => ({ ...prev, [studentId]: data.status }));
-          if (data.status === "pending") {
-            createNotification({
-              title: "Follow Request",
-              message: `${user.displayName || "Someone"} wants to follow you.`,
-              type: "follow_request",
-              link: `/students/${user.uid}`,
-              targetUserId: studentId,
-              senderId: user.uid,
-              relatedUserId: user.uid,
-              followRequestId: data.id,
-            }).catch(() => {});
-          }
+        if (data && data.status === "pending") {
+          createNotification({
+            title: "Follow Request",
+            message: `${user.displayName || "Someone"} wants to follow you.`,
+            type: "follow_request",
+            link: `/students/${user.uid}`,
+            targetUserId: studentId,
+            senderId: user.uid,
+            relatedUserId: user.uid,
+            followRequestId: data.id,
+          }).catch(() => {});
         }
+        // NO optimistic state update — the Firebase subscription will emit the correct state.
       }
     } catch (err) {
       console.error("Follow error:", err);
@@ -486,7 +496,7 @@ export default function Students() {
         <div className={viewMode === "grid" ? "students-grid" : "students-list"}>
           {paginatedStudents.map((s) => {
             const status = followStatuses[s.id];
-            const isFollowing = status === "accepted";
+            const isFollowing = status === "mutual" || status === "following";
             const isPrivate = s.profileVisibility === "private";
             const isProtected = isPrivate && !isFollowing;
             const menuOpen = activeMenuId === s.id;
@@ -583,7 +593,7 @@ export default function Students() {
                             <span>View Profile</span>
                           </button>
 
-                          {status === "accepted" && (
+                          {status === "mutual" && (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
@@ -595,7 +605,7 @@ export default function Students() {
                             </button>
                           )}
 
-                          {status === "accepted" || status === "following" ? (
+                          {status === "mutual" || status === "following" ? (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
@@ -620,7 +630,7 @@ export default function Students() {
                               </svg>
                               <span>Cancel Request</span>
                             </button>
-                          ) : status !== "accepted" ? (
+                          ) : (
                             <button
                               className="dropdown-item"
                               onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
@@ -633,7 +643,7 @@ export default function Students() {
                               </svg>
                               <span>{status === "follower" || status === "incoming_pending" ? "Follow Back" : "Follow"}</span>
                             </button>
-                          ) : null}
+                          )}
 
                           <button
                             className="dropdown-item"
@@ -727,7 +737,7 @@ export default function Students() {
 
                 {/* Bottom Action Buttons Row */}
                 <div className="student-card-actions">
-                  {status === "accepted" ? (
+                  {status === "mutual" ? (
                     /* Mutual accepted → Message button */
                     <button
                       className="btn student-action-btn btn-message-primary"

@@ -76,21 +76,15 @@ export async function adminLogoutUser(userId) {
 
 export async function adminDeleteUser(userId) {
   try {
-    // 1. Delete user document from Firestore (so user can re-register/re-login fresh with empty data)
+    // ── 0. Mark user as pending deletion (visible immediately in admin list) ──
     try {
-      await deleteDoc(doc(db, "users", userId));
-    } catch (e) {
-      console.warn("adminDeleteUser: user doc delete error", e);
-    }
+      await updateDoc(doc(db, "users", userId), {
+        accountDeleted: true,
+        accountDeletedAt: new Date().toISOString(),
+      });
+    } catch (_) {}
 
-    // 2. Best-effort cleanup of secondary collections
-    try {
-      const appSnap = await getDocs(query(collection(db, "applications"), where("userId", "==", userId)));
-      for (const d of appSnap.docs) {
-        await deleteDoc(doc(db, "applications", d.id)).catch(() => {});
-      }
-    } catch (e) {}
-
+    // ── 1. Delete follow relationships (both directions) ──
     try {
       const folSnap1 = await getDocs(query(collection(db, "follows"), where("fromUserId", "==", userId)));
       for (const d of folSnap1.docs) {
@@ -100,15 +94,11 @@ export async function adminDeleteUser(userId) {
       for (const d of folSnap2.docs) {
         await deleteDoc(doc(db, "follows", d.id)).catch(() => {});
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("adminDeleteUser: follows cleanup error", e);
+    }
 
-    try {
-      const blockSnap = await getDocs(query(collection(db, "blocks"), where("userId", "==", userId)));
-      for (const d of blockSnap.docs) {
-        await deleteDoc(doc(db, "blocks", d.id)).catch(() => {});
-      }
-    } catch (e) {}
-
+    // ── 2. Delete notifications (both sender and target) ──
     try {
       const notifSnap1 = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", userId)));
       for (const d of notifSnap1.docs) {
@@ -118,14 +108,106 @@ export async function adminDeleteUser(userId) {
       for (const d of notifSnap2.docs) {
         await deleteDoc(doc(db, "notifications", d.id)).catch(() => {});
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("adminDeleteUser: notifications cleanup error", e);
+    }
 
+    // ── 3. Delete applications ──
+    try {
+      const appSnap = await getDocs(query(collection(db, "applications"), where("userId", "==", userId)));
+      for (const d of appSnap.docs) {
+        await deleteDoc(doc(db, "applications", d.id)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("adminDeleteUser: applications cleanup error", e);
+    }
+
+    // ── 4. Delete blocks (both directions) ──
+    try {
+      const blockSnap1 = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", userId)));
+      for (const d of blockSnap1.docs) {
+        await deleteDoc(doc(db, "blocks", d.id)).catch(() => {});
+      }
+      const blockSnap2 = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", userId)));
+      for (const d of blockSnap2.docs) {
+        await deleteDoc(doc(db, "blocks", d.id)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("adminDeleteUser: blocks cleanup error", e);
+    }
+
+    // ── 5. Delete conversations and their messages ──
     try {
       const convSnap = await getDocs(query(collection(db, "conversations"), where("participants", "array-contains", userId)));
       for (const d of convSnap.docs) {
+        // Delete messages in this conversation
+        try {
+          const msgSnap = await getDocs(query(collection(db, "messages"), where("conversationId", "==", d.id)));
+          for (const m of msgSnap.docs) {
+            await deleteDoc(doc(db, "messages", m.id)).catch(() => {});
+          }
+        } catch (_) {}
         await deleteDoc(doc(db, "conversations", d.id)).catch(() => {});
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn("adminDeleteUser: conversations cleanup error", e);
+    }
+
+    // ── 6. Delete admin conversations and their messages ──
+    try {
+      const adminConvSnap = await getDocs(query(collection(db, "adminConversations"), where("participants", "array-contains", userId)));
+      for (const d of adminConvSnap.docs) {
+        try {
+          const adminMsgSnap = await getDocs(query(collection(db, "adminMessages"), where("conversationId", "==", d.id)));
+          for (const m of adminMsgSnap.docs) {
+            await deleteDoc(doc(db, "adminMessages", m.id)).catch(() => {});
+          }
+        } catch (_) {}
+        await deleteDoc(doc(db, "adminConversations", d.id)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("adminDeleteUser: admin conversations cleanup error", e);
+    }
+
+    // ── 7. Delete support tickets and their messages ──
+    try {
+      const ticketSnap = await getDocs(query(collection(db, "supportTickets"), where("userId", "==", userId)));
+      for (const d of ticketSnap.docs) {
+        try {
+          const ticketMsgSnap = await getDocs(collection(db, "supportTickets", d.id, "messages"));
+          for (const m of ticketMsgSnap.docs) {
+            await deleteDoc(doc(db, "supportTickets", d.id, "messages", m.id)).catch(() => {});
+          }
+        } catch (_) {}
+        await deleteDoc(doc(db, "supportTickets", d.id)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("adminDeleteUser: support tickets cleanup error", e);
+    }
+
+    // ── 8. Delete userKeys (E2EE public key) ──
+    try {
+      await deleteDoc(doc(db, "userKeys", userId)).catch(() => {});
+    } catch (e) {
+      console.warn("adminDeleteUser: userKeys cleanup error", e);
+    }
+
+    // ── 9. Delete resume chunks subcollection ──
+    try {
+      const chunkSnap = await getDocs(collection(db, "users", userId, "resumeChunks"));
+      for (const d of chunkSnap.docs) {
+        await deleteDoc(doc(db, "users", userId, "resumeChunks", d.id)).catch(() => {});
+      }
+    } catch (e) {
+      console.warn("adminDeleteUser: resume chunks cleanup error", e);
+    }
+
+    // ── 10. Delete user document (last, after all related data is cleaned) ──
+    try {
+      await deleteDoc(doc(db, "users", userId));
+    } catch (e) {
+      console.warn("adminDeleteUser: user doc delete error", e);
+    }
 
     return { data: { success: true }, error: null };
   } catch (error) {

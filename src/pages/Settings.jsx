@@ -512,29 +512,68 @@ export default function Settings() {
     try {
       const uid = user.uid;
 
+      // Follows (both directions)
       const followSnap1 = await getDocs(query(collection(db, "follows"), where("fromUserId", "==", uid)));
-      await Promise.all(followSnap1.docs.map((d) => deleteDoc(doc(db, "follows", d.id))));
-
+      await Promise.all(followSnap1.docs.map((d) => deleteDoc(doc(db, "follows", d.id)).catch(() => {})));
       const followSnap2 = await getDocs(query(collection(db, "follows"), where("toUserId", "==", uid)));
-      await Promise.all(followSnap2.docs.map((d) => deleteDoc(doc(db, "follows", d.id))));
+      await Promise.all(followSnap2.docs.map((d) => deleteDoc(doc(db, "follows", d.id)).catch(() => {})));
 
+      // Blocks (both directions)
       const blockSnap1 = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", uid)));
-      await Promise.all(blockSnap1.docs.map((d) => deleteDoc(doc(db, "blocks", d.id))));
-
+      await Promise.all(blockSnap1.docs.map((d) => deleteDoc(doc(db, "blocks", d.id)).catch(() => {})));
       const blockSnap2 = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", uid)));
-      await Promise.all(blockSnap2.docs.map((d) => deleteDoc(doc(db, "blocks", d.id))));
+      await Promise.all(blockSnap2.docs.map((d) => deleteDoc(doc(db, "blocks", d.id)).catch(() => {})));
 
-      const notifSnap = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", uid)));
-      await Promise.all(notifSnap.docs.map((d) => deleteDoc(doc(db, "notifications", d.id))));
+      // Notifications (both directions)
+      const notifSnap1 = await getDocs(query(collection(db, "notifications"), where("targetUserId", "==", uid)));
+      await Promise.all(notifSnap1.docs.map((d) => deleteDoc(doc(db, "notifications", d.id)).catch(() => {})));
+      const notifSnap2 = await getDocs(query(collection(db, "notifications"), where("senderId", "==", uid)));
+      await Promise.all(notifSnap2.docs.map((d) => deleteDoc(doc(db, "notifications", d.id)).catch(() => {})));
 
+      // Applications
+      const appSnap = await getDocs(query(collection(db, "applications"), where("userId", "==", uid)));
+      await Promise.all(appSnap.docs.map((d) => deleteDoc(doc(db, "applications", d.id)).catch(() => {})));
+
+      // Conversations + Messages
+      const convSnap = await getDocs(query(collection(db, "conversations"), where("participants", "array-contains", uid)));
+      for (const conv of convSnap.docs) {
+        const msgSnap = await getDocs(query(collection(db, "messages"), where("conversationId", "==", conv.id))).catch(() => ({ docs: [] }));
+        await Promise.all(msgSnap.docs.map((m) => deleteDoc(doc(db, "messages", m.id)).catch(() => {})));
+        await deleteDoc(doc(db, "conversations", conv.id)).catch(() => {});
+      }
+
+      // Admin conversations + messages
+      const adminConvSnap = await getDocs(query(collection(db, "adminConversations"), where("participants", "array-contains", uid)));
+      for (const conv of adminConvSnap.docs) {
+        const adminMsgSnap = await getDocs(query(collection(db, "adminMessages"), where("conversationId", "==", conv.id))).catch(() => ({ docs: [] }));
+        await Promise.all(adminMsgSnap.docs.map((m) => deleteDoc(doc(db, "adminMessages", m.id)).catch(() => {})));
+        await deleteDoc(doc(db, "adminConversations", conv.id)).catch(() => {});
+      }
+
+      // Support tickets + messages
+      const ticketSnap = await getDocs(query(collection(db, "supportTickets"), where("userId", "==", uid)));
+      for (const ticket of ticketSnap.docs) {
+        const ticketMsgSnap = await getDocs(collection(db, "supportTickets", ticket.id, "messages")).catch(() => ({ docs: [] }));
+        await Promise.all(ticketMsgSnap.docs.map((m) => deleteDoc(doc(db, "supportTickets", ticket.id, "messages", m.id)).catch(() => {})));
+        await deleteDoc(doc(db, "supportTickets", ticket.id)).catch(() => {});
+      }
+
+      // UserKeys
+      await deleteDoc(doc(db, "userKeys", uid)).catch(() => {});
+
+      // Resume chunks
+      const chunkSnap = await getDocs(collection(db, "users", uid, "resumeChunks")).catch(() => ({ docs: [] }));
+      await Promise.all(chunkSnap.docs.map((d) => deleteDoc(doc(db, "users", uid, "resumeChunks", d.id)).catch(() => {})));
+
+      // User document (last)
       await deleteDoc(doc(db, "users", uid));
 
+      // Firebase Auth account deletion
       try {
         await reauthenticateWithPopup(user, new GoogleAuthProvider());
       } catch {
         // Reauthentication optional
       }
-
       try {
         await deleteUser(user);
       } catch {

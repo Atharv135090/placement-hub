@@ -242,7 +242,7 @@ export default function IntegratedStudentsChat({
     if (activeStudentId && user?.uid) {
       // Check mutual follow before starting conversation
       const status = followStatuses[activeStudentId];
-      if (status !== "accepted") {
+      if (status !== "mutual") {
         // Don't create conversation — but keep activeConversation null so the
         // right panel shows the follow gate instead of chat messages
         return;
@@ -323,7 +323,7 @@ export default function IntegratedStudentsChat({
   }
 
   // Check if mutually connected
-  const isMutuallyConnected = followStatuses[activeStudentId] === "accepted";
+  const isMutuallyConnected = followStatuses[activeStudentId] === "mutual";
   const followStatus = followStatuses[activeStudentId];
 
   // Handle sending a message via Firebase
@@ -890,8 +890,9 @@ export default function IntegratedStudentsChat({
                       onClick={async () => {
                         setFollowLoading(true);
                         try {
-                          const { acceptFollowRequest } = await import("../services/social");
+                          const { acceptFollowRequest, sendFollowRequest } = await import("../services/social");
                           await acceptFollowRequest(activeStudentId, user.uid);
+                          await sendFollowRequest(user.uid, activeStudentId);
                         } catch (err) {
                           console.error("Accept failed:", err);
                         } finally {

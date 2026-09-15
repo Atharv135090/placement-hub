@@ -139,7 +139,6 @@ export default function Chat() {
     markRead,
     clearChat,
     startConversation,
-    reEncryptOldMessages,
   } = useChat();
 
   const [input, setInput] = useState("");
@@ -190,9 +189,6 @@ export default function Chat() {
 
   // Clear confirmation state
   const [confirmAction, setConfirmAction] = useState(null); // "clear" | null
-
-  // Re-encrypt state
-  const [reEncrypting, setReEncrypting] = useState(false);
 
   // In-app error toast state (Replaces window.alert per PRD Section 12)
   const [sendErrorToast, setSendErrorToast] = useState("");
@@ -432,7 +428,9 @@ export default function Chat() {
   // Subscribe to all follow statuses for Discover mode
   useEffect(() => {
     if (!user?.uid) return;
+    console.log("[CHAT_PAGE] subscribing to follow statuses for uid:", user.uid);
     const unsub = subscribeToAllFollowStatuses(user.uid, (statuses) => {
+      console.log("[CHAT_PAGE] follow statuses received:", statuses);
       setFollowStatuses(statuses || {});
     });
     return () => unsub?.();
@@ -462,7 +460,9 @@ export default function Chat() {
       setPairRelationship(null);
       return;
     }
+    console.log("[CHAT_PAGE] subscribing to relationship:", { current: user.uid, other: otherId });
     const unsub = subscribeToRelationship(user.uid, otherId, (rel) => {
+      console.log("[CHAT_PAGE] relationship received:", rel);
       setPairRelationship(rel);
     });
     return () => unsub?.();
@@ -840,25 +840,6 @@ export default function Chat() {
     }
   }
 
-  // Re-encrypt old V1 messages with V2 (ECDH)
-  async function handleReEncrypt() {
-    if (!activeConversation?.id || !user?.uid) return;
-    setReEncrypting(true);
-    try {
-      const count = await reEncryptOldMessages(activeConversation.id);
-      if (count > 0) {
-        showToast(`Re-encrypted ${count} old message(s) with new encryption.`);
-      } else {
-        showToast("No old messages to re-encrypt, or keys not ready.");
-      }
-    } catch (err) {
-      console.error("Re-encrypt error:", err);
-      showToast("Failed to re-encrypt messages.");
-    } finally {
-      setReEncrypting(false);
-    }
-  }
-
   // ─── DISCOVER: FOLLOW ACTIONS ────────────────────────────────
   async function handleFollowToMessage(targetUserId) {
     if (!user?.uid || followLoading) return;
@@ -889,6 +870,7 @@ export default function Chat() {
     setFollowLoading(targetUserId);
     try {
       await acceptFollowRequest(targetUserId, user.uid);
+      await sendFollowRequest(user.uid, targetUserId);
     } catch (err) {
       console.error("Accept request failed:", err);
     } finally {
@@ -1294,7 +1276,7 @@ export default function Chat() {
                   <div className="msg-conv-content">
                     <div className="msg-conv-top-row">
                       <span className="msg-conv-name">{name}</span>
-                      {(status === "accepted" || status === "following") && (
+                      {(status === "mutual" || status === "following") && (
                         <span className="msg-discover-badge msg-discover-badge--following">Following</span>
                       )}
                       {status === "follower" && (
@@ -1348,7 +1330,7 @@ export default function Chat() {
                   <div className="msg-conv-content">
                     <div className="msg-conv-top-row">
                       <span className="msg-conv-name">{name}</span>
-                      {(status === "accepted" || status === "following") && (
+                      {(status === "mutual" || status === "following") && (
                         <span className="msg-discover-badge msg-discover-badge--following">Following</span>
                       )}
                       {status === "follower" && (
@@ -1516,13 +1498,6 @@ export default function Chat() {
                           onClick={() => { setShowConvMenu(false); setConfirmAction("clear"); }}
                         >
                           Clear Chat
-                        </button>
-                        <button
-                          className="msg-conv-menu-item"
-                          onClick={() => { setShowConvMenu(false); handleReEncrypt(); }}
-                          disabled={reEncrypting}
-                        >
-                          {reEncrypting ? "Re-encrypting..." : "Re-encrypt Old Messages"}
                         </button>
                       </div>
                     )}

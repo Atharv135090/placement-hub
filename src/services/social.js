@@ -63,9 +63,7 @@ export {
   subscribeToMessages,
   subscribeToConversations,
   markConversationRead,
-  encryptMessage,
-  decryptMessage,
-  reEncryptConversationMessages,
+  readMessageText,
 } from "./social/messaging";
 
 // Admin Messaging

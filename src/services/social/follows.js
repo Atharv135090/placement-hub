@@ -33,7 +33,8 @@ export async function sendFollowRequest(fromUserId, toUserId) {
 
     const toProfile = await getDoc(doc(db, "users", toUserId));
     const isPublic = toProfile.exists() && toProfile.data().profileVisibility === "public";
-    const shouldBeAccepted = isPublic || reverseStatus === "accepted";
+    const reverseIsPending = reverseStatus === "pending";
+    const shouldBeAccepted = isPublic || reverseStatus === "accepted" || reverseIsPending;
 
     await setDoc(doc(db, "follows", docId), {
       fromUserId,
@@ -45,6 +46,12 @@ export async function sendFollowRequest(fromUserId, toUserId) {
     if (shouldBeAccepted) {
       await updateDoc(doc(db, "users", fromUserId), { followingCount: increment(1) });
       await updateDoc(doc(db, "users", toUserId), { followersCount: increment(1) });
+    }
+
+    if (reverseIsPending) {
+      await updateDoc(doc(db, "follows", reverseDocId), { status: "accepted" });
+      await updateDoc(doc(db, "users", toUserId), { followingCount: increment(1) });
+      await updateDoc(doc(db, "users", fromUserId), { followersCount: increment(1) });
     }
 
     return { data: { id: docId, status: shouldBeAccepted ? "accepted" : "pending" }, error: null };
@@ -314,33 +321,49 @@ export async function rebuildFollowerCounts() {
 }
 
 export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
+  if (!fromUserId || !toUserId) return () => {};
+
   const docIdOut = `${fromUserId}_${toUserId}`;
   const docIdIn = `${toUserId}_${fromUserId}`;
 
   const statuses = { outgoing: null, incoming: null };
+  let outLoaded = false;
+  let inLoaded = false;
+  let generation = 0;
 
   function emit() {
-    if (statuses.outgoing === null && statuses.incoming === null) {
-      callback({ status: null, incomingStatus: null });
-    } else {
-      callback({ status: statuses.outgoing, incomingStatus: statuses.incoming });
-    }
+    const loading = !outLoaded || !inLoaded;
+    const gen = ++generation;
+    if (loading) return;
+    const relationship = getRelationship(statuses.outgoing, statuses.incoming);
+    console.log("[FOLLOW_PAIR_DEBUG]", {
+      fromUid: fromUserId,
+      toUid: toUserId,
+      outgoing: statuses.outgoing,
+      incoming: statuses.incoming,
+      relationship,
+    });
+    callback({ status: statuses.outgoing, incomingStatus: statuses.incoming, generation: gen });
   }
 
   const unsubOut = onSnapshot(doc(db, "follows", docIdOut), (docSnap) => {
+    outLoaded = true;
     statuses.outgoing = docSnap.exists() ? docSnap.data().status : null;
     emit();
   }, (error) => {
-    console.error("subscribeToFollowStatus outgoing error:", error);
+    console.error("[subscribeToFollowStatus] outgoing error:", error);
+    outLoaded = true;
     statuses.outgoing = null;
     emit();
   });
 
   const unsubIn = onSnapshot(doc(db, "follows", docIdIn), (docSnap) => {
+    inLoaded = true;
     statuses.incoming = docSnap.exists() ? docSnap.data().status : null;
     emit();
   }, (error) => {
-    console.error("subscribeToFollowStatus incoming error:", error);
+    console.error("[subscribeToFollowStatus] incoming error:", error);
+    inLoaded = true;
     statuses.incoming = null;
     emit();
   });
@@ -353,8 +376,6 @@ export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
 
 export function subscribeToAllFollowStatuses(userId, callback) {
   if (!userId) return () => {};
-
-  console.log("[FOLLOW_DEBUG] subscribeToAllFollowStatuses for userId:", userId);
 
   const qOutgoing = query(
     collection(db, "follows"),
@@ -369,6 +390,7 @@ export function subscribeToAllFollowStatuses(userId, callback) {
   const incomingStatuses = {};
   let outgoingLoaded = false;
   let incomingLoaded = false;
+  let generation = 0;
 
   function emit() {
     if (outgoingLoaded && incomingLoaded) {
@@ -377,18 +399,16 @@ export function subscribeToAllFollowStatuses(userId, callback) {
       for (const uid of allUids) {
         const out = outgoingStatuses[uid] || null;
         const inc = incomingStatuses[uid] || null;
-        if (out === "accepted" && inc === "accepted") {
-          merged[uid] = "accepted";
-        } else if (inc === "accepted") {
-          merged[uid] = "follower";
-        } else if (out === "accepted") {
-          merged[uid] = "following";
-        } else if (out === "pending") {
-          merged[uid] = "pending";
-        } else if (inc === "pending") {
-          merged[uid] = "incoming_pending";
-        }
+        merged[uid] = getRelationship(out, inc);
       }
+      const gen = ++generation;
+      console.log("[FOLLOW_ALL_DEBUG]", {
+        currentUid: userId,
+        outgoing: { ...outgoingStatuses },
+        incoming: { ...incomingStatuses },
+        merged,
+        generation: gen,
+      });
       callback(merged);
     }
   }
@@ -397,12 +417,6 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     for (const key of Object.keys(outgoingStatuses)) {
       delete outgoingStatuses[key];
     }
-    console.log("[FOLLOW_DEBUG] OUTGOING docs for", userId, ":", snapshot.docs.map(d => ({
-      docId: d.id,
-      fromUserId: d.data().fromUserId,
-      toUserId: d.data().toUserId,
-      status: d.data().status,
-    })));
     for (const d of snapshot.docs) {
       const data = d.data();
       if (data.status) {
@@ -412,7 +426,7 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     outgoingLoaded = true;
     emit();
   }, (error) => {
-    console.error("[FOLLOW_DEBUG] OUTGOING ERROR:", error);
+    console.error("[subscribeToAllFollowStatuses] outgoing error:", error);
     outgoingLoaded = true;
     emit();
   });
@@ -421,24 +435,16 @@ export function subscribeToAllFollowStatuses(userId, callback) {
     for (const key of Object.keys(incomingStatuses)) {
       delete incomingStatuses[key];
     }
-    console.log("[FOLLOW_DEBUG] INCOMING docs for", userId, ":", snapshot.docs.map(d => ({
-      docId: d.id,
-      fromUserId: d.data().fromUserId,
-      toUserId: d.data().toUserId,
-      status: d.data().status,
-    })));
     for (const d of snapshot.docs) {
       const data = d.data();
-      if (data.status === "accepted") {
-        incomingStatuses[data.fromUserId] = "accepted";
-      } else if (data.status === "pending") {
-        incomingStatuses[data.fromUserId] = "incoming_pending";
+      if (data.status) {
+        incomingStatuses[data.fromUserId] = data.status;
       }
     }
     incomingLoaded = true;
     emit();
   }, (error) => {
-    console.error("[FOLLOW_DEBUG] INCOMING ERROR:", error);
+    console.error("[subscribeToAllFollowStatuses] incoming error:", error);
     incomingLoaded = true;
     emit();
   });
@@ -467,17 +473,20 @@ export function subscribeToRelationship(currentUserId, otherUserId, callback) {
   const statuses = { outgoing: null, incoming: null };
   let outLoaded = false;
   let inLoaded = false;
+  let generation = 0;
 
   function emit() {
     const loading = !outLoaded || !inLoaded;
     const relationship = getRelationship(statuses.outgoing, statuses.incoming);
-    console.log("[PAIR_REL]", currentUserId.slice(0, 6), "<->", otherUserId.slice(0, 6), ":", {
-      OUT_DOC: docIdOut,
-      OUT_STATUS: statuses.outgoing,
-      IN_DOC: docIdIn,
-      IN_STATUS: statuses.incoming,
-      RELATIONSHIP: relationship,
-      LOADING: loading,
+    const gen = ++generation;
+    console.log("[FOLLOW_REL_DEBUG]", {
+      currentUid: currentUserId,
+      otherUid: otherUserId,
+      outgoing: statuses.outgoing,
+      incoming: statuses.incoming,
+      relationship,
+      loading,
+      generation: gen,
     });
     callback({ outgoing: statuses.outgoing, incoming: statuses.incoming, relationship, loading });
   }

@@ -1,14 +1,7 @@
-import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
-import {
-  getECDHPrivateKey,
-  getECDHPublicKey,
-  fetchECDHPublicKey,
-  encryptMessageE2EE,
-  decryptMessageE2EE,
-} from "../../utils/crypto";
 
 // NOTE: Automatic message cleanup (age/count-based deletion) has been intentionally
 // REMOVED from user-to-user Chat. Messages must remain readable indefinitely
@@ -30,9 +23,16 @@ export async function getOrCreateConversation(uid1, uid2) {
 
     const convId = getConversationId(uid1, uid2);
     const convRef = doc(db, "conversations", convId);
-    const convSnap = await getDoc(convRef);
 
-    if (convSnap.exists()) {
+    let convSnap;
+    try {
+      convSnap = await getDoc(convRef);
+    } catch {
+      // Document may not exist — security rule denies read on non-existent docs
+      convSnap = null;
+    }
+
+    if (convSnap && convSnap.exists()) {
       // Conversation exists — ensure both users are participants
       const data = convSnap.data();
       const participants = data.participants || [];
@@ -93,26 +93,20 @@ export async function getConversations(userId) {
   }
 }
 
-export async function sendMessage(conversationId, senderId, encryptedText, participants, messageVersion = 2, senderPubKey = null, recipientPubKey = null) {
-  // Build message doc — include public key metadata so future decryption
-  // never depends on key availability at decryption time.
+export async function sendMessage(conversationId, senderId, text, participants) {
   const msgData = {
     conversationId,
     senderId,
-    encryptedText,
-    messageVersion,
+    text,
     createdAt: serverTimestamp(),
     read: false,
   };
-  // Persist sender/recipient public keys with the message for permanent E2EE metadata
-  if (senderPubKey) msgData.senderPubKey = senderPubKey;
-  if (recipientPubKey) msgData.recipientPubKey = recipientPubKey;
 
   const msgRef = await addDoc(collection(db, "messages"), msgData);
 
   const unreadField = participants?.[0] === senderId ? "unread2" : "unread1";
   await updateDoc(doc(db, "conversations", conversationId), {
-    lastMessage: encryptedText,
+    lastMessage: text,
     lastMessageAt: serverTimestamp(),
     lastActivityAt: serverTimestamp(),
     [unreadField]: increment(1),
@@ -210,7 +204,10 @@ export async function markConversationRead(conversationId, userId, participants)
   }
 }
 
-// ─── ENCRYPTION ──────────────────────────────────────────────
+// ─── MESSAGE READ/DECRYPT ────────────────────────────────────
+// New messages are stored as plaintext in the `text` field.
+// Legacy messages (messageVersion 1 or 2) may be stored in `encryptedText`.
+// This function handles both transparently.
 
 function sortIds(uid1, uid2) {
   return uid1 < uid2 ? [uid1, uid2] : [uid2, uid1];
@@ -243,154 +240,29 @@ async function decryptV1(cipherText, uid1, uid2) {
   return new TextDecoder().decode(decrypted);
 }
 
-export async function encryptMessage(plaintext, senderUid, recipientUid) {
-  const privateKey = await getECDHPrivateKey(senderUid);
-  // Fetch recipient's REAL public key from Firestore (not local IndexedDB)
-  const recipientPubKey = await fetchECDHPublicKey(recipientUid);
-  // Also get sender's own public key to persist with the message
-  const senderPubKey = await getECDHPublicKey(senderUid);
+/**
+ * Read a message's text content.
+ * - New messages store plaintext in the `text` field.
+ * - Legacy encrypted messages store ciphertext in `encryptedText` with messageVersion 1 or 2.
+ *   These are best-effort decrypted; if decryption fails, a friendly fallback is returned.
+ */
+export async function readMessageText(msg, uid1, uid2) {
+  // New plaintext message
+  if (msg.text != null) return msg.text;
 
-  if (privateKey && recipientPubKey) {
+  // Legacy encrypted message
+  const version = msg.messageVersion;
+  const cipherText = msg.encryptedText;
+  if (!cipherText || (!version && version !== 1 && version !== 2)) return "";
+
+  // Try V1 PBKDF2 (symmetric, no key lookup needed)
+  if (version === 1 || !version) {
     try {
-      const encrypted = await encryptMessageE2EE(plaintext, privateKey, recipientPubKey);
-      // Return pubkey metadata so it can be stored alongside the message.
-      // This ensures future decryption always has the required keys regardless
-      // of time elapsed or key rotation.
-      return { encryptedText: encrypted, messageVersion: 2, senderPubKey, recipientPubKey };
-    } catch (err) {
-      console.warn("V2 encryption failed, falling back to V1:", err);
-    }
+      return await decryptV1(cipherText, uid1, uid2);
+    } catch {}
   }
 
-  // Fallback: V1 PBKDF2 symmetric key (deterministic from UIDs)
-  console.log("encryptMessage: Using V1 fallback for", senderUid, "->", recipientUid);
-  const key = await deriveKeyV1(senderUid, recipientUid);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
-  const ivHex = Array.from(iv).map((b) => b.toString(16).padStart(2, "0")).join("");
-  const encHex = Array.from(new Uint8Array(enc)).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return { encryptedText: `${ivHex}:${encHex}`, messageVersion: 1, senderPubKey: null, recipientPubKey: null };
-}
-
-/**
- * Decrypt a message, using embedded public-key metadata first.
- * Priority order:
- *   1. V2 ECDH using keys embedded in the message document (senderPubKey / recipientPubKey)
- *   2. V2 ECDH using Firestore-fetched public key
- *   3. V1 PBKDF2 deterministic fallback
- *
- * Message age is NEVER a factor in decryption decisions.
- */
-export async function decryptMessage(cipherText, uid1, uid2, messageVersion, msgSenderPubKey = null, msgRecipientPubKey = null) {
-  const myPrivKey = await getECDHPrivateKey(uid1);
-
-  // ── Strategy 1: try both public keys embedded in the message document ──
-  // Since ECDH is symmetric (ECDH(A_priv, B_pub) = ECDH(B_priv, A_pub)),
-  // one of the two stored keys must belong to the other party.
-  // We try both without needing to know who was the sender.
-  // This path works indefinitely regardless of time elapsed or Firestore key changes.
-  if (myPrivKey) {
-    if (msgSenderPubKey) {
-      try {
-        return await decryptMessageE2EE(cipherText, myPrivKey, msgSenderPubKey);
-      } catch {
-        // This key was our own — try the other embedded key
-      }
-    }
-    if (msgRecipientPubKey) {
-      try {
-        return await decryptMessageE2EE(cipherText, myPrivKey, msgRecipientPubKey);
-      } catch {
-        // Neither embedded key worked — fall through to Firestore lookup
-      }
-    }
-  }
-
-  // ── Strategy 2: V2 ECDH with Firestore-fetched current public key ──
-  // Works if neither key pair has changed since the message was sent.
-  if (myPrivKey) {
-    const theirPubKey = await fetchECDHPublicKey(uid2);
-    if (theirPubKey) {
-      try {
-        return await decryptMessageE2EE(cipherText, myPrivKey, theirPubKey);
-      } catch {
-        // V2 with current Firestore key failed — try V1
-      }
-    }
-  }
-
-  // ── Strategy 3: V1 PBKDF2 deterministic fallback ──
-  // Works for all V1-encrypted messages regardless of key state.
-  try {
-    return await decryptV1(cipherText, uid1, uid2);
-  } catch {
-    // V1 also failed — message is genuinely unrecoverable
-  }
-
-  // All strategies exhausted — message is genuinely unrecoverable with current keys.
-  // This is not age-based; it means the required private key is not available on this device.
-  return "Unable to decrypt this message.";
-}
-
-
-/**
- * Re-encrypt a V1 message with V2 (ECDH).
- * Returns { encryptedText, messageVersion: 2 } or null if re-encryption fails.
- */
-export async function reEncryptMessageV1(cipherText, senderUid, recipientUid) {
-  try {
-    const plainText = await decryptV1(cipherText, senderUid, recipientUid);
-    const privateKey = await getECDHPrivateKey(senderUid);
-    const recipientPubKey = await fetchECDHPublicKey(recipientUid);
-    if (!privateKey || !recipientPubKey) return null;
-    const encrypted = await encryptMessageE2EE(plainText, privateKey, recipientPubKey);
-    return { encryptedText: encrypted, messageVersion: 2 };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Re-encrypt all V1 messages in a conversation with V2 (ECDH).
- * Only works if both users have ECDH keys published to Firestore.
- * Returns the number of messages re-encrypted.
- */
-export async function reEncryptConversationMessages(conversationId, senderUid, recipientUid) {
-  try {
-    const privateKey = await getECDHPrivateKey(senderUid);
-    const recipientPubKey = await fetchECDHPublicKey(recipientUid);
-    if (!privateKey || !recipientPubKey) return 0;
-
-    const q = query(
-      collection(db, "messages"),
-      where("conversationId", "==", conversationId),
-      orderBy("createdAt", "asc")
-    );
-    const snapshot = await getDocs(q);
-    let reEncrypted = 0;
-
-    for (const docSnap of snapshot.docs) {
-      const msg = docSnap.data();
-      if (msg.messageVersion === 2) continue; // Already V2
-
-      try {
-        const plainText = msg.messageVersion === 1
-          ? await decryptV1(msg.encryptedText, senderUid, recipientUid)
-          : await decryptV1(msg.encryptedText, senderUid, recipientUid); // Unknown version — try V1
-
-        const encrypted = await encryptMessageE2EE(plainText, privateKey, recipientPubKey);
-        await updateDoc(doc(db, "messages", docSnap.id), {
-          encryptedText: encrypted,
-          messageVersion: 2,
-        });
-        reEncrypted++;
-      } catch {
-        // This message couldn't be decrypted — skip it
-      }
-    }
-    return reEncrypted;
-  } catch (err) {
-    console.error("reEncryptConversationMessages error:", err);
-    return 0;
-  }
+  // V2 ECDH messages and V1 fallback failures — cannot decrypt without private keys.
+  // Return a friendly fallback, not a technical error.
+  return "Legacy message (encrypted with an older version)";
 }

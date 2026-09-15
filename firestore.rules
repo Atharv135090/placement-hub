@@ -132,10 +132,11 @@ service cloud.firestore {
         && (request.auth.uid == resource.data.fromUserId
           || request.auth.uid == resource.data.toUserId);
 
-      // Either participant can delete (cancel, unfollow, remove)
+      // Either participant or admin/owner can delete (cancel, unfollow, remove, account cleanup)
       allow delete: if isAuth()
         && (request.auth.uid == resource.data.fromUserId
-          || request.auth.uid == resource.data.toUserId);
+          || request.auth.uid == resource.data.toUserId
+          || isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── CONVERSATIONS ────────────────────────────────────────
@@ -146,6 +147,8 @@ service cloud.firestore {
       // Allow any auth user to update conversation metadata (lastMessage, participants, unread counts).
       // Actual message-level security is enforced by the messages collection rules.
       allow update: if isAuth();
+      // Admin/owner can delete conversations during user account cleanup
+      allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── MESSAGES ─────────────────────────────────────────────
@@ -160,19 +163,22 @@ service cloud.firestore {
         && request.resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants
-        // Encrypted message validation
-        && request.resource.data.encryptedText is string
-        && request.resource.data.encryptedText != ""
+        // Message must have either plaintext `text` OR encrypted `encryptedText`
+        && ((request.resource.data.text is string && request.resource.data.text != "")
+            || (request.resource.data.encryptedText is string && request.resource.data.encryptedText != ""))
+        // Allow messageVersion 0 (plaintext) or legacy 1/2 (encrypted)
         && (!request.resource.data.keys().hasAny(["messageVersion"])
+            || request.resource.data.messageVersion == 0
             || request.resource.data.messageVersion == 1
-            || request.resource.data.messageVersion == 2)
-        // No plaintext content stored in messages
-        && !request.resource.data.keys().hasAny(["text", "content", "plaintext"]);
+            || request.resource.data.messageVersion == 2);
 
       allow update: if isAuth()
         && resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
+
+      // Admin/owner can delete messages during user account cleanup
+      allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── USER KEYS (E2EE PUBLIC KEY DIRECTORY) ─────────────────
@@ -182,7 +188,8 @@ service cloud.firestore {
       allow read: if isAuth();
       // Only the key owner can write their own public key
       allow create, update: if isAuth() && request.auth.uid == userKeyId;
-      allow delete: if false;
+      // Key owner or admin/owner can delete (account cleanup)
+      allow delete: if isAuth() && (request.auth.uid == userKeyId || isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── BLOCKS ───────────────────────────────────────────────
@@ -197,9 +204,10 @@ service cloud.firestore {
       allow create: if isAuth()
         && request.auth.uid == request.resource.data.blockerId;
 
-      // Only the blocker can delete their own block (unblock)
+      // The blocker or admin/owner can delete (unblock, or account cleanup)
       allow delete: if isAuth()
-        && request.auth.uid == resource.data.blockerId;
+        && (request.auth.uid == resource.data.blockerId
+          || isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── REPORTS ──────────────────────────────────────────────
@@ -223,6 +231,8 @@ service cloud.firestore {
       allow read: if isAuth() && request.auth.uid in resource.data.participants;
       allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
       allow update: if isAuth() && request.auth.uid in resource.data.participants;
+      // Admin/owner can delete during user account cleanup
+      allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── ADMIN MESSAGES ──────────────────────────────────────
@@ -237,6 +247,9 @@ service cloud.firestore {
         && request.resource.data.conversationId != null
         && exists(/databases/$(database)/documents/adminConversations/$(request.resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/adminConversations/$(request.resource.data.conversationId)).data.participants;
+
+      // Admin/owner can delete during user account cleanup
+      allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
     }
 
     // ─── SUPPORT TICKETS ──────────────────────────────────────

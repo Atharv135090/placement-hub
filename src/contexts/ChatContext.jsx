@@ -8,17 +8,14 @@ import {
   sendMessage,
   subscribeToMessages,
   markConversationRead,
-  encryptMessage,
-  decryptMessage,
+  readMessageText,
   getStudentProfile,
   getOrCreateAdminConversation,
   sendAdminChatMessage,
   subscribeToAdminConversations,
   subscribeToAdminMessages,
   markAdminConversationRead,
-  reEncryptConversationMessages,
 } from "../services/social";
-import { ensureECDHKeys } from "../utils/crypto";
 
 const ChatContext = createContext(null);
 
@@ -37,9 +34,6 @@ export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const unsubMsgRef = useRef(null);
-  const ecdhReadyRef = useRef(null);
-  const rawMessagesRef = useRef([]);
-  const [keyVersion, setKeyVersion] = useState(0);
   // Track clearedAt per active conversation so Clear Chat updates messages instantly
   const clearedAtRefGlobal = useRef(null);
 
@@ -48,14 +42,6 @@ export function ChatProvider({ children }) {
       setConversations([]);
       return;
     }
-    // Ensure ECDH keys exist for this user (generates on first login)
-    // and publish public key to Firestore for cross-user E2EE.
-    // IMPORTANT: ensureECDHKeys never overwrites an existing key pair.
-    ecdhReadyRef.current = ensureECDHKeys(uid)
-      .then(() => { setKeyVersion((v) => v + 1); })
-      .catch((err) => {
-        console.warn("ECDH key init failed, will use legacy encryption:", err);
-      });
 
     // Subscribe to BOTH regular and admin conversations, merge into one list
     const unsubRegular = subscribeToConversations(uid, (regularConvs) => {
@@ -99,7 +85,6 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     if (!activeConversation?.id || !uid) {
       setMessages([]);
-      rawMessagesRef.current = [];
       clearedAtRefGlobal.current = null;
       return;
     }
@@ -122,7 +107,7 @@ export function ChatProvider({ children }) {
       return () => { unsubMsgRef.current?.(); };
     }
 
-    // Regular conversations: E2EE
+    // Regular conversations: read plaintext + legacy graceful handling
     let disappearingSettingRef = { current: null };
     let clearedAtRef = { current: null };
 
@@ -136,7 +121,6 @@ export function ChatProvider({ children }) {
           if (dm?.enabled && dm.duration && DISAPPEARING_DURATIONS[dm.duration]) {
             disappearingSettingRef.current = dm.duration;
           }
-          // Per-user clear: read clearedAt timestamp for current user
           if (data.clearedAt && data.clearedAt[uid]) {
             clearedAtRef.current = data.clearedAt[uid];
             clearedAtRefGlobal.current = data.clearedAt[uid];
@@ -146,40 +130,21 @@ export function ChatProvider({ children }) {
     })();
 
     unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
-      // Store raw messages for retry when keys become available
-      rawMessagesRef.current = rawMessages;
-
-      // IMPORTANT: Wait for ECDH key initialization before attempting decryption.
-      // This prevents race conditions where the subscription fires before keys are ready.
-      if (ecdhReadyRef.current) await ecdhReadyRef.current;
-
       const otherId = activeConversation.participants?.find((p) => p !== uid);
 
-      const decrypted = await Promise.all(
+      const withText = await Promise.all(
         rawMessages.map(async (m) => {
           try {
-            // Pass embedded public key metadata from the message document.
-            // This is the primary decryption path — it does not depend on
-            // Firestore key lookups and works indefinitely regardless of message age.
-            const text = await decryptMessage(
-              m.encryptedText,
-              uid,
-              otherId,
-              m.messageVersion,
-              m.senderPubKey || null,
-              m.recipientPubKey || null
-            );
+            const text = await readMessageText(m, uid, otherId);
             return { ...m, text };
           } catch {
-            return { ...m, text: "Unable to decrypt this message." };
+            return { ...m, text: "Unable to read this message." };
           }
         })
       );
 
-      let filtered = decrypted;
+      let filtered = withText;
 
-      // Per-user clear: filter out messages sent before the user explicitly cleared.
-      // This uses a timestamp set by the user's Clear Chat action — NOT automatic.
       const clearedAt = clearedAtRef.current ?? clearedAtRefGlobal.current;
       if (clearedAt) {
         filtered = filtered.filter((m) => {
@@ -188,7 +153,6 @@ export function ChatProvider({ children }) {
         });
       }
 
-      // Filter out expired disappearing messages (user-opted-in feature only)
       const expiredIds = [];
       const duration = disappearingSettingRef.current;
       if (duration) {
@@ -207,8 +171,6 @@ export function ChatProvider({ children }) {
 
       setMessages(filtered);
 
-      // Background cleanup: delete expired disappearing messages from Firestore (best-effort, non-blocking)
-      // NOTE: This ONLY fires for user-opted-in disappearing messages, NOT for normal messages.
       if (expiredIds.length > 0) {
         (async () => {
           try {
@@ -223,55 +185,6 @@ export function ChatProvider({ children }) {
     });
     return () => { unsubMsgRef.current?.(); };
   }, [activeConversation?.id, activeConversation?.isAdmin, uid]);
-
-  // Retry decryption when ECDH keys become available (handles the case where
-  // the subscription fires before keys are fully initialized — existing fix preserved).
-  useEffect(() => {
-    if (keyVersion < 1 || !activeConversation?.id || activeConversation?.isAdmin || !uid) return;
-    const rawMessages = rawMessagesRef.current;
-    if (!rawMessages || rawMessages.length === 0) return;
-
-    (async () => {
-      // Only retry if current state has "Unable to decrypt" messages
-      const currentMessages = rawMessages;
-      const otherId = activeConversation.participants?.find((p) => p !== uid);
-
-      const decrypted = await Promise.all(
-        currentMessages.map(async (m) => {
-          try {
-            const text = await decryptMessage(
-              m.encryptedText,
-              uid,
-              otherId,
-              m.messageVersion,
-              m.senderPubKey || null,
-              m.recipientPubKey || null
-            );
-            return { ...m, text };
-          } catch {
-            return { ...m, text: "Unable to decrypt this message." };
-          }
-        })
-      );
-
-      setMessages((prev) => {
-        const hasFailures = prev.some((m) => m.text === "Unable to decrypt this message.");
-        if (!hasFailures) return prev; // Nothing to fix
-
-        const prevMap = new Map(prev.map((m) => [m.id, m]));
-        let changed = false;
-        const result = decrypted.map((m) => {
-          const prevMsg = prevMap.get(m.id);
-          if (prevMsg?.text === "Unable to decrypt this message." && m.text !== "Unable to decrypt this message.") {
-            changed = true;
-            return m;
-          }
-          return prevMsg || m;
-        });
-        return changed ? result : prev;
-      });
-    })();
-  }, [keyVersion, activeConversation?.id, activeConversation?.isAdmin, uid]);
 
   const startConversation = useCallback(async (otherUserId, isAdminTarget = false) => {
     if (!uid) return null;
@@ -345,7 +258,7 @@ export function ChatProvider({ children }) {
       }
       const participants = participantsOverride || [uid, otherId];
 
-      // Admin conversations: plaintext (no E2EE)
+      // Admin conversations: use admin messaging path
       const isAdmin = activeConversation?.isAdmin || conversationId?.startsWith("admin_");
       if (isAdmin) {
         const result = await sendAdminChatMessage(conversationId, uid, text, participants);
@@ -353,10 +266,8 @@ export function ChatProvider({ children }) {
         return;
       }
 
-      // Regular conversations: E2EE
-      // encryptMessage now returns senderPubKey and recipientPubKey for persistent metadata
-      const { encryptedText, messageVersion, senderPubKey, recipientPubKey } = await encryptMessage(text, uid, otherId);
-      const result = await sendMessage(conversationId, uid, encryptedText, participants, messageVersion, senderPubKey, recipientPubKey);
+      // Regular conversations: plaintext (no E2EE)
+      const result = await sendMessage(conversationId, uid, text, participants);
       if (result?.error) {
         throw new Error(result.error);
       }
@@ -407,13 +318,6 @@ export function ChatProvider({ children }) {
     [conversations]
   );
 
-  const reEncryptOldMessages = useCallback(async (conversationId) => {
-    if (!uid || !conversationId) return 0;
-    const otherId = activeConversation?.participants?.find((p) => p !== uid);
-    if (!otherId) return 0;
-    return reEncryptConversationMessages(conversationId, uid, otherId);
-  }, [uid, activeConversation?.participants]);
-
   const value = useMemo(() => ({
     conversations,
     activeConversation,
@@ -425,8 +329,7 @@ export function ChatProvider({ children }) {
     markRead,
     clearChat,
     totalUnread,
-    reEncryptOldMessages,
-  }), [conversations, activeConversation, messages, sending, startConversation, sendChatMessage, markRead, clearChat, totalUnread, reEncryptOldMessages]);
+  }), [conversations, activeConversation, messages, sending, startConversation, sendChatMessage, markRead, clearChat, totalUnread]);
 
   return (
     <ChatContext.Provider value={value}>
