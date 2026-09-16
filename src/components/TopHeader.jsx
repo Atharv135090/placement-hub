@@ -191,6 +191,8 @@ export default function TopHeader({ onToggleMobileDrawer }) {
                       let target;
                       if (n.type === "admin_message" || n.type === "admin_warning") {
                         target = n.link || "/chat";
+                      } else if (n.type === "support_reply" || n.type === "support_status") {
+                        target = n.link || "/support";
                       } else {
                         target = n.senderId ? `/students/${n.senderId}` : n.link;
                       }

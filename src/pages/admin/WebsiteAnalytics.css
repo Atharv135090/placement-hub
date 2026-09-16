@@ -492,29 +492,189 @@
 }
 
 @media (max-width: 768px) {
+  .wa-page {
+    padding-bottom: 90px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
   .wa-header {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
   }
+
+  .wa-title {
+    font-size: 1.4rem;
+  }
+
+  .wa-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .wa-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-stat-card {
+    padding: 16px 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-stat-value {
+    font-size: 1.75rem;
+  }
+
+  .wa-two-col {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-section {
+    padding: 16px 14px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .wa-funnel {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-funnel-step {
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .wa-funnel-label {
-    width: 80px;
-    font-size: 0.74rem;
+    width: 72px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
   }
+
+  .wa-funnel-track {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .wa-funnel-pct {
+    width: 36px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
   .wa-bar-chart {
-    height: 140px;
+    height: 150px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 4px;
   }
+
+  .wa-bar-col {
+    min-width: 24px;
+    flex: 1;
+  }
+
+  .wa-company-list {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-company-row {
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .wa-company-name {
-    width: 80px;
+    width: 78px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .wa-company-track {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .wa-company-count {
+    width: 24px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+  }
+
+  .wa-users-list {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-user-row {
+    padding: 8px 10px;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wa-user-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .wa-user-name {
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-user-email {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-user-role {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    flex-shrink: 0;
   }
 }
 
-@media (max-width: 480px) {
-  .wa-stats-grid {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 360px) {
   .wa-title {
-    font-size: 1.35rem;
+    font-size: 1.25rem;
   }
+
+  .wa-funnel-label {
+    width: 60px;
+    font-size: 0.68rem;
+  }
+
+  .wa-company-name {
+    width: 65px;
+    font-size: 0.7rem;
+  }
+
   .wa-stat-value {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
   }
 }

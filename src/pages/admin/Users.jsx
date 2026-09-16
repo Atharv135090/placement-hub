@@ -367,9 +367,9 @@ export default function AdminUsers() {
                   </span>
                 </span>
 
-                <span className="au-cell au-cell--stat">{userApps.length}</span>
-                <span className="au-cell au-cell--stat">{interviews}</span>
-                <span className="au-cell au-cell--stat">{offers}</span>
+                <span className="au-cell au-cell--stat" data-label="Apps">{userApps.length}</span>
+                <span className="au-cell au-cell--stat" data-label="Interviews">{interviews}</span>
+                <span className="au-cell au-cell--stat" data-label="Offers">{offers}</span>
 
                 <span className="au-cell au-cell--actions">
                   <button className="au-action-btn" onClick={() => setActivityModal(u)} title="View Activity">

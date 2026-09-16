@@ -705,6 +705,19 @@ class ProviderStatusTracker {
     warn(`Provider "${providerId}" → COOLDOWN (${cooldownMs / 1000}s) | error: ${error}`);
   }
 
+  markNetworkError(providerId, error) {
+    // Network errors use a shorter cooldown (30s) since they're transient
+    const NETWORK_COOLDOWN_MS = 30_000;
+    this._status[providerId] = {
+      ...this._status[providerId],
+      available: false,
+      cooldownUntil: Date.now() + NETWORK_COOLDOWN_MS,
+      lastError: { type: "network", message: error, time: Date.now() },
+      consecutiveFailures: (this._status[providerId]?.consecutiveFailures || 0) + 1,
+    };
+    warn(`Provider "${providerId}" → NETWORK_COOLDOWN (30s) | error: ${error}`);
+  }
+
   markAuthError(providerId, error) {
     this._status[providerId] = {
       ...this._status[providerId],

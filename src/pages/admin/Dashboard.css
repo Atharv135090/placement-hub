@@ -941,21 +941,107 @@
 }
 
 @media (max-width: 768px) {
-  .adm-kpi-grid {
-    grid-template-columns: 1fr;
+  .adm-dashboard-view {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    gap: 14px;
+  }
+  .adm-hero-card {
+    min-height: auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-hero-content {
+    padding: 16px 14px;
+    min-height: auto;
+    width: 100%;
+    box-sizing: border-box;
   }
   .adm-hero-art-side {
     display: none;
   }
   .adm-hero-left {
     max-width: 100%;
+    width: 100%;
+  }
+  .adm-hero-title {
+    font-size: 1.35rem;
+    word-break: break-word;
+    line-height: 1.25;
+  }
+  .adm-hero-sub {
+    font-size: 0.8rem;
+    word-break: break-word;
+    max-width: 100%;
+  }
+  .adm-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-kpi-card {
+    padding: 14px 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-kpi-value {
+    font-size: 1.7rem;
+  }
+  .adm-middle-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-chart-card {
+    padding: 14px 12px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .adm-chart-x-axis {
+    margin-left: 18px;
+    padding: 6px 0;
+  }
+  .adm-chart-month-lbl {
+    font-size: 0.68rem;
+    padding: 2px 3px;
+  }
+  .adm-right-stack {
+    width: 100%;
+    box-sizing: border-box;
+    gap: 14px;
   }
   .adm-qa-2x2-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-qa-card {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-bottom-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .adm-system-health-panel,
+  .adm-announcements-panel {
+    padding: 14px;
+    width: 100%;
+    box-sizing: border-box;
   }
   .adm-dashboard-footer {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 }

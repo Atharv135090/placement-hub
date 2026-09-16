@@ -104,6 +104,9 @@ export {
   addTicketMessage,
   updateTicketStatus,
   markTicketRead,
+  deleteTicketMessage,
+  editTicketMessage,
+  deleteSupportTicket,
   uploadSupportAttachment,
   generateTicketId,
 } from "./support";

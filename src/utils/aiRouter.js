@@ -171,7 +171,7 @@ async function tryGeminiRestStream(provider, model, systemPrompt, history, query
 /**
  * Try a non-OpenAI-compatible provider using REST non-streaming.
  */
-async function tryRestNonStream(provider, model, systemPrompt, history, query) {
+async function tryRestNonStream(provider, model, systemPrompt, history, query, signal) {
   const apiKey = provider.apiKey();
   if (!apiKey) throw new Error("NO_API_KEY");
 
@@ -187,6 +187,7 @@ async function tryRestNonStream(provider, model, systemPrompt, history, query) {
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal,
   });
 
   log(`  [${provider.id}] REST non-stream response: HTTP ${res.status}`);
@@ -247,7 +248,7 @@ async function tryOpenAIStream(provider, model, systemPrompt, history, query, on
 /**
  * Try an OpenAI-compatible provider using REST non-streaming (fallback).
  */
-async function tryOpenAINonStream(provider, model, systemPrompt, history, query) {
+async function tryOpenAINonStream(provider, model, systemPrompt, history, query, signal) {
   const apiKey = provider.apiKey();
   if (!apiKey) throw new Error("NO_API_KEY");
 
@@ -263,6 +264,7 @@ async function tryOpenAINonStream(provider, model, systemPrompt, history, query)
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal,
   });
 
   log(`  [${provider.id}] OpenAI non-stream response: HTTP ${res.status}`);
@@ -306,9 +308,17 @@ function handleProviderError(providerId, err) {
     providerStatus.markQuotaExceeded(providerId, msg);
     return "EMPTY_RESPONSE";
   }
+  if (msg === "ABORTED") {
+    return "ABORTED";
+  }
 
-  // Network, timeout, unknown errors
-  providerStatus.markQuotaExceeded(providerId, msg);
+  // Network, timeout, unknown errors — use shorter cooldown (30s) instead of quota cooldown
+  const isNetworkError = /network|fetch|timeout|ECONNREFUSED|ENOTFOUND|AbortError/i.test(msg);
+  if (isNetworkError) {
+    providerStatus.markNetworkError(providerId, msg);
+  } else {
+    providerStatus.markQuotaExceeded(providerId, msg);
+  }
   return "OTHER";
 }
 
@@ -365,6 +375,10 @@ export async function generateResponse(query, ctx, messages, onChunk, signal) {
           text = await tryGeminiSdk(provider, systemPrompt, history, query, onChunk, signal);
         } catch (sdkErr) {
           const sdkMsg = sdkErr?.message || String(sdkErr);
+          // Don't fall back to REST for quota/auth errors — same endpoint will fail
+          if (/429|rate.?limit|quota|quota.*exceeded/i.test(sdkMsg) || /401|403|auth/i.test(sdkMsg)) {
+            throw sdkErr;
+          }
           warn(`  [${provider.id}] SDK failed: ${sdkMsg} — falling back to REST`);
           text = await tryGeminiRestStream(provider, model, systemPrompt, history, query, onChunk, signal);
         }
@@ -406,6 +420,10 @@ export async function generateResponse(query, ctx, messages, onChunk, signal) {
 
     for (const provider of FREE_PROVIDERS) {
       if (succeeded) break;
+      if (signal?.aborted) {
+        log("=== REQUEST ABORTED ===");
+        throw new Error("ABORTED");
+      }
       if (!provider.isAvailable()) continue;
 
       const model = provider.models[0];
@@ -418,10 +436,10 @@ export async function generateResponse(query, ctx, messages, onChunk, signal) {
           try {
             text = await provider.sdkNonStream(systemPrompt, history, query);
           } catch {
-            text = await tryRestNonStream(provider, model, systemPrompt, history, query);
+            text = await tryRestNonStream(provider, model, systemPrompt, history, query, signal);
           }
         } else {
-          text = await tryOpenAINonStream(provider, model, systemPrompt, history, query);
+          text = await tryOpenAINonStream(provider, model, systemPrompt, history, query, signal);
         }
 
         if (text && text.trim()) {

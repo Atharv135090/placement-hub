@@ -5,22 +5,22 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
   serverTimestamp,
   onSnapshot,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../config/firebase";
-import { SUPPORT_TICKETS, handleFirestoreError, mapDocs } from "./helpers";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { db, storage, auth } from "../../config/firebase";
+import { SUPPORT_TICKETS, NOTIFICATIONS, handleFirestoreError, mapDocs } from "./helpers";
 import { createNotification } from "./notifications";
 
 /**
  * Generate collision-safe ticket ID (e.g. SUP-001, SUP-7X9)
  */
 export function generateTicketId() {
-  const timestampPart = Date.now().toString(36).toUpperCase().slice(-3);
   const randomPart = Math.floor(100 + Math.random() * 900);
   return `SUP-${randomPart}`;
 }
@@ -44,7 +44,12 @@ export async function createSupportTicket({ userId, userName, userEmail, subject
       userName: userName || "Student",
       userEmail: userEmail || "",
       subject: subject.trim(),
-      status: "Open", // Open | In Progress | Resolved | Closed
+      category: "Account / Login",
+      priority: "Medium",
+      status: "submitted", // submitted | under_review | in_progress | resolved
+      statusHistory: {
+        submitted: serverTimestamp(),
+      },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       lastMessageAt: serverTimestamp(),
@@ -142,7 +147,9 @@ export function subscribeTicketMessages(ticketDocId, callback) {
   const messagesCol = collection(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`);
   const q = query(messagesCol, orderBy("createdAt", "asc"));
 
-  return onSnapshot(
+  let fallbackUnsub = null;
+
+  const primaryUnsub = onSnapshot(
     q,
     (snapshot) => {
       const messages = mapDocs(snapshot);
@@ -152,7 +159,7 @@ export function subscribeTicketMessages(ticketDocId, callback) {
       // Fallback query without orderBy if index is still building
       console.warn("subscribeTicketMessages index warning, using unsorted fallback:", error);
       const fallbackQuery = collection(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`);
-      return onSnapshot(fallbackQuery, (snap) => {
+      fallbackUnsub = onSnapshot(fallbackQuery, (snap) => {
         const msgs = mapDocs(snap);
         msgs.sort((a, b) => {
           const ta = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt || 0).getTime();
@@ -163,12 +170,17 @@ export function subscribeTicketMessages(ticketDocId, callback) {
       });
     }
   );
+
+  return () => {
+    primaryUnsub();
+    fallbackUnsub?.();
+  };
 }
 
 /**
  * Add message to a support ticket
  */
-export async function addTicketMessage(ticketDocId, { senderId, senderRole, senderName, text, attachment = null }) {
+export async function addTicketMessage(ticketDocId, { senderId, senderRole, senderName, text, attachment = null, isInternalNote = false }) {
   try {
     if (!text || !text.trim()) {
       return { data: null, error: "Message text cannot be empty" };
@@ -177,15 +189,20 @@ export async function addTicketMessage(ticketDocId, { senderId, senderRole, send
     const trimmedText = text.trim();
     const messagesCol = collection(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`);
 
-    // Add message
-    const msgRef = await addDoc(messagesCol, {
+    const msgData = {
       senderId,
       senderRole, // "user" | "admin"
       senderName: senderName || (senderRole === "admin" ? "Admin Support" : "User"),
       text: trimmedText,
       attachment: attachment || null,
       createdAt: serverTimestamp(),
-    });
+    };
+    if (isInternalNote) {
+      msgData.isInternalNote = true;
+    }
+
+    // Add message
+    const msgRef = await addDoc(messagesCol, msgData);
 
     // Update parent ticket doc metadata
     const ticketRef = doc(db, SUPPORT_TICKETS, ticketDocId);
@@ -208,8 +225,8 @@ export async function addTicketMessage(ticketDocId, { senderId, senderRole, send
 
     await updateDoc(ticketRef, updates);
 
-    // Create notification if admin replied to user
-    if (senderRole === "admin" && ticketData?.userId) {
+    // Create notification if admin replied to user (not for internal notes)
+    if (senderRole === "admin" && !isInternalNote && ticketData?.userId) {
       await createNotification({
         title: `Support Update (#${ticketData.ticketId || "SUP"})`,
         message: `Admin Support replied to your request: "${trimmedText.length > 50 ? trimmedText.slice(0, 50) + "..." : trimmedText}"`,
@@ -227,31 +244,44 @@ export async function addTicketMessage(ticketDocId, { senderId, senderRole, send
 }
 
 /**
- * Update ticket status (Open | In Progress | Resolved | Closed)
+ * Update ticket status (submitted | under_review | in_progress | resolved)
  */
 export async function updateTicketStatus(ticketDocId, newStatus, changedByUserId) {
   try {
-    const validStatuses = ["Open", "In Progress", "Resolved", "Closed"];
-    if (!validStatuses.includes(newStatus)) {
-      return { data: null, error: "Invalid status value" };
+    const rawStatus = (newStatus || "").trim();
+    const lower = rawStatus.toLowerCase().replace(/\s+/g, "_");
+    const allowed = ["submitted", "open", "under_review", "in_progress", "resolved", "closed"];
+    if (!allowed.includes(lower)) {
+      return { data: null, error: "Invalid status value: " + newStatus };
     }
 
     const ticketRef = doc(db, SUPPORT_TICKETS, ticketDocId);
     const ticketSnap = await getDoc(ticketRef);
     const ticketData = ticketSnap.exists() ? ticketSnap.data() : null;
 
+    // Store status history for timeline
+    const historyKey = (lower === "open" || lower === "submitted") ? "submitted" : lower;
+    const statusHistoryField = `statusHistory.${historyKey}`;
+
     await updateDoc(ticketRef, {
-      status: newStatus,
+      status: rawStatus,
       updatedAt: serverTimestamp(),
       statusChangedAt: serverTimestamp(),
       statusChangedBy: changedByUserId || "admin",
+      [statusHistoryField]: serverTimestamp(),
     });
 
     // Send notification to user if status changed by admin
     if (ticketData?.userId && ticketData.userId !== changedByUserId) {
+      const statusLabels = {
+        submitted: "Submitted",
+        under_review: "Under Review",
+        in_progress: "In Progress",
+        resolved: "Resolved",
+      };
       await createNotification({
         title: `Support Request Status Changed (#${ticketData.ticketId || "SUP"})`,
-        message: `Your support request status has been updated to "${newStatus}".`,
+        message: `Your support request status has been updated to "${statusLabels[newStatus] || newStatus}".`,
         type: "support_status",
         link: `/support?ticket=${ticketDocId}`,
         targetUserId: ticketData.userId,
@@ -276,6 +306,151 @@ export async function markTicketRead(ticketDocId, role) {
     } else {
       await updateDoc(ticketRef, { unreadUser: false });
     }
+    return { error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+/**
+ * Delete a support ticket message (admin only)
+ */
+export async function deleteTicketMessage(ticketDocId, messageDocId) {
+  try {
+    const msgRef = doc(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`, messageDocId);
+    await deleteDoc(msgRef);
+
+    // Update parent ticket updatedAt
+    const ticketRef = doc(db, SUPPORT_TICKETS, ticketDocId);
+    await updateDoc(ticketRef, { updatedAt: serverTimestamp() });
+
+    return { error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+/**
+ * Edit a support ticket message (admin only) — adds edited flag and original text
+ */
+export async function editTicketMessage(ticketDocId, messageDocId, newText) {
+  try {
+    if (!newText || !newText.trim()) {
+      return { data: null, error: "Message text cannot be empty" };
+    }
+
+    const msgRef = doc(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`, messageDocId);
+    const msgSnap = await getDoc(msgRef);
+    if (!msgSnap.exists()) {
+      return { data: null, error: "Message not found" };
+    }
+
+    const msgData = msgSnap.data();
+    const updates = {
+      text: newText.trim(),
+      edited: true,
+      editedAt: serverTimestamp(),
+    };
+    // Store original text only on first edit
+    if (!msgData.originalText && !msgData.edited) {
+      updates.originalText = msgData.text;
+    }
+
+    await updateDoc(msgRef, updates);
+    return { error: null };
+  } catch (error) {
+    return handleFirestoreError(error);
+  }
+}
+
+/**
+ * Completely and permanently delete a support ticket, its subcollection messages,
+ * associated storage attachments, and related notifications.
+ */
+export async function deleteSupportTicket(ticketDocId) {
+  try {
+    if (!ticketDocId) return { error: "Ticket ID is required" };
+
+    const ticketRef = doc(db, SUPPORT_TICKETS, ticketDocId);
+    const ticketSnap = await getDoc(ticketRef);
+    if (!ticketSnap.exists()) {
+      // Already deleted or not found
+      return { error: null };
+    }
+
+    const ticketData = ticketSnap.data();
+
+    // Collect attachments for storage cleanup
+    const attachmentUrls = [];
+    if (ticketData?.attachment?.fileUrl) {
+      attachmentUrls.push(ticketData.attachment.fileUrl);
+    }
+
+    // 1. Fetch all messages in subcollection
+    const messagesCol = collection(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`);
+    const messagesSnap = await getDocs(messagesCol);
+
+    for (const msgDoc of messagesSnap.docs) {
+      const msgData = msgDoc.data();
+      if (msgData?.attachment?.fileUrl) {
+        attachmentUrls.push(msgData.attachment.fileUrl);
+      }
+    }
+
+    // 2. Delete messages first while ticket document still exists (preserves Firestore security rules verification)
+    const messageDeletes = messagesSnap.docs.map((msgDoc) =>
+      deleteDoc(doc(db, `${SUPPORT_TICKETS}/${ticketDocId}/messages`, msgDoc.id))
+    );
+    await Promise.all(messageDeletes);
+
+    // 3. Delete the ticket document itself
+    await deleteDoc(ticketRef);
+
+    // 4. Delete related notifications for this ticket
+    try {
+      let notifDocs = [];
+      try {
+        const notifQuery = query(
+          collection(db, NOTIFICATIONS),
+          where("link", "==", `/support?ticket=${ticketDocId}`)
+        );
+        const notifSnap = await getDocs(notifQuery);
+        notifDocs = notifSnap.docs;
+      } catch (queryErr) {
+        const currentUid = auth?.currentUser?.uid || ticketData?.userId;
+        if (currentUid) {
+          const userNotifQuery = query(
+            collection(db, NOTIFICATIONS),
+            where("targetUserId", "==", currentUid),
+            where("link", "==", `/support?ticket=${ticketDocId}`)
+          );
+          const userNotifSnap = await getDocs(userNotifQuery);
+          notifDocs = userNotifSnap.docs;
+        }
+      }
+
+      if (notifDocs && notifDocs.length > 0) {
+        const notifDeletes = notifDocs.map((nDoc) =>
+          deleteDoc(doc(db, NOTIFICATIONS, nDoc.id)).catch(() => {})
+        );
+        await Promise.all(notifDeletes);
+      }
+    } catch (notifErr) {
+      console.warn("Notification cleanup non-fatal error:", notifErr);
+    }
+
+    // 5. Clean up attachments in Firebase Storage
+    for (const url of attachmentUrls) {
+      if (url && typeof url === "string" && url.includes("firebasestorage.googleapis.com")) {
+        try {
+          const fileRef = ref(storage, url);
+          await deleteObject(fileRef).catch(() => {});
+        } catch (storageErr) {
+          // ignore storage error if already deleted
+        }
+      }
+    }
+
     return { error: null };
   } catch (error) {
     return handleFirestoreError(error);

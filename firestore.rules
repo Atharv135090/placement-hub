@@ -27,14 +27,24 @@ service cloud.firestore {
 
     function hasOwnerRole() {
       return isAuth()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+        && (
+          request.auth.token.role == 'owner'
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner'
+          )
+        );
     }
 
     function hasAdminRole() {
       return isAuth()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner'];
+        && (
+          request.auth.token.role in ['admin', 'owner']
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner']
+          )
+        );
     }
 
     // ─── USERS / STUDENT PROFILES ─────────────────────────────
@@ -99,8 +109,10 @@ service cloud.firestore {
     // ─── NOTIFICATIONS ────────────────────────────────────────
 
     match /notifications/{notificationId} {
-      // Only the recipient can read their notifications
-      allow read: if isAuth() && request.auth.uid == resource.data.targetUserId;
+      // Recipient or admin/owner can read notifications
+      allow read: if isAuth()
+        && (request.auth.uid == resource.data.targetUserId
+          || isOwnerOrAdmin() || hasAdminRole());
 
       // Authenticated users can create notifications; sender must be the authenticated user
       allow create: if isAuth()
@@ -257,7 +269,7 @@ service cloud.firestore {
       allow read: if isAuth() && (resource.data.userId == request.auth.uid || isOwnerOrAdmin() || hasAdminRole());
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
       allow update: if isAuth() && (resource.data.userId == request.auth.uid || isOwnerOrAdmin() || hasAdminRole());
-      allow delete: if isOwnerOrAdmin() || hasAdminRole();
+      allow delete: if isAuth() && (resource.data.userId == request.auth.uid || isOwnerOrAdmin() || hasAdminRole());
 
       match /messages/{messageId} {
         allow read: if isAuth()
@@ -265,6 +277,13 @@ service cloud.firestore {
             || isOwnerOrAdmin() || hasAdminRole());
 
         allow create: if isAuth()
+          && (get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
+            || isOwnerOrAdmin() || hasAdminRole());
+
+        allow update: if isAuth()
+          && (isOwnerOrAdmin() || hasAdminRole());
+
+        allow delete: if isAuth()
           && (get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
             || isOwnerOrAdmin() || hasAdminRole());
       }

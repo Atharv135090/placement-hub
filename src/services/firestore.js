@@ -106,6 +106,9 @@ export {
   addTicketMessage,
   updateTicketStatus,
   markTicketRead,
+  deleteTicketMessage,
+  editTicketMessage,
+  deleteSupportTicket,
   uploadSupportAttachment,
 } from "./firestore/support";
 

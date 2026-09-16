@@ -2719,61 +2719,9 @@ select.glass-text-input.readonly:disabled {
   cursor: pointer;
 }
 
-/* Account Settings Link List */
-.ph-settings-options-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ph-settings-option-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 12px 14px;
-  background: #f8fafc;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: left;
-}
-
-[data-theme="dark"] .ph-settings-option-item {
-  background: #0f172a;
-  border-color: rgba(255, 255, 255, 0.05);
-}
-
-.ph-settings-option-item:hover {
-  background: rgba(225, 29, 72, 0.04);
-  border-color: rgba(225, 29, 72, 0.15);
-}
-
-.ph-option-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ph-option-icon {
-  font-size: 1rem;
-}
-
-.ph-option-text {
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-[data-theme="dark"] .ph-option-text {
-  color: #f8fafc;
-}
-
-.ph-option-arrow {
-  font-size: 1.1rem;
-  color: #94a3b8;
-  font-weight: 700;
+.ph-grid-right .ph-card:last-child,
+.ph-grid-left .ph-card:last-child {
+  margin-bottom: 0;
 }
 
 /* RESPONSIVE BREAKPOINTS */

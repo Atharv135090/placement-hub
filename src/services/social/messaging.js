@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment, writeBatch } from "firebase/firestore";
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment, writeBatch } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
