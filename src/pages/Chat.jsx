@@ -551,7 +551,10 @@ export default function Chat() {
     const isAlreadyAdmin = activeConversation?.isAdmin || activeConversation?.id?.startsWith("admin_");
 
     // For admin-to-user conversations: bypass mutual follow, use admin messaging path
-    if (isAdminOrStaff || isAlreadyAdmin) {
+    // Only route to admin path when creating a NEW admin conversation or when conversation is already admin.
+    // Existing regular conversations must use the regular sendChatMessage path to avoid
+    // writing to adminMessages (which requires adminConversations doc to exist).
+    if ((isAdminOrStaff && !activeConversation?.id) || isAlreadyAdmin) {
       let convId = activeConversation?.id;
       let participants = activeConversation?.participants || [user.uid, targetOtherId];
 

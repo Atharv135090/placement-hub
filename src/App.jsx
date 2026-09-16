@@ -21,7 +21,7 @@ const Assistant = lazy(() => import("./pages/Assistant"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Attention = lazy(() => import("./pages/Attention"));
-const StudentsGate = lazy(() => import("./components/StudentsGate"));
+const Students = lazy(() => import("./pages/Students"));
 const StudentProfile = lazy(() => import("./pages/StudentProfile"));
 const Chat = lazy(() => import("./pages/Chat"));
 const AtsChecker = lazy(() => import("./pages/AtsChecker"));
@@ -101,7 +101,7 @@ export default function App() {
               <Route path="/ats" element={<AtsChecker />} />
 
               {/* 06. Students */}
-              <Route path="/students" element={<StudentsGate />} />
+              <Route path="/students" element={<Students />} />
               <Route path="/students/:studentId" element={<StudentProfile />} />
 
               {/* 07. Chat */}

@@ -495,10 +495,11 @@ export default function Students() {
       ) : (
         <div className={viewMode === "grid" ? "students-grid" : "students-list"}>
           {paginatedStudents.map((s) => {
+            const isMe = s.id === user?.uid;
             const status = followStatuses[s.id];
             const isFollowing = status === "mutual" || status === "following";
             const isPrivate = s.profileVisibility === "private";
-            const isProtected = isPrivate && !isFollowing;
+            const isProtected = isPrivate && !isFollowing && !isMe;
             const menuOpen = activeMenuId === s.id;
 
             return (
@@ -516,8 +517,8 @@ export default function Students() {
 
                     <div className="student-profile-info-block">
                       <div className="student-name-status-row">
-                        {/* Presence status — only shown for mutual connections (accepted follow) */}
-                        {isFollowing && (
+                        {/* Presence status — only shown for mutual connections or self */}
+                        {(isFollowing || isMe) && (
                           s.online ? (
                             <span className="student-online-pill" title="Currently online">
                               <span className="online-green-dot" />
@@ -540,11 +541,11 @@ export default function Students() {
                           onClick={() => navigate(`/students/${s.id}`)}
                           title={s.displayName || "Student"}
                         >
-                          {s.displayName || "Student"}
+                          {s.displayName || "Student"} {isMe && <span style={{ opacity: 0.7, fontSize: "0.85em" }}>(You)</span>}
                         </div>
                       </div>
                       <span className={`student-role-badge ${s.role === "admin" || s.role === "owner" ? "student-role-badge--admin" : ""}`}>
-                        {s.role === "admin" || s.role === "owner" ? "Admin" : "Student"}
+                        {s.role === "admin" || s.role === "owner" ? "Admin" : isMe ? "You" : "Student"}
                       </span>
                     </div>
                   </div>
@@ -593,90 +594,117 @@ export default function Students() {
                             <span>View Profile</span>
                           </button>
 
-                          {status === "mutual" && (
-                            <button
-                              className="dropdown-item"
-                              onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                              </svg>
-                              <span>Message Student</span>
-                            </button>
-                          )}
-
-                          {status === "mutual" || status === "following" ? (
-                            <button
-                              className="dropdown-item"
-                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                <circle cx="8.5" cy="7" r="4" />
-                                <line x1="18" y1="8" x2="23" y2="13" />
-                                <line x1="23" y1="8" x2="18" y2="13" />
-                              </svg>
-                              <span>Unfollow</span>
-                            </button>
-                          ) : status === "pending" ? (
-                            <button
-                              className="dropdown-item"
-                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="15" y1="9" x2="9" y2="15" />
-                                <line x1="9" y1="9" x2="15" y2="15" />
-                              </svg>
-                              <span>Cancel Request</span>
-                            </button>
+                          {isMe ? (
+                            <>
+                              <button
+                                className="dropdown-item"
+                                onClick={() => { setActiveMenuId(null); navigate("/profile"); }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>Edit Profile</span>
+                              </button>
+                              <button
+                                className="dropdown-item"
+                                onClick={() => handleCopyLink(s.id)}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                <span>Copy Profile Link</span>
+                              </button>
+                            </>
                           ) : (
-                            <button
-                              className="dropdown-item"
-                              onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                <circle cx="8.5" cy="7" r="4" />
-                                <line x1="20" y1="8" x2="20" y2="14" />
-                                <line x1="23" y1="11" x2="17" y2="11" />
-                              </svg>
-                              <span>{status === "follower" || status === "incoming_pending" ? "Follow Back" : "Follow"}</span>
-                            </button>
+                            <>
+                              {status === "mutual" && (
+                                <button
+                                  className="dropdown-item"
+                                  onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                  </svg>
+                                  <span>Message Student</span>
+                                </button>
+                              )}
+
+                              {status === "mutual" || status === "following" ? (
+                                <button
+                                  className="dropdown-item"
+                                  onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="8.5" cy="7" r="4" />
+                                    <line x1="18" y1="8" x2="23" y2="13" />
+                                    <line x1="23" y1="8" x2="18" y2="13" />
+                                  </svg>
+                                  <span>Unfollow</span>
+                                </button>
+                              ) : status === "pending" ? (
+                                <button
+                                  className="dropdown-item"
+                                  onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="15" y1="9" x2="9" y2="15" />
+                                    <line x1="9" y1="9" x2="15" y2="15" />
+                                  </svg>
+                                  <span>Cancel Request</span>
+                                </button>
+                              ) : (
+                                <button
+                                  className="dropdown-item"
+                                  onClick={() => { setActiveMenuId(null); handleFollow(s.id); }}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="8.5" cy="7" r="4" />
+                                    <line x1="20" y1="8" x2="20" y2="14" />
+                                    <line x1="23" y1="11" x2="17" y2="11" />
+                                  </svg>
+                                  <span>{status === "follower" || status === "incoming_pending" ? "Follow Back" : "Follow"}</span>
+                                </button>
+                              )}
+
+                              <button
+                                className="dropdown-item"
+                                onClick={() => handleCopyLink(s.id)}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                <span>Copy Profile Link</span>
+                              </button>
+
+                              <button
+                                className="dropdown-item"
+                                onClick={() => { setActiveMenuId(null); navigate(`/students/${s.id}?report=1`); }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                                  <line x1="4" y1="22" x2="4" y2="15" />
+                                </svg>
+                                <span>Report Student</span>
+                              </button>
+
+                              <button
+                                className="dropdown-item danger"
+                                onClick={() => handleBlockStudent(s.id)}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                                </svg>
+                                <span>Block Student</span>
+                              </button>
+                            </>
                           )}
-
-                          <button
-                            className="dropdown-item"
-                            onClick={() => handleCopyLink(s.id)}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                            <span>Copy Profile Link</span>
-                          </button>
-
-                          <button
-                            className="dropdown-item"
-                            onClick={() => { setActiveMenuId(null); navigate(`/students/${s.id}?report=1`); }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                              <line x1="4" y1="22" x2="4" y2="15" />
-                            </svg>
-                            <span>Report Student</span>
-                          </button>
-
-                          <button
-                            className="dropdown-item danger"
-                            onClick={() => handleBlockStudent(s.id)}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" />
-                              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                            </svg>
-                            <span>Block Student</span>
-                          </button>
                         </div>
                       )}
                     </div>
@@ -737,7 +765,19 @@ export default function Students() {
 
                 {/* Bottom Action Buttons Row */}
                 <div className="student-card-actions">
-                  {status === "mutual" ? (
+                  {isMe ? (
+                    /* Own profile card → Edit Profile button */
+                    <button
+                      className="btn student-action-btn btn-message-primary"
+                      onClick={() => navigate("/profile")}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      <span>Edit Profile</span>
+                    </button>
+                  ) : status === "mutual" ? (
                     /* Mutual accepted → Message button */
                     <button
                       className="btn student-action-btn btn-message-primary"

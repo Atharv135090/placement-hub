@@ -150,7 +150,12 @@ export default function AppShell() {
   }, [location.pathname]);
 
   function handleAdminVerify() {
-    if (adminPin === ADMIN_PIN) {
+    if (!isAdmin) {
+      setAdminError("Access denied: You do not have administrator permissions.");
+      setAdminPin("");
+      return;
+    }
+    if (adminPin.trim() === ADMIN_PIN) {
       sessionStorage.setItem("admin_authenticated", "true");
       setAdminVerifyOpen(false);
       setAdminPin("");

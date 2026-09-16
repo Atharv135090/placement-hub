@@ -96,6 +96,31 @@ export default function Login() {
             <button type="submit" className="btn btn-primary" disabled={busy}>
               {busy ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
             </button>
+            <div style={{ textAlign: "center", fontSize: "0.86rem", margin: "6px 0", color: "var(--text-secondary, #64748b)" }}>
+              {mode === "signin" ? (
+                <span>
+                  Don't have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => { setMode("signup"); setError(""); }}
+                    style={{ background: "none", border: "none", color: "var(--brand-primary, #6366f1)", cursor: "pointer", fontWeight: 600, padding: 0, textDecoration: "underline" }}
+                  >
+                    Create Account
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => { setMode("signin"); setError(""); }}
+                    style={{ background: "none", border: "none", color: "var(--brand-primary, #6366f1)", cursor: "pointer", fontWeight: 600, padding: 0, textDecoration: "underline" }}
+                  >
+                    Sign In
+                  </button>
+                </span>
+              )}
+            </div>
             <button type="button" className="login-back-btn" onClick={() => { setMode("choice"); setError(""); }}>
               ← Back to options
             </button>

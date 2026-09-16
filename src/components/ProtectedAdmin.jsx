@@ -5,9 +5,7 @@ export default function ProtectedAdmin({ children, ownerOnly = false }) {
   const { isAdmin, isOwner, loading } = useAdmin();
   const isPasswordVerified = typeof window !== "undefined" && (
     sessionStorage.getItem("admin_authenticated") === "true" ||
-    localStorage.getItem("admin_authenticated") === "true" ||
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
+    localStorage.getItem("admin_authenticated") === "true"
   );
 
   if (loading) {
@@ -18,12 +16,14 @@ export default function ProtectedAdmin({ children, ownerOnly = false }) {
     );
   }
 
-  // Allow access if verified via password 5090 OR user is Firestore admin OR local dev
-  if (!isAdmin && !isPasswordVerified) {
+  // Admin routes strictly require:
+  // 1. User must have an admin or owner role
+  // 2. Password 5090 must have been verified in this session
+  if (!isAdmin || !isPasswordVerified) {
     return <Navigate to="/admin/unauthorized" replace />;
   }
 
-  if (ownerOnly && !isOwner && !isPasswordVerified) {
+  if (ownerOnly && !isOwner) {
     return <Navigate to="/admin/unauthorized" replace />;
   }
 

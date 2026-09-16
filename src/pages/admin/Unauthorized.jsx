@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAdmin } from "../../hooks/useAdmin";
 import "./Unauthorized.css";
 
 export default function Unauthorized() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (!isAdmin) {
+      setError("Access denied: Your account does not have administrator privileges.");
+      return;
+    }
     if (pin.trim() === "5090") {
       sessionStorage.setItem("admin_authenticated", "true");
-      navigate("/admin/companies");
+      navigate("/admin");
     } else {
       setError("Incorrect admin passcode");
     }

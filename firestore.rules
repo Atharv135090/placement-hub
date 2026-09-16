@@ -162,15 +162,7 @@ service cloud.firestore {
       allow create: if isAuth()
         && request.resource.data.conversationId != null
         && exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId))
-        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants
-        // Message must have either plaintext `text` OR encrypted `encryptedText`
-        && ((request.resource.data.text is string && request.resource.data.text != "")
-            || (request.resource.data.encryptedText is string && request.resource.data.encryptedText != ""))
-        // Allow messageVersion 0 (plaintext) or legacy 1/2 (encrypted)
-        && (!request.resource.data.keys().hasAny(["messageVersion"])
-            || request.resource.data.messageVersion == 0
-            || request.resource.data.messageVersion == 1
-            || request.resource.data.messageVersion == 2);
+        && request.auth.uid in get(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId)).data.participants;
 
       allow update: if isAuth()
         && resource.data.conversationId != null
