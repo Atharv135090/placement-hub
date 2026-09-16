@@ -18,26 +18,29 @@ import {
 } from "../services/firestore";
 import "./AdminAssistant.css";
 import { parsePodDriveMessage, parseCreateCompanyMessage, validateCompanyName } from "../utils/placementParser";
+import { extractCompanyAndDrive } from "../utils/companyExtractor";
 
 // Security check: Never expose internal prompts, PRDs, or rules
+// §15 — Only detect ACTUAL prompt-extraction attempts, not data containing keywords.
+// Company/drive data legitimately contains words like "instructions", "system", "important".
 function isAskingForInstructions(text) {
-  const lower = (text || "").toLowerCase();
-  return (
-    lower.includes("system prompt") ||
-    lower.includes("instructions") ||
-    lower.includes("prd") ||
-    lower.includes("hidden rules") ||
-    lower.includes("developer instructions") ||
-    lower.includes("internal rules") ||
-    lower.includes("show me your prompt") ||
-    lower.includes("show your prompt") ||
-    lower.includes("tell me your prompt") ||
-    lower.includes("reveal your instructions") ||
-    lower.includes("what are your instructions") ||
-    lower.includes("architecture instructions") ||
-    lower.includes("security rules") ||
-    lower.includes("hidden context")
-  );
+  const lower = (text || "").toLowerCase().trim();
+
+  // Direct system-prompt extraction requests (standalone, short messages only)
+  if (/^(show|reveal|display|print|output|tell|give|send|share)\b.*(system\s*prompt|your\s*prompt|the\s*prompt|internal\s*prompt|hidden\s*prompt)/i.test(lower)) return true;
+  if (/^(what|where|how)\s+(are|is|do)\s+(you|your)\s+(system|internal|hidden)\s+(prompt|instructions|rules|context|directive)/i.test(lower)) return true;
+  if (/\b(show|reveal|display)\b.*(internal|hidden|system)\s*(instructions|rules|context|directive|prompt)/i.test(lower)) return true;
+  if (/\b(what|where)\s+are\s+your\s+(internal|hidden|system)\s+(instructions|rules|context|directive)/i.test(lower)) return true;
+
+  // Must be a SHORT message to be a prompt extraction request.
+  // Long messages with "instructions" are data (company/drive content).
+  if (lower.length > 120) return false;
+
+  // Short standalone queries about the prompt/instructions
+  if (/^(instructions|system prompt|show prompt|reveal prompt|your instructions|internal instructions|hidden instructions)\s*[?.!]*$/i.test(lower)) return true;
+  if (/^(show|reveal|tell)\s+me\s+(your|the)\s+(instructions|prompt|system|rules)\s*[?.!]*$/i.test(lower)) return true;
+
+  return false;
 }
 
 // Helper: Normalize string for comparison
@@ -88,6 +91,7 @@ export default function AdminAssistant({ onClose }) {
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const lastExtractedDataRef = useRef(null); // stores last extracted company/drive data for follow-up commands
 
   function handleClose() {
     if (onClose) {
@@ -432,6 +436,251 @@ export default function AdminAssistant({ onClose }) {
         return;
       }
       // If structured parsing failed, fall through to NLP handler below
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // 1d. DYNAMIC COMPANY/DRIVE EXTRACTION FROM NATURAL LANGUAGE
+    // Handles screenshot-extracted text with "Add this", "Add this company", etc.
+    // ──────────────────────────────────────────────────────────
+    {
+      const isFollowUp = /^(add|create|save|put)\s+(it|this|them|the above|that)\s*\.?$/i.test(lower) ||
+        /^(please|kindly|hey)\s+(add|create|save|put)\s+(it|this|them|that)\s*\.?$/i.test(lower) ||
+        /^(can\s+you|could\s+you)\s+(add|create|save|put)\s+(it|this|them|that)\s*\.?$/i.test(lower);
+
+      if (isFollowUp && lastExtractedDataRef.current) {
+        const extracted = lastExtractedDataRef.current;
+        const companyName = extracted.company.name;
+        const existingCompany = companyName ? findCompany(companyName) : null;
+
+        if (extracted.drive.title && existingCompany) {
+          const draft = {
+            mode: "drive_only",
+            existingCompanyId: existingCompany.id,
+            existingCompanyName: existingCompany.name,
+            company: { name: existingCompany.name },
+            drive: {
+              title: extracted.drive.title,
+              employmentType: extracted.drive.type || "",
+              location: extracted.drive.location || "",
+              ctc: extracted.drive.package || "",
+              stipend: extracted.drive.stipend || "",
+              description: extracted.drive.description || "",
+              otherBenefits: extracted.drive.otherDetails || "",
+              registrationOpensAt: extracted.drive.registrationOpens || "",
+              registrationClosesAt: extracted.drive.registrationCloses || "",
+              eligibleCourses: extracted.drive.eligibility ? extracted.drive.eligibility.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [],
+              eligibilityCriteria: extracted.drive.eligibilityCriteria || "",
+              attachment: "",
+            },
+            source: {},
+          };
+          setPodDraft(draft);
+          addMsg("assistant", `Found existing company: **${existingCompany.name}**\n\nReview and edit the drive fields below, then click **Confirm & Add**.`);
+          return;
+        }
+
+        if (extracted.drive.title && !existingCompany && companyName) {
+          const draft = {
+            mode: "company_and_drive",
+            existingCompanyId: null,
+            existingCompanyName: null,
+            company: {
+              name: companyName,
+              industry: extracted.company.industry || "",
+              organisationSize: extracted.company.organisationSize || "",
+              description: extracted.company.description || "",
+              logoUrl: extracted.company.logoUrl || "",
+            },
+            drive: {
+              title: extracted.drive.title,
+              employmentType: extracted.drive.type || "",
+              location: extracted.drive.location || "",
+              ctc: extracted.drive.package || "",
+              stipend: extracted.drive.stipend || "",
+              description: extracted.drive.description || "",
+              otherBenefits: extracted.drive.otherDetails || "",
+              registrationOpensAt: extracted.drive.registrationOpens || "",
+              registrationClosesAt: extracted.drive.registrationCloses || "",
+              eligibleCourses: extracted.drive.eligibility ? extracted.drive.eligibility.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [],
+              eligibilityCriteria: extracted.drive.eligibilityCriteria || "",
+              attachment: "",
+            },
+            source: {},
+          };
+          setPodDraft(draft);
+          addMsg("assistant", `I couldn't find **"${companyName}"** in Placement Hub.\n\nReview and edit the company + drive fields below, then click **Confirm & Add** to register both.`);
+          return;
+        }
+
+        if (companyName && !extracted.drive.title) {
+          const existing = findCompany(companyName);
+          if (existing) {
+            addMsg("assistant", `Company "**${existing.name}**" already exists in Placement Hub.`);
+            return;
+          }
+          const draft = {
+            mode: "company_only",
+            existingCompanyId: null,
+            existingCompanyName: null,
+            company: {
+              name: companyName,
+              industry: extracted.company.industry || "",
+              organisationSize: extracted.company.organisationSize || "",
+              description: extracted.company.description || "",
+              logoUrl: extracted.company.logoUrl || "",
+            },
+            drive: {},
+            source: {},
+          };
+          setPodDraft(draft);
+          addMsg("assistant", `Review the company fields below, then click **Confirm & Add** to register **${companyName}**.`);
+          return;
+        }
+
+        addMsg("assistant", "I couldn't extract company or drive information from the previous message. Please provide structured data with labels like:\n\n- Company: ...\n- Job Role: ...\n- CTC: ...\n- Location: ...");
+        return;
+      }
+
+      const hasAddIntent = /^(add|create|save|put)\s+(this|the|that|above|it|them|company|drive|placement|job)/i.test(lower) ||
+        /^(add|create|save|put)\s+(this|the|that)?\s*(company|drive|placement|job)?\s*(to|in|under|into)?\s*(placement\s*hub|database|db|the\s*system)?/i.test(lower) ||
+        /^(please|kindly|hey|ok)\s+(add|create|save|put)\s+(this|the|that|it|them)/i.test(lower) ||
+        /^(can\s+you|could\s+you)\s+(add|create|save|put)\s+(this|the|that|it|them)/i.test(lower);
+
+      const hasFieldData = /[;\n].*(:|—|-)\s*\S/.test(rawText) || rawText.length > 80;
+
+      if (hasAddIntent && hasFieldData) {
+        const extracted = extractCompanyAndDrive(rawText);
+        lastExtractedDataRef.current = extracted;
+
+        if (extracted.company.name || extracted.drive.title) {
+          const companyName = extracted.company.name;
+
+          // Determine scope
+          let scope = "auto";
+          if (/add\s+(only\s+)?(the\s+)?company/i.test(lower) || /company\s+only/i.test(lower)) scope = "company_only";
+          else if (/add\s+(only\s+)?(the\s+)?(drive|placement|job)/i.test(lower) || /(drive|placement|job)\s+only/i.test(lower)) scope = "drive_only";
+
+          // Check if follow-up "Add it" refers to previous extracted data
+          if (/^add\s+(it|this|them|the above|that)\s*\.?$/i.test(lower) && !companyName && !extracted.drive.title) {
+            addMsg("assistant", "I couldn't extract company or drive information from the message. Please provide structured data with labels like:\n\n- Company: ...\n- Job Role: ...\n- CTC: ...\n- Location: ...\n- Eligible Courses: ...");
+            return;
+          }
+
+          // Find existing company
+          const existingCompany = companyName ? findCompany(companyName) : null;
+
+          // Build podDraft from extracted data
+          if (scope === "company_only" || (!extracted.drive.title && companyName)) {
+            if (existingCompany) {
+              addMsg("assistant", `Company "**${existingCompany.name}**" already exists in Placement Hub. No duplicate was created.`);
+              return;
+            }
+            const draft = {
+              mode: "company_only",
+              existingCompanyId: null,
+              existingCompanyName: null,
+              company: {
+                name: companyName || "",
+                industry: extracted.company.industry || "",
+                location: extracted.company.location || "",
+                organisationSize: extracted.company.organisationSize || "",
+                description: extracted.company.description || "",
+                website: extracted.company.website || "",
+                contactEmail: extracted.company.contactEmail || "",
+                logoUrl: extracted.company.logoUrl || "",
+              },
+              drive: {},
+              source: {},
+            };
+            setPodDraft(draft);
+            addMsg("assistant", `I extracted company information. Review the fields below, then click **Confirm & Add** to register **${companyName}**.`);
+            return;
+          }
+
+          if (scope === "drive_only" && !existingCompany) {
+            addMsg("assistant", `I need to know which company to add this drive under. The text mentions "${companyName || extracted.drive.title}" but I couldn't find a matching company. Please specify the company name or add the company first.`);
+            return;
+          }
+
+          // Company + Drive
+          if (existingCompany) {
+            const jobTitle = extracted.drive.title || "";
+            const existingDrive = (freshDataRef.current.jobs || []).find(
+              (j) => j.companyId === existingCompany.id && (j.title || "").toLowerCase() === jobTitle.toLowerCase()
+            );
+            if (existingDrive) {
+              addMsg("assistant", `A drive titled "**${jobTitle}**" already exists for ${existingCompany.name}. No duplicate was created.`);
+              return;
+            }
+            const draft = {
+              mode: "drive_only",
+              existingCompanyId: existingCompany.id,
+              existingCompanyName: existingCompany.name,
+              company: { name: existingCompany.name },
+              drive: {
+                title: jobTitle,
+                employmentType: extracted.drive.type || "",
+                location: extracted.drive.location || "",
+                workMode: extracted.drive.workMode || "",
+                ctc: extracted.drive.package || "",
+                stipend: extracted.drive.stipend || "",
+                description: extracted.drive.description || "",
+                otherBenefits: extracted.drive.otherDetails || "",
+                registrationOpensAt: extracted.drive.registrationOpens || "",
+                registrationClosesAt: extracted.drive.registrationCloses || "",
+                deadline: extracted.drive.registrationCloses || "",
+                eligibleCourses: extracted.drive.eligibility ? extracted.drive.eligibility.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [],
+                eligibilityCriteria: extracted.drive.eligibilityCriteria || "",
+                applicationLink: extracted.drive.applicationLink || "",
+                attachment: "",
+              },
+              source: {},
+            };
+            setPodDraft(draft);
+            addMsg("assistant", `Found existing company: **${existingCompany.name}**\n\nReview and edit the drive fields below, then click **Confirm & Add**.`);
+            return;
+          }
+
+          // New company + drive
+          const draft = {
+            mode: "company_and_drive",
+            existingCompanyId: null,
+            existingCompanyName: null,
+            company: {
+              name: companyName || "",
+              industry: extracted.company.industry || "",
+              location: extracted.company.location || "",
+              organisationSize: extracted.company.organisationSize || "",
+              description: extracted.company.description || "",
+              website: extracted.company.website || "",
+              contactEmail: extracted.company.contactEmail || "",
+              logoUrl: extracted.company.logoUrl || "",
+            },
+            drive: {
+              title: extracted.drive.title || "",
+              employmentType: extracted.drive.type || "",
+              location: extracted.drive.location || "",
+              workMode: extracted.drive.workMode || "",
+              ctc: extracted.drive.package || "",
+              stipend: extracted.drive.stipend || "",
+              description: extracted.drive.description || "",
+              otherBenefits: extracted.drive.otherDetails || "",
+              registrationOpensAt: extracted.drive.registrationOpens || "",
+              registrationClosesAt: extracted.drive.registrationCloses || "",
+              deadline: extracted.drive.registrationCloses || "",
+              eligibleCourses: extracted.drive.eligibility ? extracted.drive.eligibility.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [],
+              eligibilityCriteria: extracted.drive.eligibilityCriteria || "",
+              applicationLink: extracted.drive.applicationLink || "",
+              attachment: "",
+            },
+            source: {},
+          };
+          setPodDraft(draft);
+          const modeLabel = extracted.drive.title ? "company + drive" : "company";
+          addMsg("assistant", `I couldn't find **"${companyName}"** in Placement Hub.\n\nReview and edit the ${modeLabel} fields below, then click **Confirm & Add** to register both.`);
+          return;
+        }
+      }
     }
 
     // ──────────────────────────────────────────────────────────
@@ -880,6 +1129,47 @@ export default function AdminAssistant({ onClose }) {
         return;
       }
 
+      // If message has additional field data (beyond just the name), extract all fields
+      if (rawText.length > 60 && /[;\n]/.test(rawText)) {
+        const extracted = extractCompanyAndDrive(rawText);
+        const jobTitle = extracted.drive.title || positionExtracted || "";
+
+        if (jobTitle) {
+          // Check for duplicate drive
+          const existingDrive = (freshDataRef.current.jobs || []).find(
+            (j) => j.companyId === matchedComp.id && (j.title || "").toLowerCase() === jobTitle.toLowerCase()
+          );
+          if (existingDrive) {
+            addMsg("assistant", `A drive titled "**${jobTitle}**" already exists for ${matchedComp.name}. No duplicate was created.`);
+            return;
+          }
+          const draft = {
+            mode: "drive_only",
+            existingCompanyId: matchedComp.id,
+            existingCompanyName: matchedComp.name,
+            company: { name: matchedComp.name },
+            drive: {
+              title: jobTitle,
+              employmentType: extracted.drive.type || "",
+              location: extracted.drive.location || "",
+              ctc: extracted.drive.package || "",
+              stipend: extracted.drive.stipend || "",
+              description: extracted.drive.description || "",
+              otherBenefits: extracted.drive.otherDetails || "",
+              registrationOpensAt: extracted.drive.registrationOpens || "",
+              registrationClosesAt: extracted.drive.registrationCloses || "",
+              eligibleCourses: extracted.drive.eligibility ? extracted.drive.eligibility.split(/[,\n]/).map(s => s.trim()).filter(Boolean) : [],
+              eligibilityCriteria: extracted.drive.eligibilityCriteria || "",
+              attachment: "",
+            },
+            source: {},
+          };
+          setPodDraft(draft);
+          addMsg("assistant", `Found existing company: **${matchedComp.name}**\n\nReview and edit the drive fields below, then click **Confirm & Add**.`);
+          return;
+        }
+      }
+
       // If position was already provided:
       if (positionExtracted && positionExtracted.length > 1) {
         const draft = {
@@ -1011,7 +1301,6 @@ export default function AdminAssistant({ onClose }) {
       lower.startsWith("add company ") ||
       lower.startsWith("add a company ") ||
       lower.startsWith("register company ") ||
-      lower.startsWith("create company ") ||
       lower.startsWith("add a company called ")
     ) {
       let compName = rawText
@@ -1027,24 +1316,51 @@ export default function AdminAssistant({ onClose }) {
         return;
       }
 
-      const existing = findCompany(compName);
-      if (existing) {
-        addMsg(
-          "assistant",
-          `Company "${existing.name}" is already registered in Placement Hub.`
-        );
+      // If there's additional field data beyond just the name, extract it
+      if (compName.length > 40 || /[;\n]/.test(compName)) {
+        const extracted = extractCompanyAndDrive(rawText);
+        const companyName = extracted.company.name || compName.split(/[;\n]/)[0].trim();
+        const existing = findCompany(companyName);
+        if (existing) {
+          addMsg("assistant", `Company "**${existing.name}**" is already registered in Placement Hub.`);
+          return;
+        }
+        const draft = {
+          mode: "company_only",
+          existingCompanyId: null,
+          existingCompanyName: null,
+          company: {
+            name: companyName,
+            industry: extracted.company.industry || "",
+            organisationSize: extracted.company.organisationSize || "",
+            description: extracted.company.description || "",
+            logoUrl: extracted.company.logoUrl || "",
+          },
+          drive: {},
+          source: {},
+        };
+        setPodDraft(draft);
+        addMsg("assistant", `I extracted company information. Review the fields below, then click **Confirm & Add** to register **${companyName}**.`);
         return;
       }
 
-      setPendingConfirmation({
-        action: "create_company",
-        name: compName,
-      });
+      const existing = findCompany(compName);
+      if (existing) {
+        addMsg("assistant", `Company "**${existing.name}**" is already registered in Placement Hub.`);
+        return;
+      }
 
-      addMsg(
-        "assistant",
-        `Would you like me to register **${compName}** as a new company?`
-      );
+      // Create podDraft with just the company name for editable preview
+      const draft = {
+        mode: "company_only",
+        existingCompanyId: null,
+        existingCompanyName: null,
+        company: { name: compName, industry: "", organisationSize: "", description: "", logoUrl: "" },
+        drive: {},
+        source: {},
+      };
+      setPodDraft(draft);
+      addMsg("assistant", `Review the company fields below, then click **Confirm & Add** to register **${compName}**.`);
       return;
     }
 
@@ -1405,6 +1721,7 @@ export default function AdminAssistant({ onClose }) {
           type: drive.employmentType || "Not Specified",
           employmentType: drive.employmentType || "Not Specified",
           location: drive.location || "Not Specified",
+          workMode: drive.workMode || "Not Specified",
           package: drive.ctc || "Not Specified",
           ctc: drive.ctc || "Not Specified",
           stipend: drive.stipend || "Not Specified",
@@ -1420,6 +1737,7 @@ export default function AdminAssistant({ onClose }) {
               : [],
           eligibility: drive.eligibilityCriteria || "Not Specified",
           eligibilityCriteria: drive.eligibilityCriteria || "Not Specified",
+          applicationLink: drive.applicationLink || "",
           attachment: sanitizeAttachment(drive.attachment),
           source: source?.source || "Not Specified",
           isActive: true,
@@ -1463,11 +1781,12 @@ export default function AdminAssistant({ onClose }) {
         const companyPayload = {
           name: companyName,
           industry: company.industry || "",
+          location: company.location || "",
           organisationSize: company.organisationSize || "",
           description: company.description || "",
+          website: company.website || "",
+          contactEmail: company.contactEmail || "",
           logoUrl: company.logoUrl || "",
-          location: "",
-          website: "",
           isActive: true,
         };
 
@@ -1487,6 +1806,7 @@ export default function AdminAssistant({ onClose }) {
           type: drive.employmentType || "Not Specified",
           employmentType: drive.employmentType || "Not Specified",
           location: drive.location || "Not Specified",
+          workMode: drive.workMode || "Not Specified",
           package: drive.ctc || "Not Specified",
           ctc: drive.ctc || "Not Specified",
           stipend: drive.stipend || "Not Specified",
@@ -1502,6 +1822,7 @@ export default function AdminAssistant({ onClose }) {
               : [],
           eligibility: drive.eligibilityCriteria || "Not Specified",
           eligibilityCriteria: drive.eligibilityCriteria || "Not Specified",
+          applicationLink: drive.applicationLink || "",
           attachment: sanitizeAttachment(drive.attachment),
           source: source?.source || "Not Specified",
           isActive: true,
@@ -1588,7 +1909,19 @@ export default function AdminAssistant({ onClose }) {
         type: draft.employmentType || "Not Specified",
         employmentType: draft.employmentType || "Not Specified",
         location: draft.location || "Not Specified",
+        workMode: draft.workMode || "Not Specified",
+        stipend: draft.stipend || "Not Specified",
+        description: draft.description || "Not Specified",
+        otherBenefits: draft.otherBenefits || "Not Specified",
+        registrationOpensAt: draft.registrationOpensAt || "Not Specified",
+        registrationClosesAt: draft.registrationClosesAt || "Not Specified",
+        deadline: draft.registrationClosesAt || "Not Specified",
         eligibleCourses: draft.eligibleCourses || [],
+        eligibility: draft.eligibilityCriteria || "Not Specified",
+        eligibilityCriteria: draft.eligibilityCriteria || "Not Specified",
+        applicationLink: draft.applicationLink || "",
+        attachment: sanitizeAttachment(draft.attachment),
+        source: "admin_assistant",
         isActive: true,
       };
 
@@ -2019,6 +2352,20 @@ export default function AdminAssistant({ onClose }) {
                 >
                   Cancel
                 </button>
+                {(podDraft.mode === "company_only" || podDraft.mode === "company_and_drive") && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const name = podDraft.company?.name || "";
+                      setPodDraft(null);
+                      setPodDraftPdf(null);
+                      navigate(`/admin/companies?name=${encodeURIComponent(name)}`);
+                    }}
+                    disabled={busy}
+                  >
+                    Fill Form Instead
+                  </button>
+                )}
                 <button
                   className="btn btn-primary"
                   onClick={handlePodDraftConfirm}

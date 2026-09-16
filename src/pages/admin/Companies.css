@@ -794,6 +794,20 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.ac-modal-section-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent, #e11d48);
+  padding: 6px 0 2px;
+  border-bottom: 1px solid var(--border-subtle, rgba(0,0,0,0.06));
+  margin-bottom: 4px;
 }
 
 .ac-modal-grid {
@@ -821,7 +835,8 @@
 }
 
 .modal-field input,
-.modal-field textarea {
+.modal-field textarea,
+.modal-field select {
   padding: 10px 14px;
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -833,14 +848,16 @@
 }
 
 [data-theme="dark"] .modal-field input,
-[data-theme="dark"] .modal-field textarea {
+[data-theme="dark"] .modal-field textarea,
+[data-theme="dark"] .modal-field select {
   background: #151926;
   border-color: rgba(255, 255, 255, 0.12);
   color: #f8fafc;
 }
 
 .modal-field input:focus,
-.modal-field textarea:focus {
+.modal-field textarea:focus,
+.modal-field select:focus {
   border-color: #e11d48;
   box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
 }

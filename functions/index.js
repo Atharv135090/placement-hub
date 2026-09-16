@@ -311,6 +311,7 @@ exports.adminDeleteUser = onCall(async (request) => {
   const batch = db.batch();
 
   batch.delete(db.collection("users").doc(userId));
+  batch.delete(db.collection("users_public").doc(userId));
 
   const followSnap1 = await db.collection("follows").where("fromUserId", "==", userId).get();
   followSnap1.forEach((doc) => batch.delete(doc.ref));
@@ -593,6 +594,47 @@ exports.adminUpdateReport = onCall(async (request) => {
   logger.info(`Admin ${adminId} updated report ${reportId} to ${status}`);
 
   return { success: true, moderationId: moderationRef.id };
+});
+
+// ═══════════════════════════════════════════════════════════════
+// FUNCTION 10: syncPublicProfile
+// Syncs safe public fields from users/{userId} → users_public/{userId}
+// This enforces §8 User Privacy: other users can only see safe fields
+// ═══════════════════════════════════════════════════════════════
+
+const PUBLIC_PROFILE_FIELDS = [
+  "displayName", "photoURL", "username", "role",
+  "branch", "gradYear", "about", "headline",
+];
+
+exports.syncPublicProfile = onDocumentWritten("users/{userId}", async (event) => {
+  const { userId } = event.params;
+  const after = event.data?.after?.data();
+
+  if (!after) {
+    try {
+      await db.collection("users_public").doc(userId).delete();
+      logger.info(`Deleted public profile for ${userId}`);
+    } catch (e) {
+      logger.warn(`Failed to delete public profile for ${userId}:`, e.message);
+    }
+    return;
+  }
+
+  const publicData = {};
+  for (const field of PUBLIC_PROFILE_FIELDS) {
+    if (after[field] !== undefined) {
+      publicData[field] = after[field];
+    }
+  }
+  publicData.updatedAt = new Date().toISOString();
+
+  try {
+    await db.collection("users_public").doc(userId).set(publicData, { merge: true });
+    logger.info(`Synced public profile for ${userId}`);
+  } catch (error) {
+    logger.error(`Failed to sync public profile for ${userId}:`, error);
+  }
 });
 
 exports.chat = onCall(

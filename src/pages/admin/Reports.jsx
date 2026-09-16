@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   getAllReports,
   getModerationHistory,
@@ -49,6 +50,7 @@ function formatShortDate(timestamp) {
 }
 
 export default function AdminReports() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -88,6 +90,18 @@ export default function AdminReports() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Deep-linking: open exact report from ?report=<id> URL param
+  useEffect(() => {
+    const paramReport = searchParams.get("report");
+    if (paramReport && reports.length > 0) {
+      const match = reports.find((r) => r.id === paramReport);
+      if (match) {
+        loadDetail(match);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, reports, setSearchParams]);
 
   const filtered = useMemo(() => {
     let result = [...reports];

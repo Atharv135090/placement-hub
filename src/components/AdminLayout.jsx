@@ -375,8 +375,10 @@ export default function AdminLayout() {
                           let target;
                           if (n.type === "admin_message" || n.type === "admin_warning") {
                             target = n.link || "/admin/chat";
-                          } else if (n.type === "support_reply" || n.type === "support_status") {
+                          } else if (n.type === "support_reply" || n.type === "support_status" || n.type === "support_request") {
                             target = n.link || "/admin/support";
+                          } else if (n.type === "report") {
+                            target = n.link || "/admin/reports";
                           } else {
                             target = n.senderId ? `/admin/users?q=${n.senderId}` : n.link;
                           }

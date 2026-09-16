@@ -8,8 +8,7 @@ import {
   where,
   orderBy,
 } from "firebase/firestore";
-import { db, storage } from "../../config/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../../config/firebase";
 import { ATTACHMENTS, timestamp, handleFirestoreError, mapDocs } from "./helpers";
 
 export async function addAttachment(attachmentData) {
@@ -24,22 +23,41 @@ export async function addAttachment(attachmentData) {
   }
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function uploadJobAttachment(jobId, companyId, file) {
   try {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storageRef = ref(storage, `job-attachments/${jobId}/${Date.now()}_${safeName}`);
-    await uploadBytes(storageRef, file);
-    const fileUrl = await getDownloadURL(storageRef);
+    const MAX_BASE64_BYTES = 700 * 1024;
+    if (file.size > MAX_BASE64_BYTES) {
+      return {
+        data: null,
+        error: "File too large for free storage (max 700KB). Please use a smaller file.",
+      };
+    }
+
+    const dataUrl = await fileToDataUrl(file);
+
     const docRef = await addDoc(collection(db, ATTACHMENTS), {
       jobId,
       companyId: companyId || "",
       name: file.name,
-      fileUrl,
+      dataUrl,
       fileType: file.type || "application/pdf",
       fileSize: file.size || 0,
       uploadedAt: timestamp(),
     });
-    return { data: { id: docRef.id, name: file.name, fileUrl, fileType: file.type, fileSize: file.size }, error: null };
+
+    return {
+      data: { id: docRef.id, name: file.name, dataUrl, fileType: file.type, fileSize: file.size },
+      error: null,
+    };
   } catch (error) {
     return handleFirestoreError(error);
   }
@@ -47,13 +65,23 @@ export async function uploadJobAttachment(jobId, companyId, file) {
 
 export async function getAttachmentsByJob(jobId) {
   try {
-    const snapshot = await getDocs(
-      query(
-        collection(db, ATTACHMENTS),
-        where("jobId", "==", jobId),
-        orderBy("uploadedAt", "desc")
-      )
-    );
+    let snapshot;
+    try {
+      snapshot = await getDocs(
+        query(
+          collection(db, ATTACHMENTS),
+          where("jobId", "==", jobId),
+          orderBy("uploadedAt", "desc")
+        )
+      );
+    } catch {
+      snapshot = await getDocs(
+        query(
+          collection(db, ATTACHMENTS),
+          where("jobId", "==", jobId)
+        )
+      );
+    }
     return { data: mapDocs(snapshot), error: null };
   } catch (error) {
     return handleFirestoreError(error);

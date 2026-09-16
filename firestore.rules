@@ -48,9 +48,11 @@ service cloud.firestore {
     }
 
     // ─── USERS / STUDENT PROFILES ─────────────────────────────
+    // §8 User Privacy: users can only read their own full profile.
+    // Other users' safe fields are available via users_public (synced by Cloud Function).
 
     match /users/{userId} {
-      allow read: if isAuth();
+      allow read: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
 
       allow create: if isOwnerDoc(userId);
 
@@ -67,6 +69,15 @@ service cloud.firestore {
         allow read: if isOwnerDoc(userId);
         allow create, update, delete: if isOwnerDoc(userId);
       }
+    }
+
+    // ─── USERS PUBLIC PROFILE (§8 User Privacy) ────────────────
+    // Safe fields synced from users/ by syncPublicProfile Cloud Function.
+    // Any authenticated user can read; no client writes allowed.
+
+    match /users_public/{userId} {
+      allow read: if isAuth();
+      allow write: if false;
     }
 
     // ─── COMPANIES ─────────────────────────────────────────────

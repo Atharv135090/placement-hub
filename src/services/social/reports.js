@@ -4,6 +4,13 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { handleSocialError, mapDocs } from "./helpers";
 import { getOrCreateAdminConversation, sendAdminChatMessage } from "./adminMessaging";
 
+async function getAdminUserIds() {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("role", "in", ["admin", "owner"]))
+  );
+  return snap.docs.map((d) => d.id);
+}
+
 export async function reportUser(reporterId, reportedId, reason, details = "", evidenceUrls = []) {
   try {
     const docRef = await addDoc(collection(db, "reports"), {
@@ -15,6 +22,32 @@ export async function reportUser(reporterId, reportedId, reason, details = "", e
       status: "pending",
       createdAt: serverTimestamp(),
     });
+
+    // Notify all admin/owner users
+    try {
+      const [reporterSnap, adminIds] = await Promise.all([
+        getDoc(doc(db, "users", reporterId)),
+        getAdminUserIds(),
+      ]);
+      const reporterName = reporterSnap.exists() ? reporterSnap.data().displayName || "A user" : "A user";
+      await Promise.all(
+        adminIds.map((adminId) =>
+          addDoc(collection(db, "notifications"), {
+            title: "New Report",
+            message: `${reporterName} submitted a Report: "${reason}"`,
+            type: "report",
+            link: `/admin/reports?report=${docRef.id}`,
+            targetUserId: adminId,
+            senderId: reporterId,
+            readBy: [],
+            createdAt: serverTimestamp(),
+          })
+        )
+      );
+    } catch (e) {
+      console.warn("Failed to notify admins of new report:", e);
+    }
+
     return { data: { id: docRef.id }, error: null };
   } catch (error) {
     return handleSocialError(error);

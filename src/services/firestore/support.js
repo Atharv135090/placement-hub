@@ -17,6 +17,13 @@ import { db, storage, auth } from "../../config/firebase";
 import { SUPPORT_TICKETS, NOTIFICATIONS, handleFirestoreError, mapDocs } from "./helpers";
 import { createNotification } from "./notifications";
 
+async function getAdminUserIds() {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("role", "in", ["admin", "owner"]))
+  );
+  return snap.docs.map((d) => d.id);
+}
+
 /**
  * Generate collision-safe ticket ID (e.g. SUP-001, SUP-7X9)
  */
@@ -73,6 +80,25 @@ export async function createSupportTicket({ userId, userName, userEmail, subject
       attachment: attachment || null,
       createdAt: serverTimestamp(),
     });
+
+    // 3. Notify all admin/owner users
+    try {
+      const adminIds = await getAdminUserIds();
+      await Promise.all(
+        adminIds.map((adminId) =>
+          createNotification({
+            title: "New Support Request",
+            message: `${userName || "A user"} sent a Support Request: "${subject.trim()}"`,
+            type: "support_request",
+            link: `/admin/support?ticket=${docId}`,
+            targetUserId: adminId,
+            senderId: userId,
+          })
+        )
+      );
+    } catch (e) {
+      console.warn("Failed to notify admins of new support request:", e);
+    }
 
     return { data: { id: docId, ticketId: ticketIdCode }, error: null };
   } catch (error) {

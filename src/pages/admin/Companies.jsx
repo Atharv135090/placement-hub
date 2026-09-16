@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { getCompanies, addCompany, updateCompany, deleteCompany, getAllApplications } from "../../services/firestore";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getCompanies, addCompany, updateCompany, deleteCompany, getAllApplications, addJob, findCompanyByName, uploadJobAttachment } from "../../services/firestore";
 import Modal from "../../components/Modal";
 import CompanyLogo from "../../components/CompanyLogo";
 import "./Companies.css";
@@ -15,6 +15,27 @@ const EMPTY = {
   location: "",
   contactEmail: "",
   isActive: true,
+};
+
+const EMPTY_DRIVE = {
+  title: "",
+  type: "Full-time",
+  employmentType: "Full-time",
+  location: "",
+  workMode: "",
+  package: "",
+  ctc: "",
+  stipend: "",
+  description: "",
+  otherBenefits: "",
+  registrationOpensAt: "",
+  registrationClosesAt: "",
+  deadline: "",
+  eligibleCourses: "",
+  eligibility: "",
+  eligibilityCriteria: "",
+  applicationLink: "",
+  source: "",
 };
 
 // ─── ICONS ──────────────────────────────────────────────────
@@ -210,6 +231,7 @@ function formatCompanyWebsite(c) {
 
 export default function AdminCompanies() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -225,6 +247,10 @@ export default function AdminCompanies() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
 
+  // Drive form state (always part of the Add Company form)
+  const [driveForm, setDriveForm] = useState({ ...EMPTY_DRIVE });
+  const [driveAttachment, setDriveAttachment] = useState(null);
+
   // UI Interactive States
   const [openMenuId, setOpenMenuId] = useState(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -237,6 +263,20 @@ export default function AdminCompanies() {
   const pageSize = 10;
 
   const menuRef = useRef(null);
+
+  // Auto-open modal with prefilled company name from ?name= param (e.g. from Assistant redirect)
+  useEffect(() => {
+    const prefilledName = searchParams.get("name");
+    if (prefilledName) {
+      setEditing(null);
+      setForm({ ...EMPTY, name: prefilledName });
+      setDriveForm({ ...EMPTY_DRIVE });
+      setDriveAttachment(null);
+      setFeedback("");
+      setModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   // Close 3-dots menu and add dropdown on outside click
   useEffect(() => {
@@ -346,6 +386,8 @@ export default function AdminCompanies() {
   function openAdd() {
     setEditing(null);
     setForm({ ...EMPTY });
+    setDriveForm({ ...EMPTY_DRIVE });
+    setDriveAttachment(null);
     setFeedback("");
     setModalOpen(true);
   }
@@ -371,35 +413,97 @@ export default function AdminCompanies() {
   async function handleSave(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!driveForm.title.trim()) return;
     setSaving(true);
     setFeedback("");
 
-    if (editing) {
-      const { error: err } = await updateCompany(editing.id, form);
-      if (err) {
-        setFeedback("Failed to update company.");
-      } else {
+    try {
+      if (editing) {
+        const { error: err } = await updateCompany(editing.id, form);
+        if (err) {
+          setFeedback("Failed to update company.");
+          return;
+        }
         setFeedback("Company updated successfully!");
         setCompanies((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...form } : c)));
         setTimeout(() => {
           setModalOpen(false);
           setFeedback("");
         }, 800);
+        return;
       }
-    } else {
-      const { data, error: err } = await addCompany(form);
-      if (err) {
-        setFeedback("Failed to add company.");
+
+      // Check for duplicate company
+      const { data: existing } = await findCompanyByName(form.name.trim());
+      let companyId;
+      if (existing) {
+        companyId = existing.id;
       } else {
-        setFeedback("Company added successfully!");
-        setCompanies((prev) => [{ id: data.id, ...form, createdAt: new Date() }, ...prev]);
-        setTimeout(() => {
-          setModalOpen(false);
-          setFeedback("");
-        }, 800);
+        const { data: compData, error: compErr } = await addCompany(form);
+        if (compErr) {
+          setFeedback("Failed to add company.");
+          return;
+        }
+        companyId = compData.id;
+        setCompanies((prev) => [{ id: companyId, ...form, createdAt: new Date() }, ...prev]);
       }
+
+      // Helper: return value or "NA" for empty optional fields; normalize "NA" variations
+      const val = (v) => {
+        const trimmed = (v && String(v).trim()) || "";
+        if (trimmed.toLowerCase() === "na") return "NA";
+        return trimmed || "NA";
+      };
+
+      // Always create drive
+      const { data: jobData, error: driveErr } = await addJob({
+        companyId,
+        companyName: form.name.trim(),
+        title: driveForm.title.trim(),
+        jobTitle: driveForm.title.trim(),
+        type: driveForm.employmentType || "Full-time",
+        employmentType: driveForm.employmentType || "Full-time",
+        location: val(driveForm.location),
+        workMode: val(driveForm.workMode),
+        package: driveForm.package || "",
+        ctc: val(driveForm.ctc),
+        stipend: val(driveForm.stipend),
+        description: val(driveForm.description),
+        otherBenefits: val(driveForm.otherBenefits),
+        registrationOpensAt: driveForm.registrationOpensAt || null,
+        registrationClosesAt: driveForm.registrationClosesAt || null,
+        deadline: driveForm.deadline || "",
+        eligibleCourses: driveForm.eligibleCourses
+          ? driveForm.eligibleCourses.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
+        eligibility: val(driveForm.eligibility),
+        eligibilityCriteria: val(driveForm.eligibilityCriteria),
+        applicationLink: val(driveForm.applicationLink),
+        source: "manual",
+        isActive: true,
+      });
+
+      if (driveErr) {
+        setFeedback(existing ? "Company exists, but drive creation failed." : "Company added, but drive creation failed.");
+        setTimeout(() => { setModalOpen(false); setFeedback(""); }, 1200);
+        return;
+      }
+
+      // Upload attachment if provided — non-blocking, must not prevent company/drive save
+      if (driveAttachment && jobData?.id) {
+        await uploadJobAttachment(jobData.id, companyId, driveAttachment);
+      }
+
+      const msg = existing
+        ? `Company already exists. New drive added to ${existing.name}.`
+        : "Company and drive added successfully!";
+      setFeedback(msg);
+      setTimeout(() => { setModalOpen(false); setFeedback(""); }, 1200);
+    } catch (error) {
+      setFeedback("An unexpected error occurred. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   // Toggle company active status
@@ -809,7 +913,7 @@ export default function AdminCompanies() {
         </div>
       </div>
 
-      {/* ─── ADD / EDIT COMPANY MODAL (Preserving real functionality) ── */}
+      {/* ─── ADD / EDIT COMPANY MODAL — SINGLE COMPLETE FORM ── */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Company" : "Add Company"}>
         <form onSubmit={handleSave} className="ac-modal-form">
           {feedback && (
@@ -817,6 +921,9 @@ export default function AdminCompanies() {
               {feedback}
             </div>
           )}
+
+          {/* ── COMPANY INFORMATION ── */}
+          <div className="ac-modal-section-label">Company Information</div>
 
           <div className="ac-modal-grid">
             <div className="modal-field">
@@ -863,30 +970,30 @@ export default function AdminCompanies() {
             <div className="modal-field">
               <label>Website URL</label>
               <input
-                type="url"
+                type="text"
                 value={form.website}
                 onChange={(e) => setForm({ ...form, website: e.target.value })}
-                placeholder="https://www.company.com"
+                placeholder="https://www.company.com or NA"
               />
             </div>
 
             <div className="modal-field">
               <label>Logo URL</label>
               <input
-                type="url"
+                type="text"
                 value={form.logoUrl}
                 onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
-                placeholder="https://... logo image URL"
+                placeholder="https://... logo image URL or NA"
               />
             </div>
 
             <div className="modal-field">
               <label>Contact Email</label>
               <input
-                type="email"
+                type="text"
                 value={form.contactEmail}
                 onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-                placeholder="careers@company.com"
+                placeholder="careers@company.com or NA"
               />
             </div>
           </div>
@@ -901,11 +1008,175 @@ export default function AdminCompanies() {
             />
           </div>
 
+          {/* ── PLACEMENT DRIVE INFORMATION ── */}
+          <div className="ac-modal-section-label">Placement Drive Information</div>
+
+          <div className="ac-modal-grid">
+            <div className="modal-field">
+              <label>Drive Title *</label>
+              <input
+                type="text"
+                value={driveForm.title}
+                onChange={(e) => setDriveForm({ ...driveForm, title: e.target.value })}
+                placeholder="e.g. Software Engineer Fresher"
+                required
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Employment Type</label>
+              <select
+                value={driveForm.employmentType}
+                onChange={(e) => setDriveForm({ ...driveForm, employmentType: e.target.value })}
+              >
+                <option value="Full-time">Full-time</option>
+                <option value="Internship">Internship</option>
+                <option value="Internship + Full-Time">Internship + Full-Time</option>
+                <option value="Contract">Contract</option>
+                <option value="Part-time">Part-time</option>
+              </select>
+            </div>
+
+            <div className="modal-field">
+              <label>Location</label>
+              <input
+                type="text"
+                value={driveForm.location}
+                onChange={(e) => setDriveForm({ ...driveForm, location: e.target.value })}
+                placeholder="e.g. Pune, Bangalore, Remote"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Work Mode</label>
+              <select
+                value={driveForm.workMode}
+                onChange={(e) => setDriveForm({ ...driveForm, workMode: e.target.value })}
+              >
+                <option value="">Select work mode</option>
+                <option value="On-site">On-site</option>
+                <option value="Remote">Remote</option>
+                <option value="Hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            <div className="modal-field">
+              <label>Package / CTC</label>
+              <input
+                type="text"
+                value={driveForm.ctc}
+                onChange={(e) => setDriveForm({ ...driveForm, ctc: e.target.value })}
+                placeholder="e.g. INR 14,00,000"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Stipend</label>
+              <input
+                type="text"
+                value={driveForm.stipend}
+                onChange={(e) => setDriveForm({ ...driveForm, stipend: e.target.value })}
+                placeholder="e.g. INR 35,000"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Registration Opens</label>
+              <input
+                type="datetime-local"
+                value={driveForm.registrationOpensAt}
+                onChange={(e) => setDriveForm({ ...driveForm, registrationOpensAt: e.target.value })}
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Registration Closes</label>
+              <input
+                type="datetime-local"
+                value={driveForm.registrationClosesAt}
+                onChange={(e) => setDriveForm({ ...driveForm, registrationClosesAt: e.target.value })}
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Application Link</label>
+              <input
+                type="text"
+                value={driveForm.applicationLink}
+                onChange={(e) => setDriveForm({ ...driveForm, applicationLink: e.target.value })}
+                placeholder="https://apply.company.com or NA"
+              />
+            </div>
+          </div>
+
+          <div className="modal-field full-width">
+            <label>Eligible Courses (comma-separated)</label>
+            <input
+              type="text"
+              value={driveForm.eligibleCourses}
+              onChange={(e) => setDriveForm({ ...driveForm, eligibleCourses: e.target.value })}
+              placeholder="e.g. B.E. - Computer Science, B.E. - IT, MCA"
+            />
+          </div>
+
+          <div className="modal-field full-width">
+            <label>Eligibility Criteria</label>
+            <textarea
+              rows={2}
+              value={driveForm.eligibilityCriteria}
+              onChange={(e) => setDriveForm({ ...driveForm, eligibilityCriteria: e.target.value })}
+              placeholder="e.g. Minimum 60% throughout academics, no active backlogs"
+            />
+          </div>
+
+          <div className="modal-field full-width">
+            <label>Drive Description</label>
+            <textarea
+              rows={3}
+              value={driveForm.description}
+              onChange={(e) => setDriveForm({ ...driveForm, description: e.target.value })}
+              placeholder="Job/placement opportunity description..."
+            />
+          </div>
+
+          <div className="modal-field full-width">
+            <label>Other Details</label>
+            <textarea
+              rows={2}
+              value={driveForm.otherBenefits}
+              onChange={(e) => setDriveForm({ ...driveForm, otherBenefits: e.target.value })}
+              placeholder="Bond details, working days, training period, benefits, relocation..."
+            />
+          </div>
+
+          <div className="modal-field full-width">
+            <label>Attachment</label>
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                if (f && f.size > 700 * 1024) {
+                  alert("File too large (max 700KB). Please use a smaller PDF.");
+                  e.target.value = "";
+                  return;
+                }
+                setDriveAttachment(f);
+              }}
+              style={{ fontSize: "0.85rem" }}
+            />
+            {driveAttachment && (
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "4px", display: "block" }}>
+                {driveAttachment.name}
+              </span>
+            )}
+          </div>
+
           <div className="modal-actions">
             <button type="button" className="modal-btn modal-btn--secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </button>
-            <button type="submit" className="modal-btn modal-btn--primary" disabled={saving || !form.name.trim()}>
+            <button type="submit" className="modal-btn modal-btn--primary" disabled={saving || !form.name.trim() || !driveForm.title.trim()}>
               {saving ? "Saving..." : editing ? "Save Changes" : "Add Company"}
             </button>
           </div>

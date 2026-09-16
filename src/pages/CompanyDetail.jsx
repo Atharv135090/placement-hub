@@ -6,10 +6,12 @@ import {
   getCompany,
   getJobsByCompany,
   getAttachmentsByCompany,
+  getAttachmentsByJob,
   uploadJobAttachment,
   deleteAttachment,
   deleteCompany,
   updateCompany,
+  updateJob,
 } from "../services/firestore";
 import CompanyLogo from "../components/CompanyLogo";
 import "../components/Modal.css";
@@ -30,10 +32,23 @@ function timeAgo(dateVal) {
   const diff = Math.floor((now - d) / 1000);
   if (diff < 60) return "just now";
   if (diff < 3600) return Math.floor(diff / 60) + "m ago";
-  if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if (diff < 84600) return Math.floor(diff / 3600) + "h ago";
   if (diff < 2592000) return Math.floor(diff / 86400) + "d ago";
   const months = Math.floor(diff / 2592000);
   return `${months} ${months === 1 ? "month" : "months"} ago`;
+}
+
+// PRD §25: Consistent NA/empty/null check
+function isUnavailable(val) {
+  if (val === null || val === undefined) return true;
+  const s = String(val).trim().toLowerCase();
+  return s === "" || s === "na" || s === "n/a" || s === "not specified";
+}
+
+function isValidUrl(val) {
+  if (isUnavailable(val)) return false;
+  const s = String(val).trim();
+  return s.startsWith("http://") || s.startsWith("https://");
 }
 
 // PRD §38: NEVER invent data. Use only what exists in the database.
@@ -84,10 +99,11 @@ function formatOrgSize(c) {
 
 function formatWebsite(c) {
   if (!c) return "";
-  if (c.website && !c.website.startsWith(".")) {
-    return c.website.startsWith("http") ? c.website : `https://${c.website}`;
-  }
-  return "";
+  const val = c.website;
+  if (isUnavailable(val)) return "";
+  const s = String(val).trim();
+  if (!s || s.startsWith(".")) return "";
+  return s.startsWith("http") ? s : `https://${s}`;
 }
 
 function formatDescription(c) {
@@ -146,6 +162,26 @@ export default function CompanyDetail() {
   // Apply notification
   const [applySuccess, setApplySuccess] = useState(false);
 
+  // Edit Drive Modal (Admin only)
+  const [driveEditModal, setDriveEditModal] = useState(false);
+  const [driveEditForm, setDriveEditForm] = useState({
+    title: "",
+    employmentType: "",
+    location: "",
+    workMode: "",
+    ctc: "",
+    stipend: "",
+    description: "",
+    eligibilityCriteria: "",
+    registrationOpensAt: "",
+    registrationClosesAt: "",
+    deadline: "",
+    applicationLink: "",
+    eligibleCourses: "",
+  });
+  const [driveEditBusy, setDriveEditBusy] = useState(false);
+  const [driveEditError, setDriveEditError] = useState("");
+
   const loadCompany = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -157,14 +193,33 @@ export default function CompanyDetail() {
     }
     setCompany(data);
 
-    const [drivesRes, attRes] = await Promise.all([
-      getJobsByCompany(companyId),
-      getAttachmentsByCompany(companyId),
-    ]);
-    setDrives(drivesRes.data || []);
-    setAttachments(attRes.data || []);
+    const drivesRes = await getJobsByCompany(companyId);
+    const drivesList = drivesRes.data || [];
+    setDrives(drivesList);
+
+    // Load attachments
+    await loadAttachments(drivesList);
     setLoading(false);
   }, [companyId]);
+
+  // Helper: fetch all attachments for this company (by companyId + by each jobId)
+  async function loadAttachments(drivesList) {
+    const attRes = await getAttachmentsByCompany(companyId);
+    let allAttachments = attRes.data || [];
+    const jobAttResults = await Promise.all(
+      (drivesList || drives).map((d) => getAttachmentsByJob(d.id))
+    );
+    const seen = new Set(allAttachments.map((a) => a.id));
+    for (const res of jobAttResults) {
+      for (const att of (res.data || [])) {
+        if (!seen.has(att.id)) {
+          allAttachments.push(att);
+          seen.add(att.id);
+        }
+      }
+    }
+    setAttachments(allAttachments);
+  }
 
   useEffect(() => {
     loadCompany();
@@ -206,8 +261,8 @@ export default function CompanyDetail() {
       setUploadFile(null);
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError("File size must be under 10MB.");
+    if (file.size > 700 * 1024) {
+      setUploadError("File size must be under 700KB for free storage.");
       setUploadFile(null);
       return;
     }
@@ -219,18 +274,23 @@ export default function CompanyDetail() {
     if (!uploadFile || uploadBusy) return;
     setUploadBusy(true);
     setUploadError("");
-    const { data, error } = await uploadJobAttachment(companyId, companyId, uploadFile, user?.uid);
-    if (!error && data) {
-      setAttachments((prev) => [data, ...prev]);
-      setUploadSuccess(true);
-      setTimeout(() => {
-        setUploadModal(false);
-        setUploadSuccess(false);
-      }, 1200);
-    } else {
+    try {
+      const { data, error } = await uploadJobAttachment(companyId, companyId, uploadFile, user?.uid);
+      if (!error && data) {
+        try { await loadAttachments(); } catch { /* index may be missing */ }
+        setUploadSuccess(true);
+        setTimeout(() => {
+          setUploadModal(false);
+          setUploadSuccess(false);
+        }, 1200);
+      } else {
+        setUploadError(error || "Upload failed. Please try again.");
+      }
+    } catch {
       setUploadError("Upload failed. Please try again.");
+    } finally {
+      setUploadBusy(false);
     }
-    setUploadBusy(false);
   }
 
   async function handleDeleteJD() {
@@ -238,7 +298,7 @@ export default function CompanyDetail() {
     setDeleteBusy(true);
     const { error } = await deleteAttachment(deleteTarget.id);
     if (!error) {
-      setAttachments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      try { await loadAttachments(); } catch { /* index may be missing */ }
     }
     setDeleteBusy(false);
     setDeleteTarget(null);
@@ -292,6 +352,81 @@ export default function CompanyDetail() {
       setEditError(err || "Failed to update company");
     }
     setEditBusy(false);
+  }
+
+  function openDriveEditModal() {
+    const d = activeDrive || {};
+    setDriveEditForm({
+      title: d.title || "",
+      employmentType: d.employmentType || d.type || "",
+      location: d.location || "",
+      workMode: d.workMode || "",
+      ctc: d.ctc || d.package || "",
+      stipend: d.stipend || "",
+      description: d.description || "",
+      eligibilityCriteria: d.eligibilityCriteria || d.eligibility || "",
+      registrationOpensAt: d.registrationOpensAt || "",
+      registrationClosesAt: d.registrationClosesAt || "",
+      deadline: d.deadline || "",
+      applicationLink: d.applicationLink || "",
+      eligibleCourses: Array.isArray(d.eligibleCourses) ? d.eligibleCourses.join(", ") : (d.eligibleCourses || ""),
+    });
+    setDriveEditError("");
+    setDriveEditModal(true);
+  }
+
+  async function handleSaveDriveEdit(e) {
+    e.preventDefault();
+    if (!activeDrive?.id) return;
+    setDriveEditBusy(true);
+    setDriveEditError("");
+    const { error: err } = await updateJob(activeDrive.id, {
+      title: driveEditForm.title.trim(),
+      employmentType: driveEditForm.employmentType.trim(),
+      location: driveEditForm.location.trim(),
+      workMode: driveEditForm.workMode.trim(),
+      ctc: driveEditForm.ctc.trim(),
+      stipend: driveEditForm.stipend.trim(),
+      description: driveEditForm.description.trim(),
+      eligibilityCriteria: driveEditForm.eligibilityCriteria.trim(),
+      registrationOpensAt: driveEditForm.registrationOpensAt,
+      registrationClosesAt: driveEditForm.registrationClosesAt,
+      deadline: driveEditForm.deadline,
+      applicationLink: driveEditForm.applicationLink.trim(),
+      eligibleCourses: driveEditForm.eligibleCourses
+        ? driveEditForm.eligibleCourses.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+    });
+    if (!err) {
+      setDrives((prev) =>
+        prev.map((d) =>
+          d.id === activeDrive.id
+            ? {
+                ...d,
+                title: driveEditForm.title.trim(),
+                employmentType: driveEditForm.employmentType.trim(),
+                location: driveEditForm.location.trim(),
+                workMode: driveEditForm.workMode.trim(),
+                ctc: driveEditForm.ctc.trim(),
+                stipend: driveEditForm.stipend.trim(),
+                description: driveEditForm.description.trim(),
+                eligibilityCriteria: driveEditForm.eligibilityCriteria.trim(),
+                registrationOpensAt: driveEditForm.registrationOpensAt,
+                registrationClosesAt: driveEditForm.registrationClosesAt,
+                deadline: driveEditForm.deadline,
+                applicationLink: driveEditForm.applicationLink.trim(),
+                eligibleCourses: driveEditForm.eligibleCourses
+                  ? driveEditForm.eligibleCourses.split(",").map((s) => s.trim()).filter(Boolean)
+                  : [],
+              }
+            : d
+        )
+      );
+      setDriveEditModal(false);
+    } else {
+      setDriveEditError(err || "Failed to update drive");
+    }
+    setDriveEditBusy(false);
   }
 
   async function handleApply() {
@@ -364,6 +499,7 @@ export default function CompanyDetail() {
           ✓ Application submitted successfully!
         </div>
       )}
+      {compWebsite && (
       <a href={compWebsite} target="_blank" rel="noopener noreferrer" className="cd-btn-view-website">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cd-btn-ext-icon">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -372,6 +508,7 @@ export default function CompanyDetail() {
         </svg>
         <span className="cd-btn-label">{isMobile ? "View Company Website" : "View Company Website ↗"}</span>
       </a>
+      )}
     </div>
   );
 
@@ -451,7 +588,7 @@ export default function CompanyDetail() {
                         <>
                           <span className="cd-upload-icon">+</span>
                           <span>Click to select PDF</span>
-                          <span className="cd-upload-hint">PDF only, max 10MB</span>
+                          <span className="cd-upload-hint">PDF only, max 700KB</span>
                         </>
                       )}
                     </div>
@@ -479,7 +616,7 @@ export default function CompanyDetail() {
             <div className="cd-pdf-viewer-header">
               <span className="cd-pdf-viewer-title">{viewerPdf.name}</span>
               <div className="cd-pdf-viewer-actions">
-                <a href={viewerPdf.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" download={viewerPdf.name}>
+                <a href={viewerPdf.dataUrl || viewerPdf.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" download={viewerPdf.name}>
                   Download
                 </a>
                 <button className="btn btn-secondary" onClick={() => setViewerPdf(null)}>
@@ -487,7 +624,7 @@ export default function CompanyDetail() {
                 </button>
               </div>
             </div>
-            <iframe src={viewerPdf.fileUrl} title={viewerPdf.name} className="cd-pdf-iframe" />
+            <iframe src={viewerPdf.dataUrl || viewerPdf.fileUrl} title={viewerPdf.name} className="cd-pdf-iframe" />
           </div>
         </div>
       )}
@@ -562,6 +699,135 @@ export default function CompanyDetail() {
         </div>
       )}
 
+      {driveEditModal && (
+        <div className="cd-modal-overlay" onClick={() => { if (!driveEditBusy) setDriveEditModal(false); }}>
+          <div className="cd-modal glass-heavy cd-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="cd-modal-title">Edit Drive Details</h3>
+            <form onSubmit={handleSaveDriveEdit} className="cd-edit-form">
+              <div className="cd-form-group">
+                <label>Drive Title</label>
+                <input
+                  type="text"
+                  value={driveEditForm.title}
+                  onChange={(e) => setDriveEditForm((p) => ({ ...p, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="cd-form-row">
+                <div className="cd-form-group">
+                  <label>Employment Type</label>
+                  <select
+                    value={driveEditForm.employmentType}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, employmentType: e.target.value }))}
+                  >
+                    <option value="">Select</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Internship + Full-Time">Internship + Full-Time</option>
+                    <option value="Contract">Contract</option>
+                    <option value="Part-time">Part-time</option>
+                  </select>
+                </div>
+                <div className="cd-form-group">
+                  <label>Work Mode</label>
+                  <select
+                    value={driveEditForm.workMode}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, workMode: e.target.value }))}
+                  >
+                    <option value="">Select</option>
+                    <option value="On-site">On-site</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+              </div>
+              <div className="cd-form-row">
+                <div className="cd-form-group">
+                  <label>Location</label>
+                  <input
+                    type="text"
+                    value={driveEditForm.location}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, location: e.target.value }))}
+                  />
+                </div>
+                <div className="cd-form-group">
+                  <label>CTC / Package</label>
+                  <input
+                    type="text"
+                    value={driveEditForm.ctc}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, ctc: e.target.value }))}
+                    placeholder="e.g. 8-12 LPA"
+                  />
+                </div>
+              </div>
+              <div className="cd-form-row">
+                <div className="cd-form-group">
+                  <label>Stipend</label>
+                  <input
+                    type="text"
+                    value={driveEditForm.stipend}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, stipend: e.target.value }))}
+                    placeholder="e.g. 25,000/month"
+                  />
+                </div>
+                <div className="cd-form-group">
+                  <label>Application Deadline</label>
+                  <input
+                    type="date"
+                    value={driveEditForm.deadline}
+                    onChange={(e) => setDriveEditForm((p) => ({ ...p, deadline: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="cd-form-group">
+                <label>Application Link</label>
+                <input
+                  type="text"
+                  value={driveEditForm.applicationLink}
+                  onChange={(e) => setDriveEditForm((p) => ({ ...p, applicationLink: e.target.value }))}
+                  placeholder="https://apply.company.com or NA"
+                />
+              </div>
+              <div className="cd-form-group">
+                <label>Eligible Courses (comma-separated)</label>
+                <input
+                  type="text"
+                  value={driveEditForm.eligibleCourses}
+                  onChange={(e) => setDriveEditForm((p) => ({ ...p, eligibleCourses: e.target.value }))}
+                  placeholder="e.g. B.E., B.Tech, MCA, M.Tech"
+                />
+              </div>
+              <div className="cd-form-group">
+                <label>Eligibility Criteria</label>
+                <input
+                  type="text"
+                  value={driveEditForm.eligibilityCriteria}
+                  onChange={(e) => setDriveEditForm((p) => ({ ...p, eligibilityCriteria: e.target.value }))}
+                  placeholder="e.g. 70% aggregate, no active backlogs"
+                />
+              </div>
+              <div className="cd-form-group">
+                <label>Drive Description</label>
+                <textarea
+                  rows={3}
+                  value={driveEditForm.description}
+                  onChange={(e) => setDriveEditForm((p) => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+              {driveEditError && <p className="cd-upload-error">{driveEditError}</p>}
+              <div className="cd-modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setDriveEditModal(false)} disabled={driveEditBusy}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={driveEditBusy}>
+                  {driveEditBusy ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ── TOP NAVIGATION LINK ── */}
       <div className="cd-nav-bar">
         <button className="cd-back-link" onClick={() => navigate("/companies")}>
@@ -603,9 +869,9 @@ export default function CompanyDetail() {
           </button>
           <button
             className={`cd-tab-item ${activeTab === "jobs" ? "cd-tab-item--active" : ""}`}
-            onClick={() => scrollToSection("sec-jobs", "jobs")}
+            onClick={() => scrollToSection("sec-drives", "jobs")}
           >
-            <span className="cd-tab-icon">💼</span> Jobs ({attachments.length})
+            <span className="cd-tab-icon">💼</span> Drives ({drives.length})
           </button>
           <button
             className={`cd-tab-item ${activeTab === "about" ? "cd-tab-item--active" : ""}`}
@@ -636,6 +902,7 @@ export default function CompanyDetail() {
 
       {/* ── 4 QUICK METRIC INFO CARDS ── */}
       <div className="cd-metric-cards-grid">
+        {!isUnavailable(compOrgSize) && (
         <div className="cd-metric-card">
           <div className="cd-metric-icon-box">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -647,7 +914,9 @@ export default function CompanyDetail() {
             <span className="cd-metric-value">{compOrgSize}</span>
           </div>
         </div>
+        )}
 
+        {!isUnavailable(compIndustry) && (
         <div className="cd-metric-card">
           <div className="cd-metric-icon-box">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -660,7 +929,9 @@ export default function CompanyDetail() {
             <span className="cd-metric-value">{compIndustry}</span>
           </div>
         </div>
+        )}
 
+        {!isUnavailable(compLocation) && (
         <div className="cd-metric-card">
           <div className="cd-metric-icon-box">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -673,7 +944,9 @@ export default function CompanyDetail() {
             <span className="cd-metric-value">{compLocation}</span>
           </div>
         </div>
+        )}
 
+        {compWebsite && (
         <div className="cd-metric-card">
           <div className="cd-metric-icon-box">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -689,6 +962,7 @@ export default function CompanyDetail() {
             </a>
           </div>
         </div>
+        )}
       </div>
 
       {/* ── MAIN 2-COLUMN SECTION (NATURALLY SCROLLABLE) ── */}
@@ -696,6 +970,7 @@ export default function CompanyDetail() {
         {/* LEFT COLUMN (~68%) */}
         <div className="cd-main-column">
           {/* 1. About the Company */}
+          {compDescription && (
           <div id="sec-about" className="cd-card cd-about-card">
             <div className="cd-card-header">
               <div className="cd-header-icon-box">
@@ -707,9 +982,10 @@ export default function CompanyDetail() {
             </div>
             <p className="cd-about-text">{compDescription}</p>
           </div>
+          )}
 
-          {/* 2. Job Descriptions */}
-          <div id="sec-jobs" className="cd-card cd-jobs-card">
+          {/* 2. Placement Drives */}
+          <div id="sec-drives" className="cd-card cd-jobs-card">
             <div className="cd-card-header cd-header-with-action">
               <div className="cd-header-left">
                 <div className="cd-header-icon-box">
@@ -721,16 +997,11 @@ export default function CompanyDetail() {
                     <polyline points="10 9 9 9 8 9" />
                   </svg>
                 </div>
-                <h2 className="cd-card-title">Job Descriptions ({attachments.length})</h2>
+                <h2 className="cd-card-title">Placement Drives ({drives.length})</h2>
               </div>
-              {isAdmin && (
-                <button className="cd-btn-add-jd" onClick={openUploadModal}>
-                  + Add Job Description
-                </button>
-              )}
             </div>
 
-            {attachments.length === 0 ? (
+            {drives.length === 0 ? (
               <div className="cd-empty-box">
                 <div className="cd-empty-icon-wrapper">
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -741,83 +1012,132 @@ export default function CompanyDetail() {
                     <polyline points="10 9 9 9 8 9" />
                   </svg>
                 </div>
-                <p className="cd-empty-title">No job descriptions available yet.</p>
-                <p className="cd-empty-subtitle">Job descriptions added by the admin will appear here.</p>
+                <p className="cd-empty-title">No placement drives available yet.</p>
+                <p className="cd-empty-subtitle">Drives created by the admin will appear here.</p>
               </div>
             ) : (
-              <div className="cd-attachments-list">
-                {attachments.map((att) => (
-                  <div key={att.id} className="cd-attachment-row">
-                    <div className="cd-att-icon">📄</div>
-                    <div className="cd-att-info">
-                      <span className="cd-att-name">{att.name}</span>
-                      <span className="cd-att-meta">
-                        PDF {att.fileSize ? `• ${formatFileSize(att.fileSize)}` : ""}
-                        {att.uploadedAt ? ` • ${timeAgo(att.uploadedAt)}` : ""}
-                      </span>
-                    </div>
-                    <div className="cd-att-actions">
-                      <button className="btn btn-secondary cd-btn-sm" onClick={() => setViewerPdf(att)}>
-                        View
-                      </button>
-                      <a href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary cd-btn-sm" download={att.name}>
-                        Download
-                      </a>
-                      {isAdmin && (
-                        <button className="btn btn-danger-outline cd-btn-sm" onClick={() => setDeleteTarget(att)} title="Delete">
-                          ✕
-                        </button>
-                      )}
-                    </div>
+              drives.map((drive) => (
+                <div key={drive.id} className="cd-drive-block">
+                  <div className="cd-drive-header">
+                    <h3 className="cd-drive-title">{drive.title || drive.jobTitle || "Untitled Drive"}</h3>
+                    {drive.employmentType && !isUnavailable(drive.employmentType) && (
+                      <span className="cd-drive-badge">{drive.employmentType}</span>
+                    )}
                   </div>
-                ))}
-              </div>
+
+                  <div className="cd-drive-details">
+                    {!isUnavailable(drive.location) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Location</span>
+                        <span className="cd-drive-detail-value">{drive.location}</span>
+                      </div>
+                    )}
+                    {!isUnavailable(drive.workMode) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Work Mode</span>
+                        <span className="cd-drive-detail-value">{drive.workMode}</span>
+                      </div>
+                    )}
+                    {(!isUnavailable(drive.ctc) || !isUnavailable(drive.package)) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Package / CTC</span>
+                        <span className="cd-drive-detail-value">{drive.ctc || drive.package}</span>
+                      </div>
+                    )}
+                    {!isUnavailable(drive.stipend) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Stipend</span>
+                        <span className="cd-drive-detail-value">{drive.stipend}</span>
+                      </div>
+                    )}
+                    {(drive.registrationOpensAt && !isUnavailable(drive.registrationOpensAt)) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Registration Opens</span>
+                        <span className="cd-drive-detail-value">{drive.registrationOpensAt}</span>
+                      </div>
+                    )}
+                    {(drive.registrationClosesAt && !isUnavailable(drive.registrationClosesAt)) && (
+                      <div className="cd-drive-detail-row">
+                        <span className="cd-drive-detail-label">Registration Closes</span>
+                        <span className="cd-drive-detail-value">{drive.registrationClosesAt}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {drive.description && !isUnavailable(drive.description) && (
+                    <div className="cd-drive-description">
+                      <p>{drive.description}</p>
+                    </div>
+                  )}
+
+                  {drive.otherBenefits && !isUnavailable(drive.otherBenefits) && (
+                    <div className="cd-drive-other">
+                      <strong>Other Details:</strong>
+                      <p>{drive.otherBenefits}</p>
+                    </div>
+                  )}
+
+                  {Array.isArray(drive.eligibleCourses) && drive.eligibleCourses.length > 0 && !isUnavailable(drive.eligibleCourses[0]) && (
+                    <div className="cd-drive-courses">
+                      <strong>Eligible Courses:</strong>
+                      <ul>
+                        {drive.eligibleCourses.map((course, i) => (
+                          <li key={i}>{course}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {drive.applicationLink && !isUnavailable(drive.applicationLink) && isValidUrl(drive.applicationLink) && (
+                    <div className="cd-drive-apply">
+                      <a href={drive.applicationLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary cd-btn-sm">
+                        Apply Now ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))
             )}
           </div>
 
-          {/* 4. Eligibility Criteria — PRD §10: from drive data only */}
-          <div id="sec-eligibility" className="cd-card cd-eligibility-card">
-            <div className="cd-card-header">
-              <div className="cd-header-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
-              <h2 className="cd-card-title">Eligibility Criteria</h2>
-            </div>
-            {(() => {
-              const activeDrive = drives.find(d => d.isActive) || drives[0];
-              const eligCriteria = activeDrive?.eligibilityCriteria || activeDrive?.eligibility;
-              const eligCourses = activeDrive?.eligibleCourses;
-              const hasData = (eligCriteria && eligCriteria !== "Not Specified") || (Array.isArray(eligCourses) && eligCourses.length > 0);
-              if (!hasData) {
-                return (
-                  <div className="cd-empty-box">
-                    <p className="cd-empty-title">No eligibility criteria available.</p>
-                    <p className="cd-empty-subtitle">Eligibility details will appear here once a drive is created for this company.</p>
+          {/* 4. Eligibility Criteria */}
+          {drives.length > 0 && (() => {
+            const activeDrive = drives.find(d => d.isActive !== false) || drives[0];
+            const eligCriteria = activeDrive?.eligibilityCriteria || activeDrive?.eligibility;
+            const eligCourses = activeDrive?.eligibleCourses;
+            const hasCourses = Array.isArray(eligCourses) && eligCourses.length > 0 && !isUnavailable(eligCourses[0]);
+            const hasCriteria = eligCriteria && !isUnavailable(eligCriteria);
+            if (!hasCourses && !hasCriteria) return null;
+            return (
+              <div id="sec-eligibility" className="cd-card cd-eligibility-card">
+                <div className="cd-card-header">
+                  <div className="cd-header-icon-box">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
                   </div>
-                );
-              }
-              return (
+                  <h2 className="cd-card-title">Eligibility Criteria</h2>
+                </div>
                 <ul className="cd-criteria-list">
-                  {Array.isArray(eligCourses) && eligCourses.length > 0 && eligCourses.map((course, i) => (
+                  {hasCourses && eligCourses.map((course, i) => (
                     <li key={`course-${i}`}>
                       <span className="cd-bullet-dot" />
                       <span>{course}</span>
                     </li>
                   ))}
-                  {eligCriteria && eligCriteria !== "Not Specified" && (
+                  {hasCriteria && (
                     <li>
                       <span className="cd-bullet-dot" />
-                      <span>{eligCriteria}</span>
+                      <span style={{ whiteSpace: "pre-line" }}>{eligCriteria}</span>
                     </li>
                   )}
                 </ul>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
 
           {/* 5. Attachments */}
+          {attachments.length > 0 && (
           <div id="sec-attachments" className="cd-card cd-attachments-card">
             <div className="cd-card-header">
               <div className="cd-header-icon-box">
@@ -827,48 +1147,36 @@ export default function CompanyDetail() {
               </div>
               <h2 className="cd-card-title">Attachments ({attachments.length})</h2>
             </div>
-
-            {attachments.length === 0 ? (
-              <div className="cd-empty-box">
-                <div className="cd-empty-icon-wrapper">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                  </svg>
-                </div>
-                <p className="cd-empty-title">No attachments available yet.</p>
-                <p className="cd-empty-subtitle">PDF and document attachments will appear here.</p>
-              </div>
-            ) : (
-              <div className="cd-attachment-cards-grid">
-                {attachments.map((att) => (
-                  <div key={att.id} className="cd-doc-preview-card" onClick={() => setViewerPdf(att)}>
-                    <div className="cd-doc-thumbnail">
-                      <div className="cd-doc-preview-canvas">
-                        <div className="cd-doc-line" style={{ width: "80%" }} />
-                        <div className="cd-doc-line" style={{ width: "60%" }} />
-                        <div className="cd-doc-line" style={{ width: "75%" }} />
-                        <div className="cd-doc-line" style={{ width: "50%" }} />
-                        <div className="cd-doc-line" style={{ width: "90%" }} />
-                        <div className="cd-doc-line" style={{ width: "65%" }} />
-                      </div>
-                      <span className="cd-doc-pdf-tag">📄</span>
+            <div className="cd-attachment-cards-grid">
+              {attachments.map((att) => (
+                <div key={att.id} className="cd-doc-preview-card" onClick={() => setViewerPdf(att)}>
+                  <div className="cd-doc-thumbnail">
+                    <div className="cd-doc-preview-canvas">
+                      <div className="cd-doc-line" style={{ width: "80%" }} />
+                      <div className="cd-doc-line" style={{ width: "60%" }} />
+                      <div className="cd-doc-line" style={{ width: "75%" }} />
+                      <div className="cd-doc-line" style={{ width: "50%" }} />
+                      <div className="cd-doc-line" style={{ width: "90%" }} />
+                      <div className="cd-doc-line" style={{ width: "65%" }} />
                     </div>
-                    <div className="cd-doc-meta">
-                      <span className="cd-doc-name" title={att.name}>
-                        {att.name.length > 22 ? att.name.slice(0, 20) + "..." : att.name}
-                      </span>
-                      <span className="cd-doc-size">
-                        PDF • {formatFileSize(att.fileSize) || "245 KB"}
-                      </span>
-                    </div>
-                    <div className="cd-doc-menu-btn" onClick={(e) => { e.stopPropagation(); setViewerPdf(att); }}>
-                      ⋮
-                    </div>
+                    <span className="cd-doc-pdf-tag">📄</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="cd-doc-meta">
+                    <span className="cd-doc-name" title={att.name}>
+                      {att.name.length > 22 ? att.name.slice(0, 20) + "..." : att.name}
+                    </span>
+                    <span className="cd-doc-size">
+                      PDF • {formatFileSize(att.fileSize) || "245 KB"}
+                    </span>
+                  </div>
+                  <div className="cd-doc-menu-btn" onClick={(e) => { e.stopPropagation(); setViewerPdf(att); }}>
+                    ⋮
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN / SIDEBAR (~32%) */}
@@ -876,49 +1184,44 @@ export default function CompanyDetail() {
           {/* Apply & Website Action Buttons (DESKTOP) */}
           {renderActionButtons(false)}
 
-          {/* Registration Schedule — PRD §9: from drive data only */}
-          <div className="cd-card cd-side-card">
-            <div className="cd-card-header">
-              <div className="cd-header-icon-box">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-              </div>
-              <h3 className="cd-side-card-title">Registration Schedule</h3>
-            </div>
-            {(() => {
-              const activeDrive = drives.find(d => d.isActive) || drives[0];
-              const opens = activeDrive?.registrationOpensAt;
-              const closes = activeDrive?.registrationClosesAt || activeDrive?.deadline;
-              const hasData = (opens && opens !== "Not Specified") || (closes && closes !== "Not Specified");
-              if (!hasData) {
-                return (
-                  <div className="cd-empty-box" style={{ padding: "12px" }}>
-                    <p className="cd-empty-title" style={{ fontSize: "13px" }}>No schedule available.</p>
+          {/* Registration Schedule */}
+          {drives.length > 0 && (() => {
+            const activeDrive = drives.find(d => d.isActive !== false) || drives[0];
+            const opens = activeDrive?.registrationOpensAt;
+            const closes = activeDrive?.registrationClosesAt || activeDrive?.deadline;
+            const hasOpens = opens && !isUnavailable(opens);
+            const hasCloses = closes && !isUnavailable(closes);
+            if (!hasOpens && !hasCloses) return null;
+            return (
+              <div className="cd-card cd-side-card">
+                <div className="cd-card-header">
+                  <div className="cd-header-icon-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
                   </div>
-                );
-              }
-              return (
+                  <h3 className="cd-side-card-title">Registration Schedule</h3>
+                </div>
                 <div className="cd-schedule-list">
-                  {opens && opens !== "Not Specified" && (
+                  {hasOpens && (
                     <div className="cd-schedule-item">
                       <span className="cd-schedule-label">Opens</span>
                       <span className="cd-schedule-value">{opens}</span>
                     </div>
                   )}
-                  {closes && closes !== "Not Specified" && (
+                  {hasCloses && (
                     <div className="cd-schedule-item">
                       <span className="cd-schedule-label">Closes</span>
                       <span className="cd-schedule-value">{closes}</span>
                     </div>
                   )}
                 </div>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Company Details */}
           <div className="cd-card cd-side-card">
@@ -936,24 +1239,40 @@ export default function CompanyDetail() {
               <h3 className="cd-side-card-title">Company Details</h3>
             </div>
             <div className="cd-detail-rows">
+              {!isUnavailable(company?.industry) && (
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Industry</span>
-                <span className="cd-detail-val">{compIndustry}</span>
+                <span className="cd-detail-val">{company.industry}</span>
               </div>
+              )}
+              {!isUnavailable(company?.organisationSize) && (
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Organisation Size</span>
-                <span className="cd-detail-val">{compOrgSize}</span>
+                <span className="cd-detail-val">{company.organisationSize}</span>
               </div>
+              )}
+              {!isUnavailable(company?.location) && (
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Location</span>
-                <span className="cd-detail-val">{compLocation}</span>
+                <span className="cd-detail-val">{company.location}</span>
               </div>
+              )}
+              {compWebsite && (
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Website</span>
                 <a href={compWebsite} target="_blank" rel="noopener noreferrer" className="cd-side-link">
                   {compWebsite}
                 </a>
               </div>
+              )}
+              {!isUnavailable(company?.contactEmail) && (
+              <div className="cd-detail-row">
+                <span className="cd-detail-label">Contact Email</span>
+                <a href={`mailto:${company.contactEmail}`} className="cd-side-link">
+                  {company.contactEmail}
+                </a>
+              </div>
+              )}
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Status</span>
                 <span className="cd-status-badge cd-status-badge--active">Active</span>
@@ -984,6 +1303,21 @@ export default function CompanyDetail() {
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
                   Edit Company
+                </button>
+                {activeDrive && (
+                  <button className="cd-btn-quick-edit" onClick={openDriveEditModal}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                    </svg>
+                    Edit Drive
+                  </button>
+                )}
+                <button className="cd-btn-quick-edit" onClick={openUploadModal}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                  Add Attachment
                 </button>
                 <button className="cd-btn-quick-delete" onClick={() => setDeleteCompanyConfirm(true)}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
