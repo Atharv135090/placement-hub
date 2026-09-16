@@ -168,7 +168,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -178,9 +177,16 @@
 }
 
 .dash-stat-card:hover {
-  transform: translateY(-3px);
   border-color: rgba(225, 29, 72, 0.3);
   box-shadow: 0 10px 24px -4px rgba(225, 29, 72, 0.12);
+}
+
+.dash-stat-card--clickable {
+  cursor: pointer;
+}
+
+.dash-stat-card--clickable:hover {
+  transform: translateY(-3px);
 }
 
 .stat-card-top {

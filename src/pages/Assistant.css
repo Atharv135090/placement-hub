@@ -266,6 +266,104 @@
   color: #94a3b8;
 }
 
+/* ── Recent Chat 3-Dot Menu ────────────────────────────── */
+.asst-recent-item {
+  position: relative;
+}
+
+.asst-recent-clickable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.asst-recent-menu-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.asst-recent-item:hover .asst-recent-menu-btn,
+.asst-recent-item--active .asst-recent-menu-btn {
+  opacity: 1;
+}
+
+.asst-recent-menu-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #64748b;
+}
+
+.asst-recent-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 4px;
+  z-index: 200;
+  min-width: 130px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  animation: asst-fade-in 0.12s ease;
+}
+
+.asst-recent-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: #334155;
+  text-align: left;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.asst-recent-dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.asst-recent-dropdown-item--danger {
+  color: #dc2626;
+}
+
+.asst-recent-dropdown-item--danger:hover {
+  background: #fef2f2;
+}
+
+/* Toast */
+.asst-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #1e293b;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
 .asst-recent-empty {
   font-size: 0.8rem;
   color: #94a3b8;
@@ -928,6 +1026,37 @@
 
 [data-theme="dark"] .asst-recent-item:hover {
   background: #1e293b;
+}
+
+[data-theme="dark"] .asst-recent-menu-btn {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .asst-recent-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .asst-recent-dropdown {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .asst-recent-dropdown-item {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .asst-recent-dropdown-item:hover {
+  background: #334155;
+}
+
+[data-theme="dark"] .asst-recent-dropdown-item--danger {
+  color: #f87171;
+}
+
+[data-theme="dark"] .asst-recent-dropdown-item--danger:hover {
+  background: rgba(248, 113, 113, 0.1);
 }
 
 [data-theme="dark"] .asst-recent-title {

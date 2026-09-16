@@ -10,7 +10,7 @@ import {
   subscribeToAllFollowStatuses,
   blockUser,
 } from "../services/social";
-import { createNotification } from "../services/firestore";
+import { createNotification, getSenderDisplayName } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
 import "./Students.css";
 
@@ -209,15 +209,17 @@ export default function Students() {
         // - If incoming is "accepted" (follower): just send outgoing follow (reverse already accepted).
         if (status === "incoming_pending") {
           await acceptFollowRequest(studentId, user.uid);
-          createNotification({
-            title: "Follow Request Accepted",
-            message: `${user.displayName || "Someone"} accepted your follow request.`,
-            type: "follow_accepted",
-            link: `/students/${user.uid}`,
-            targetUserId: studentId,
-            senderId: user.uid,
-            relatedUserId: studentId,
-          }).catch(() => {});
+          getSenderDisplayName(user.uid).then((senderName) => {
+            createNotification({
+              title: "Follow Request Accepted",
+              message: `${senderName} accepted your follow request.`,
+              type: "follow_accepted",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+              senderId: user.uid,
+              relatedUserId: studentId,
+            }).catch(() => {});
+          });
         }
         await sendFollowRequest(user.uid, studentId);
       } else {
@@ -238,16 +240,18 @@ export default function Students() {
           return;
         }
         if (data && data.status === "pending") {
-          createNotification({
-            title: "Follow Request",
-            message: `${user.displayName || "Someone"} wants to follow you.`,
-            type: "follow_request",
-            link: `/students/${user.uid}`,
-            targetUserId: studentId,
-            senderId: user.uid,
-            relatedUserId: user.uid,
-            followRequestId: data.id,
-          }).catch(() => {});
+          getSenderDisplayName(user.uid).then((senderName) => {
+            createNotification({
+              title: "Follow Request",
+              message: `${senderName} wants to follow you.`,
+              type: "follow_request",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+              senderId: user.uid,
+              relatedUserId: user.uid,
+              followRequestId: data.id,
+            }).catch(() => {});
+          });
         }
         // NO optimistic state update — the Firebase subscription will emit the correct state.
       }

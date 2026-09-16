@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  getDoc,
   getDocs,
   updateDoc,
   query,
@@ -13,6 +14,20 @@ import {
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { NOTIFICATIONS, handleFirestoreError, mapDocs } from "./helpers";
+
+const FALLBACK_SENDER_NAME = "Deleted User";
+
+export async function getSenderDisplayName(uid) {
+  if (!uid) return FALLBACK_SENDER_NAME;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return FALLBACK_SENDER_NAME;
+    const data = snap.data();
+    return data.displayName || data.name || FALLBACK_SENDER_NAME;
+  } catch {
+    return FALLBACK_SENDER_NAME;
+  }
+}
 
 export async function createNotification({ title, message, type, link, targetUserId, senderId, followRequestId }) {
   try {

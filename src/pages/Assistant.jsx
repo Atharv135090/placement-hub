@@ -234,6 +234,10 @@ export default function Assistant() {
   const [feedbackState, setFeedbackState] = useState({}); // { [msgIdx]: 'like' | 'dislike' }
   const [speakingIdx, setSpeakingIdx] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteConfirmChat, setDeleteConfirmChat] = useState(null);
+  const [activeMenuChatId, setActiveMenuChatId] = useState(null);
+  const [toastMsg, setToastMsg] = useState("");
+  const menuRef = useRef(null);
   const [, setTick] = useState(0); // Force re-render to update relative timestamps
   const userScrolledRef = useRef(false);
   const [recentChats, setRecentChats] = useState(() => {
@@ -304,6 +308,36 @@ export default function Assistant() {
       el.scrollTop = el.scrollHeight;
     }
   }, [streamingText]);
+
+  // Close 3-dot menu when clicking outside
+  useEffect(() => {
+    if (!activeMenuChatId) return;
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setActiveMenuChatId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeMenuChatId]);
+
+  function handleDeleteChatConfirm(chat) {
+    setDeleteConfirmChat(chat);
+    setActiveMenuChatId(null);
+  }
+
+  function handleDeleteChat() {
+    if (!deleteConfirmChat) return;
+    const chatId = deleteConfirmChat.id;
+    setRecentChats((prev) => prev.filter((c) => c.id !== chatId));
+    // If the deleted chat was the currently active conversation, clear it
+    if (messages.length > 1) {
+      clearConversation();
+    }
+    setDeleteConfirmChat(null);
+    setToastMsg("Chat deleted");
+    setTimeout(() => setToastMsg(""), 2500);
+  }
 
   // Track when user manually scrolls away from bottom
   const handleScroll = useCallback(() => {
@@ -548,18 +582,45 @@ export default function Assistant() {
                 filteredRecentChats.map((chat) => (
                   <div
                     key={chat.id}
-                    className="asst-recent-item"
-                    onClick={() => handleRecentChatClick(chat)}
-                    role="button"
-                    tabIndex={0}
+                    className={`asst-recent-item ${activeMenuChatId === chat.id ? "asst-recent-item--active" : ""}`}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="asst-recent-icon">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <div className="asst-recent-info">
-                      <span className="asst-recent-title">{chat.title}</span>
-                      <span className="asst-recent-time">{formatRelativeTime(chat.ts)}</span>
+                    <div className="asst-recent-clickable" onClick={() => handleRecentChatClick(chat)}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="asst-recent-icon">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <div className="asst-recent-info">
+                        <span className="asst-recent-title">{chat.title}</span>
+                        <span className="asst-recent-time">{formatRelativeTime(chat.ts)}</span>
+                      </div>
                     </div>
+                    <button
+                      className="asst-recent-menu-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuChatId(activeMenuChatId === chat.id ? null : chat.id);
+                      }}
+                      title="More options"
+                      aria-label="More options"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.5" />
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="19" r="1.5" />
+                      </svg>
+                    </button>
+                    {activeMenuChatId === chat.id && (
+                      <div className="asst-recent-dropdown" ref={menuRef}>
+                        <button
+                          className="asst-recent-dropdown-item asst-recent-dropdown-item--danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChatConfirm(chat);
+                          }}
+                        >
+                          Delete Chat
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -857,6 +918,34 @@ export default function Assistant() {
           </div>
         </main>
       </div>
+
+      {/* Delete Chat Confirmation Modal */}
+      {deleteConfirmChat && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirmChat(null)}>
+          <div className="modal-panel glass-heavy" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2 className="modal-title">Delete this chat?</h2>
+              <button className="modal-close" onClick={() => setDeleteConfirmChat(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-confirm-text">
+                This conversation and its messages will be permanently deleted.
+              </p>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setDeleteConfirmChat(null)}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleDeleteChat}>Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className="asst-toast animate-fade-in">
+          <span>✓ {toastMsg}</span>
+        </div>
+      )}
     </div>
   );
 }

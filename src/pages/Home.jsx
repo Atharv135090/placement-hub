@@ -170,7 +170,7 @@ export default function Home() {
       {/* ── 2. FOUR STAT METRIC CARDS ─────────────────────────────── */}
       <div className="dash-stats-grid">
         {/* Card 1: Total Applications */}
-        <div className="dash-stat-card glass" onClick={() => navigate("/applications")}>
+        <div className="dash-stat-card dash-stat-card--clickable glass" onClick={() => navigate("/applications")}>
           <div className="stat-card-top">
             <div className="stat-icon-wrap icon-rose-pill">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -190,7 +190,7 @@ export default function Home() {
         </div>
 
         {/* Card 2: Companies Registered */}
-        <div className="dash-stat-card glass" onClick={() => navigate("/companies")}>
+        <div className="dash-stat-card dash-stat-card--clickable glass" onClick={() => navigate("/companies")}>
           <div className="stat-card-top">
             <div className="stat-icon-wrap icon-rose-pill">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -207,7 +207,7 @@ export default function Home() {
         </div>
 
         {/* Card 3: Interviews */}
-        <div className="dash-stat-card glass" onClick={() => navigate("/applications")}>
+        <div className="dash-stat-card glass">
           <div className="stat-card-top">
             <div className="stat-icon-wrap icon-rose-pill">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -226,7 +226,7 @@ export default function Home() {
         </div>
 
         {/* Card 4: Offers Received */}
-        <div className="dash-stat-card glass" onClick={() => navigate("/applications")}>
+        <div className="dash-stat-card glass">
           <div className="stat-card-top">
             <div className="stat-icon-wrap icon-rose-pill">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

@@ -22,7 +22,7 @@ import {
   subscribeToFollowing,
   getRelationship,
 } from "../services/social";
-import { createNotification } from "../services/firestore";
+import { createNotification, getSenderDisplayName } from "../services/firestore";
 import UserAvatar from "../components/UserAvatar";
 import Modal from "../components/Modal";
 import "./StudentProfile.css";
@@ -132,15 +132,17 @@ export default function StudentProfile() {
         // resulting in mutual → Message.
         if (relationship === "incoming_pending") {
           await acceptFollowRequest(studentId, user.uid);
-          createNotification({
-            title: "Follow Request Accepted",
-            message: `${user.displayName || "Someone"} accepted your follow request.`,
-            type: "follow_accepted",
-            link: `/students/${user.uid}`,
-            targetUserId: studentId,
-            senderId: user.uid,
-            relatedUserId: studentId,
-          }).catch(() => {});
+          getSenderDisplayName(user.uid).then((senderName) => {
+            createNotification({
+              title: "Follow Request Accepted",
+              message: `${senderName} accepted your follow request.`,
+              type: "follow_accepted",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+              senderId: user.uid,
+              relatedUserId: studentId,
+            }).catch(() => {});
+          });
         }
         await sendFollowRequest(user.uid, studentId);
       } else {
@@ -150,16 +152,18 @@ export default function StudentProfile() {
           return;
         }
         if (data && data.status === "pending") {
-          createNotification({
-            title: "Follow Request",
-            message: `${user.displayName || "Someone"} wants to follow you.`,
-            type: "follow_request",
-            link: `/students/${user.uid}`,
-            targetUserId: studentId,
-            senderId: user.uid,
-            relatedUserId: user.uid,
-            followRequestId: data.id,
-          }).catch(() => {});
+          getSenderDisplayName(user.uid).then((senderName) => {
+            createNotification({
+              title: "Follow Request",
+              message: `${senderName} wants to follow you.`,
+              type: "follow_request",
+              link: `/students/${user.uid}`,
+              targetUserId: studentId,
+              senderId: user.uid,
+              relatedUserId: user.uid,
+              followRequestId: data.id,
+            }).catch(() => {});
+          });
         }
       }
     } finally {
@@ -191,15 +195,17 @@ export default function StudentProfile() {
   async function handleAcceptRequest(fromId) {
     await acceptFollowRequest(fromId, user.uid);
     await sendFollowRequest(user.uid, fromId);
-    createNotification({
-      title: "Follow Request Accepted",
-      message: `${user.displayName || "Someone"} accepted your follow request.`,
-      type: "follow_accepted",
-      link: `/students/${user.uid}`,
-      targetUserId: fromId,
-      senderId: user.uid,
-      relatedUserId: fromId,
-    }).catch(() => {});
+    getSenderDisplayName(user.uid).then((senderName) => {
+      createNotification({
+        title: "Follow Request Accepted",
+        message: `${senderName} accepted your follow request.`,
+        type: "follow_accepted",
+        link: `/students/${user.uid}`,
+        targetUserId: fromId,
+        senderId: user.uid,
+        relatedUserId: fromId,
+      }).catch(() => {});
+    });
   }
 
   async function handleRejectFromList(fromId) {

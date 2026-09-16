@@ -65,9 +65,11 @@ export async function sendAdminChatMessage(conversationId, senderId, text, parti
     try {
       const recipientId = participants?.find((p) => p !== senderId);
       if (recipientId) {
+        const { getSenderDisplayName } = await import("../firestore/notifications");
+        const senderName = await getSenderDisplayName(senderId);
         await addDoc(collection(db, "notifications"), {
           title: "New Message",
-          message: "You have a new message from admin",
+          message: `${senderName} sent you a message.`,
           type: "message",
           senderId,
           targetUserId: recipientId,

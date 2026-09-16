@@ -68,6 +68,7 @@ export {
 // Notifications
 export {
   createNotification,
+  getSenderDisplayName,
   getUnreadNotifications,
   getAllNotifications,
   markNotificationRead,
