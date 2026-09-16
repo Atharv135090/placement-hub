@@ -1074,8 +1074,14 @@
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .ar {
-    padding-bottom: 90px;
-    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 10px calc(76px + env(safe-area-inset-bottom, 0px));
+    min-height: auto;
+    height: auto;
+    width: 100%;
+    max-width: 100vw;
     box-sizing: border-box;
     overflow-x: hidden;
   }
@@ -1083,58 +1089,123 @@
   .ar-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .ar-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ar-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm, 8px);
   }
 
   .ar-title {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
+    line-height: 1.2;
   }
 
   .ar-subtitle {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+    margin-top: 1px;
   }
 
+  /* 2x2 Responsive Stats Grid */
   .ar-stats-row {
     display: grid !important;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    width: 100%;
-    box-sizing: border-box;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .ar-mini-stat {
-    min-width: 0;
-    padding: 8px 4px;
-    align-items: center;
-    text-align: center;
+    min-width: 0 !important;
+    padding: 7px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    border-radius: var(--radius-sm, 8px) !important;
   }
 
   .ar-mini-val {
-    font-size: 1rem;
+    font-size: 1.05rem !important;
+    font-weight: 800;
+    line-height: 1.1;
   }
 
   .ar-mini-label {
-    font-size: 0.6rem;
+    font-size: 0.62rem !important;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
+  /* Search & Filter Toolbar */
   .ar-toolbar {
+    display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px 10px;
+    gap: 8px;
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: var(--radius-sm, 10px);
+  }
+
+  .ar-search-wrap {
     width: 100%;
     box-sizing: border-box;
   }
 
-  .ar-search-wrap,
+  .ar-search {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+  }
+
+  .ar-search-icon {
+    left: 10px;
+    width: 14px;
+    height: 14px;
+  }
+
   .ar-filter-group {
     width: 100%;
+    padding: 0 10px;
     box-sizing: border-box;
+    height: 36px;
   }
 
   .ar-select {
     width: 100%;
+    font-size: 0.8rem;
+    padding: 8px 0;
+    box-sizing: border-box;
+  }
+
+  /* Empty state */
+  .ar-empty {
+    padding: 32px 16px;
+    min-height: auto;
+  }
+
+  .ar-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 2px;
+  }
+
+  .ar-empty-icon svg {
+    width: 24px;
+    height: 24px;
   }
 
   .ar-table-wrap {
@@ -1145,136 +1216,317 @@
     overflow-x: visible;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     width: 100%;
     box-sizing: border-box;
+    min-height: auto;
+    height: auto;
   }
 
   .ar-table-header {
     display: none !important;
   }
 
-  /* Card Layout */
+  /* Compact Mobile Report Card */
   .ar-row {
-    display: flex !important;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 14px 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "reported status"
+      "reporter reporter"
+      "reason actions"
+      "date actions" !important;
+    row-gap: 5px !important;
+    column-gap: 8px !important;
+    padding: 10px 12px !important;
     background: var(--glass-bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    width: 100%;
-    box-sizing: border-box;
+    border-radius: var(--radius-sm, 10px);
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
     position: relative;
+    align-items: center;
   }
 
-  .ar-cell--user {
+  /* 1. Reported User */
+  .ar-cell--reported {
+    grid-area: reported !important;
     width: 100%;
     min-width: 0;
-    display: flex;
+    max-width: 100%;
+    display: flex !important;
     align-items: center;
-    gap: 10px;
+    gap: 7px;
+    box-sizing: border-box;
+  }
+
+  .ar-cell--reported::before {
+    content: "REPORTED";
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: var(--amber);
+    background: rgba(234, 179, 8, 0.12);
+    border: 1px solid rgba(234, 179, 8, 0.25);
+    border-radius: 4px;
+    padding: 1px 5px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-block;
   }
 
   .ar-avatar {
-    width: 38px;
-    height: 38px;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
+    border-radius: 50%;
   }
 
   .ar-user-info {
     flex: 1;
     min-width: 0;
-  }
-
-  .ar-user-name {
-    font-size: 0.88rem;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .ar-user-id {
-    font-size: 0.68rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .ar-cell--reported::before {
-    content: "Reported: ";
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--amber);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  .ar-cell--reporter::before {
-    content: "By Reporter: ";
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: block;
-    margin-bottom: 2px;
-  }
-
-  .ar-cell--reason,
-  .ar-cell--status,
-  .ar-cell--date {
-    display: flex !important;
-    align-items: center;
-  }
-
-  .ar-cell--date {
-    font-size: 0.74rem;
-    color: var(--text-muted);
-  }
-
-  .ar-cell--actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .ar-action-btn {
-    width: 36px;
-    height: 36px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-  }
-
-  .ar-detail-users {
-    grid-template-columns: 1fr !important;
-    gap: 10px;
-  }
-}
-
-@media (max-width: 400px) {
-  .ar-stats-row {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 6px;
-  }
-
-  .ar-mini-stat {
-    padding: 6px 4px;
   }
 
   .ar-user-name {
     font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.25;
   }
 
   .ar-user-id {
     font-size: 0.65rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.2;
+    font-family: monospace;
+  }
+
+  /* 2. Status Badge */
+  .ar-cell--status {
+    grid-area: status !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .ar-status-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+
+  /* 3. Reporter User */
+  .ar-cell--reporter {
+    grid-area: reporter !important;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    display: flex !important;
+    align-items: center;
+    gap: 7px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--border);
+    box-sizing: border-box;
+  }
+
+  .ar-cell--reporter::before {
+    content: "BY REPORTER";
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  .ar-cell--reporter .ar-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ar-cell--reporter .ar-user-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .ar-cell--reporter .ar-user-id {
+    font-size: 0.62rem;
+  }
+
+  /* 4. Reason */
+  .ar-cell--reason {
+    grid-area: reason !important;
+    display: flex !important;
+    align-items: center;
+    min-width: 0;
+    padding-top: 2px;
+  }
+
+  .ar-reason-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* 5. Date */
+  .ar-cell--date {
+    grid-area: date !important;
+    display: flex !important;
+    align-items: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+
+  /* 6. Actions (View Eye) */
+  .ar-cell--actions {
+    grid-area: actions !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 !important;
+    border: none !important;
+    width: auto !important;
+    flex-shrink: 0;
+  }
+
+  .ar-action-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 6px);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .ar-action-btn:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: rgba(234, 179, 8, 0.08);
+  }
+
+  /* Detail Modal on Mobile */
+  .ar-detail {
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ar-detail-users {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  .ar-detail-user-card {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .ar-detail-name,
+  .ar-detail-id {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .ar-detail-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .ar-detail-action-btn {
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .ar {
+    gap: 10px;
+    padding: 8px 8px calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ar-title {
+    font-size: 1.15rem;
+  }
+
+  .ar-header-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ar-mini-stat {
+    padding: 6px 6px !important;
+  }
+
+  .ar-mini-val {
+    font-size: 0.95rem !important;
+  }
+
+  .ar-mini-label {
+    font-size: 0.58rem !important;
+  }
+
+  .ar-row {
+    padding: 8px 10px !important;
+    row-gap: 4px !important;
+  }
+
+  .ar-user-name {
+    font-size: 0.78rem;
+  }
+
+  .ar-user-id {
+    font-size: 0.6rem;
+  }
+
+  .ar-cell--reported::before,
+  .ar-cell--reporter::before {
+    font-size: 0.54rem;
+    padding: 1px 4px;
+  }
+
+  .ar-action-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ar-action-btn svg {
+    width: 13px;
+    height: 13px;
   }
 }
