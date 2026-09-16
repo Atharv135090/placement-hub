@@ -1099,9 +1099,10 @@
 
   /* Show mobile action buttons directly below tabs */
   .cd-mobile-actions-row {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: flex !important;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
     margin-top: -2px;
@@ -1110,18 +1111,41 @@
 
   .cd-mobile-actions-row .cd-btn-apply-primary,
   .cd-mobile-actions-row .cd-btn-view-website {
-    width: 100%;
+    flex: 1 1 0%;
+    min-width: 0;
+    width: auto;
     box-sizing: border-box;
     text-align: center;
-    font-size: clamp(0.76rem, 2.5vw, 0.9rem);
-    padding: 12px 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 8px;
+    font-size: clamp(0.76rem, 2.5vw, 0.88rem);
+    font-weight: 700;
+    line-height: 1.25;
+    border-radius: 12px;
+    white-space: normal;
+    word-break: normal;
+  }
+
+  .cd-mobile-actions-row .cd-btn-ext-icon,
+  .cd-mobile-actions-row .cd-btn-action-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .cd-mobile-actions-row .cd-btn-label {
+    min-width: 0;
+    white-space: normal;
+    word-break: normal;
+    line-height: 1.25;
   }
 
   .cd-mobile-actions-row .cd-apply-feedback {
-    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Hide duplicate action buttons card from sidebar on mobile */
@@ -1253,10 +1277,10 @@
 
   .cd-mobile-actions-row .cd-btn-apply-primary,
   .cd-mobile-actions-row .cd-btn-view-website {
-    padding: 11px 8px;
+    padding: 10px 6px;
     font-size: 0.8rem;
     border-radius: 10px;
-    gap: 6px;
+    gap: 5px;
   }
 
   .cd-mobile-actions-row svg {
@@ -1293,11 +1317,21 @@
 }
 
 @media (max-width: 360px) {
+  .cd-mobile-actions-row {
+    gap: 6px;
+  }
+
   .cd-mobile-actions-row .cd-btn-apply-primary,
   .cd-mobile-actions-row .cd-btn-view-website {
-    font-size: 0.72rem;
-    padding: 10px 4px;
+    font-size: 0.74rem;
+    padding: 9px 4px;
     gap: 4px;
+  }
+
+  .cd-mobile-actions-row .cd-btn-ext-icon,
+  .cd-mobile-actions-row .cd-btn-action-icon {
+    width: 14px;
+    height: 14px;
   }
 
   .cd-tab-item {
@@ -1312,5 +1346,24 @@
 
   .cd-metric-value {
     font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 330px) {
+  .cd-mobile-actions-row {
+    gap: 5px;
+  }
+
+  .cd-mobile-actions-row .cd-btn-apply-primary,
+  .cd-mobile-actions-row .cd-btn-view-website {
+    font-size: 0.7rem;
+    padding: 8px 3px;
+    gap: 3px;
+  }
+
+  .cd-mobile-actions-row .cd-btn-ext-icon,
+  .cd-mobile-actions-row .cd-btn-action-icon {
+    width: 13px;
+    height: 13px;
   }
 }

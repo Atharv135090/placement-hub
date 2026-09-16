@@ -822,6 +822,7 @@ export default function Chat() {
       setShowDisappearingPopup(false);
     } catch (err) {
       console.error("Failed to update disappearing messages:", err);
+      setSendErrorToast("Failed to update disappearing messages setting.");
     }
   }
 
@@ -860,8 +861,7 @@ export default function Chat() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showDisappearingPopup]);
 
-  // Clear chat messages (per-user: marks clearedAt so messages are hidden for this user only).
-  // The conversation relationship and Firestore messages remain intact — only this user's view clears.
+  // Clear chat messages — permanently deletes all messages from Firebase.
   async function handleClearChat() {
     if (!activeConversation?.id || !user?.uid) return;
     setConfirmAction(null);
@@ -869,6 +869,7 @@ export default function Chat() {
       await clearChat(activeConversation.id);
     } catch (err) {
       console.error("Clear chat error:", err);
+      setSendErrorToast("Failed to clear chat. Please try again.");
     }
   }
 

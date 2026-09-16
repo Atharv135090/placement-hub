@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
@@ -10,6 +11,68 @@ function formatDate(dateStr) {
   if (!dateStr) return "Recently";
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function computeMobilePosition(buttonEl) {
+  if (!buttonEl) return null;
+  const rect = buttonEl.getBoundingClientRect();
+  const vpWidth = window.innerWidth;
+  const vpHeight = window.innerHeight;
+
+  const topSafe = 66; // safe distance below 60px sticky top header
+  const bottomSafe = 74; // safe distance above 60px mobile nav dock + safe area
+
+  const menuWidth = Math.min(190, vpWidth - 24);
+  const estMenuHeight = 285;
+
+  const spaceBelow = (vpHeight - bottomSafe) - (rect.bottom + 6);
+  const spaceAbove = (rect.top - 6) - topSafe;
+
+  let placement = "below";
+  let maxHeight = estMenuHeight;
+  let top = null;
+  let bottom = null;
+
+  if (spaceBelow >= estMenuHeight) {
+    placement = "below";
+    top = rect.bottom + 6;
+    maxHeight = Math.min(estMenuHeight, spaceBelow);
+  } else if (spaceAbove >= estMenuHeight) {
+    placement = "above";
+    bottom = vpHeight - rect.top + 6;
+    maxHeight = Math.min(estMenuHeight, spaceAbove);
+  } else if (spaceBelow >= spaceAbove) {
+    placement = "below";
+    top = rect.bottom + 6;
+    maxHeight = Math.max(140, spaceBelow);
+  } else {
+    placement = "above";
+    bottom = vpHeight - rect.top + 6;
+    maxHeight = Math.max(140, spaceAbove);
+  }
+
+  const buttonRightOffset = vpWidth - rect.right;
+  const right = Math.max(12, Math.min(vpWidth - menuWidth - 12, buttonRightOffset));
+
+  const style = {
+    position: "fixed",
+    zIndex: 9999,
+    width: `${menuWidth}px`,
+    maxWidth: "calc(100vw - 24px)",
+    right: `${Math.round(right)}px`,
+    maxHeight: `${Math.round(maxHeight)}px`,
+    overflowY: "auto",
+  };
+
+  if (placement === "below") {
+    style.top = `${Math.round(top)}px`;
+    style.bottom = "auto";
+  } else {
+    style.bottom = `${Math.round(bottom)}px`;
+    style.top = "auto";
+  }
+
+  return { style, placement };
 }
 
 export default function Applications() {
@@ -26,37 +89,104 @@ export default function Applications() {
   const [messageText, setMessageText] = useState("");
   const [savingMessage, setSavingMessage] = useState(false);
   const [menuPosition, setMenuPosition] = useState("above");
+  const [mobileStyle, setMobileStyle] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 768);
   const [expandedNotes, setExpandedNotes] = useState(null);
   const menuRef = useRef(null);
   const menuBtnRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleWindowResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+      const inMenu = dropdownRef.current && dropdownRef.current.contains(e.target);
+      const inBtn = menuBtnRef.current && menuBtnRef.current.contains(e.target);
+      const inCell = menuRef.current && menuRef.current.contains(e.target);
+
+      if (!inMenu && !inBtn && !inCell) {
         setActiveMenuId(null);
+        setMobileStyle(null);
       }
     }
     function handleEscape(e) {
-      if (e.key === "Escape") setActiveMenuId(null);
+      if (e.key === "Escape") {
+        setActiveMenuId(null);
+        setMobileStyle(null);
+      }
     }
     if (activeMenuId) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside, { passive: true });
       document.addEventListener("keydown", handleEscape);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("touchstart", handleClickOutside);
         document.removeEventListener("keydown", handleEscape);
       };
     }
   }, [activeMenuId]);
 
   useEffect(() => {
-    if (activeMenuId && menuBtnRef.current) {
-      const rect = menuBtnRef.current.getBoundingClientRect();
-      const spaceAbove = rect.top;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setMenuPosition(spaceAbove > 280 || spaceAbove > spaceBelow ? "above" : "below");
+    if (!activeMenuId) return;
+
+    function handleReposition() {
+      if (!menuBtnRef.current) return;
+      if (window.innerWidth <= 768) {
+        const rect = menuBtnRef.current.getBoundingClientRect();
+        if (rect.bottom < 50 || rect.top > window.innerHeight - 50) {
+          setActiveMenuId(null);
+          setMobileStyle(null);
+          return;
+        }
+        const pos = computeMobilePosition(menuBtnRef.current);
+        if (pos) {
+          setMobileStyle(pos.style);
+          setMenuPosition(pos.placement);
+        }
+      } else {
+        const rect = menuBtnRef.current.getBoundingClientRect();
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setMenuPosition(spaceAbove > 280 || spaceAbove > spaceBelow ? "above" : "below");
+      }
     }
+
+    window.addEventListener("scroll", handleReposition, { passive: true });
+    window.addEventListener("resize", handleReposition);
+    return () => {
+      window.removeEventListener("scroll", handleReposition);
+      window.removeEventListener("resize", handleReposition);
+    };
   }, [activeMenuId]);
+
+  function handleToggleMenu(app, btnEl) {
+    if (activeMenuId === app.id) {
+      setActiveMenuId(null);
+      setMobileStyle(null);
+    } else {
+      setActiveMenuId(app.id);
+      if (window.innerWidth <= 768) {
+        const pos = computeMobilePosition(btnEl);
+        if (pos) {
+          setMobileStyle(pos.style);
+          setMenuPosition(pos.placement);
+        }
+      } else {
+        const rect = btnEl.getBoundingClientRect();
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setMenuPosition(spaceAbove > 280 || spaceAbove > spaceBelow ? "above" : "below");
+        setMobileStyle(null);
+      }
+    }
+  }
 
   const filteredApps = useMemo(() => {
     return applications.filter((app) => {
@@ -136,6 +266,33 @@ export default function Applications() {
       default:
         return <span className="status-badge status-applied">● Applied</span>;
     }
+  }
+
+  const activeApp = useMemo(() => {
+    if (!activeMenuId) return null;
+    return applications.find((a) => a.id === activeMenuId) || null;
+  }, [applications, activeMenuId]);
+
+  function renderDropdownMenu(targetApp, isPortal = false) {
+    return (
+      <div
+        ref={isPortal ? dropdownRef : undefined}
+        className={`status-dropdown-menu glass-heavy ${menuPosition === "below" ? "menu-below" : ""} ${isPortal ? "status-dropdown-mobile" : ""}`}
+        style={isPortal && mobileStyle ? mobileStyle : undefined}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="menu-heading">Actions</span>
+        <span className="menu-subheading">Update Status</span>
+        <button onClick={() => handleStatusChange(targetApp.id, "applied")}>● Applied</button>
+        <button onClick={() => handleStatusChange(targetApp.id, "shortlisted")}>● Shortlisted</button>
+        <button onClick={() => handleStatusChange(targetApp.id, "interview")}>● Interview</button>
+        <button onClick={() => handleStatusChange(targetApp.id, "offer")}>✓ Offer</button>
+        <button onClick={() => handleStatusChange(targetApp.id, "rejected")}>✕ Rejected</button>
+        <div className="menu-divider" />
+        <button onClick={() => { setActiveMenuId(null); setMobileStyle(null); setMessageModal(targetApp); setMessageText(""); }}>Add Message / Note</button>
+        <button className="menu-remove-btn" onClick={() => { setActiveMenuId(null); setMobileStyle(null); setDeleteConfirm(targetApp); }}>Remove Application</button>
+      </div>
+    );
   }
 
   return (
@@ -261,26 +418,17 @@ export default function Applications() {
                   <button
                     ref={activeMenuId === app.id ? menuBtnRef : undefined}
                     className="action-dots-btn"
-                    onClick={() => setActiveMenuId(activeMenuId === app.id ? null : app.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleMenu(app, e.currentTarget);
+                    }}
                     title="Change application status"
+                    aria-label="Application actions"
                   >
                     •••
                   </button>
 
-                  {activeMenuId === app.id && (
-                    <div className={`status-dropdown-menu glass-heavy ${menuPosition === "below" ? "menu-below" : ""}`}>
-                      <span className="menu-heading">Actions</span>
-                      <span className="menu-subheading">Update Status</span>
-                      <button onClick={() => handleStatusChange(app.id, "applied")}>● Applied</button>
-                      <button onClick={() => handleStatusChange(app.id, "shortlisted")}>● Shortlisted</button>
-                      <button onClick={() => handleStatusChange(app.id, "interview")}>● Interview</button>
-                      <button onClick={() => handleStatusChange(app.id, "offer")}>✓ Offer</button>
-                      <button onClick={() => handleStatusChange(app.id, "rejected")}>✕ Rejected</button>
-                      <div className="menu-divider" />
-                      <button onClick={() => { setActiveMenuId(null); setMessageModal(app); setMessageText(""); }}>Add Message / Note</button>
-                      <button className="menu-remove-btn" onClick={() => { setActiveMenuId(null); setDeleteConfirm(app); }}>Remove Application</button>
-                    </div>
-                  )}
+                  {!isMobile && activeMenuId === app.id && renderDropdownMenu(app, false)}
                 </div>
               </div>
 
@@ -393,6 +541,9 @@ export default function Applications() {
           <span>✓ {toast}</span>
         </div>
       )}
+
+      {/* 8. Mobile 3-Dot Action Menu Portal */}
+      {isMobile && activeApp && createPortal(renderDropdownMenu(activeApp, true), document.body)}
     </div>
   );
 }

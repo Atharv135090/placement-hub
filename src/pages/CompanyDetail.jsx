@@ -345,18 +345,18 @@ export default function CompanyDetail() {
     <div className={isMobile ? "cd-mobile-actions-row" : "cd-action-buttons-card"}>
       {hasAppliedToDrive ? (
         <button className="cd-btn-apply-primary cd-btn-applied" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="cd-btn-action-icon">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Applied
+          <span className="cd-btn-label">Applied</span>
         </button>
       ) : (
         <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="cd-btn-action-icon">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
-          {applying ? "Applying..." : "Apply Now"}
+          <span className="cd-btn-label">{applying ? "Applying..." : "Apply Now"}</span>
         </button>
       )}
       {applySuccess && (
@@ -365,12 +365,12 @@ export default function CompanyDetail() {
         </div>
       )}
       <a href={compWebsite} target="_blank" rel="noopener noreferrer" className="cd-btn-view-website">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cd-btn-ext-icon">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
           <polyline points="15 3 21 3 21 9" />
           <line x1="10" y1="14" x2="21" y2="3" />
         </svg>
-        View Company Website ↗
+        <span className="cd-btn-label">{isMobile ? "View Company Website" : "View Company Website ↗"}</span>
       </a>
     </div>
   );

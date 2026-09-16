@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { doc, getDoc, updateDoc, writeBatch, collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, writeBatch, collection, query, where, orderBy, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "./AuthContext";
 import {
@@ -38,6 +38,8 @@ export function ChatProvider({ children }) {
   const unsubMsgRef = useRef(null);
   // Track clearedAt per active conversation so Clear Chat updates messages instantly
   const clearedAtRefGlobal = useRef(null);
+  // Store raw messages for re-filtering when disappearing setting changes
+  const rawMessagesRef = useRef([]);
 
   useEffect(() => {
     if (!uid) {
@@ -121,55 +123,27 @@ export function ChatProvider({ children }) {
     }
 
     // Regular conversations: read plaintext + legacy graceful handling
-    let disappearingSettingRef = { current: null };
-    let clearedAtRef = { current: null };
+    let disposed = false;
+    rawMessagesRef.current = [];
+    const disappearingRef = { current: null };
+    const clearedAtVal = { current: null };
 
-    // Fetch disappearing messages setting and clearedAt for this conversation
-    (async () => {
-      try {
-        const convSnap = await getDoc(doc(db, "conversations", activeConversation.id));
-        if (convSnap.exists()) {
-          const data = convSnap.data();
-          const dm = data.disappearingMessages;
-          if (dm?.enabled && dm.duration && DISAPPEARING_DURATIONS[dm.duration]) {
-            disappearingSettingRef.current = dm.duration;
-          }
-          if (data.clearedAt && data.clearedAt[uid]) {
-            clearedAtRef.current = data.clearedAt[uid];
-            clearedAtRefGlobal.current = data.clearedAt[uid];
-          }
-        }
-      } catch {}
-    })();
+    function applyFilters() {
+      if (disposed) return;
+      let filtered = rawMessagesRef.current;
 
-    unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
-      const otherId = activeConversation.participants?.find((p) => p !== uid);
-
-      const withText = await Promise.all(
-        rawMessages.map(async (m) => {
-          try {
-            const text = await readMessageText(m, uid, otherId);
-            return { ...m, text };
-          } catch {
-            return { ...m, text: "Unable to read this message." };
-          }
-        })
-      );
-
-      let filtered = withText;
-
-      const clearedAt = clearedAtRef.current ?? clearedAtRefGlobal.current;
-      if (clearedAt) {
+      const cat = clearedAtVal.current ?? clearedAtRefGlobal.current;
+      if (cat) {
         filtered = filtered.filter((m) => {
           const msgTime = m.createdAt?.toDate ? m.createdAt.toDate().getTime() : new Date(m.createdAt).getTime();
-          return msgTime > clearedAt;
+          return msgTime > cat;
         });
       }
 
       const expiredIds = [];
-      const duration = disappearingSettingRef.current;
-      if (duration) {
-        const durationMs = DISAPPEARING_DURATIONS[duration];
+      const dur = disappearingRef.current;
+      if (dur) {
+        const durationMs = DISAPPEARING_DURATIONS[dur];
         const now = Date.now();
         filtered = filtered.filter((m) => {
           const msgTime = m.createdAt?.toDate ? m.createdAt.toDate().getTime() : new Date(m.createdAt).getTime();
@@ -195,8 +169,53 @@ export function ChatProvider({ children }) {
           } catch {}
         })();
       }
+    }
+
+    // 1. Listen to conversation doc in real-time for setting changes
+    const unsubConv = onSnapshot(doc(db, "conversations", activeConversation.id), (snap) => {
+      if (disposed || !snap.exists()) return;
+      const data = snap.data();
+      const dm = data.disappearingMessages;
+      const prevDur = disappearingRef.current;
+      if (dm?.enabled && dm.duration && DISAPPEARING_DURATIONS[dm.duration]) {
+        disappearingRef.current = dm.duration;
+      } else {
+        disappearingRef.current = null;
+      }
+      if (data.clearedAt && data.clearedAt[uid]) {
+        clearedAtVal.current = data.clearedAt[uid];
+        clearedAtRefGlobal.current = data.clearedAt[uid];
+      }
+      // Re-filter if disappearing setting changed
+      if (prevDur !== disappearingRef.current) {
+        applyFilters();
+      }
+    }, () => {});
+
+    // 2. Subscribe to messages
+    unsubMsgRef.current = subscribeToMessages(activeConversation.id, async (rawMessages) => {
+      const otherId = activeConversation.participants?.find((p) => p !== uid);
+
+      const withText = await Promise.all(
+        rawMessages.map(async (m) => {
+          try {
+            const text = await readMessageText(m, uid, otherId);
+            return { ...m, text };
+          } catch {
+            return { ...m, text: "Unable to read this message." };
+          }
+        })
+      );
+
+      rawMessagesRef.current = withText;
+      applyFilters();
     });
-    return () => { unsubMsgRef.current?.(); };
+
+    return () => {
+      disposed = true;
+      unsubConv();
+      unsubMsgRef.current?.();
+    };
   }, [activeConversation?.id, activeConversation?.isAdmin, uid]);
 
   // ─── BACKGROUND DISAPPEARING MESSAGES EXPIRY ─────────────────
