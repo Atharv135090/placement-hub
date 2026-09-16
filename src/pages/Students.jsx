@@ -656,7 +656,7 @@ export default function Students() {
                               {status === "mutual" && (
                                 <button
                                   className="dropdown-item"
-                                  onClick={() => { setActiveMenuId(null); navigate("/chat", { state: { recipientId: s.id } }); }}
+                                  onClick={() => { setActiveMenuId(null); navigate(`/chat?student=${s.id}`); }}
                                 >
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -815,7 +815,7 @@ export default function Students() {
                     /* Mutual accepted → Message button */
                     <button
                       className="btn student-action-btn btn-message-primary"
-                      onClick={() => navigate("/chat", { state: { recipientId: s.id } })}
+                      onClick={() => navigate(`/chat?student=${s.id}`)}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
