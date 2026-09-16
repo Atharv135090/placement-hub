@@ -8,7 +8,7 @@ const MAX_CONTEXT_MESSAGES = 40; // §20: Context compression limit
 function createWelcomeMessage() {
   return {
     role: "assistant",
-    text: "Hi! I'm your Placement Assistant. Ask me anything — coding, career, general questions, or just chat.",
+    text: "I'm In CAR LOVER! 😊\n\nI'm **Placement Hub Assistant**, your AI placement copilot and general-purpose AI assistant.\n\nHow can I help you today?\nWhether you want to prepare for your upcoming **NVIDIA Software Engineer** interview, practice coding, ask general questions, or just chat about cars, I'm here for you! 🚗💨",
     ts: Date.now(),
   };
 }

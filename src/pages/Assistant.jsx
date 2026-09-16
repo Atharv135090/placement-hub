@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
@@ -237,7 +238,18 @@ export default function Assistant() {
   const [deleteConfirmChat, setDeleteConfirmChat] = useState(null);
   const [activeMenuChatId, setActiveMenuChatId] = useState(null);
   const [toastMsg, setToastMsg] = useState("");
+  const [isRecentChatsOpen, setIsRecentChatsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 768);
+  const navigate = useNavigate();
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const [, setTick] = useState(0); // Force re-render to update relative timestamps
   const userScrolledRef = useRef(false);
   const [recentChats, setRecentChats] = useState(() => {
@@ -646,9 +658,9 @@ export default function Assistant() {
 
         {/* ── CHAT / CANVAS MAIN AREA ── */}
         <main className="asst-canvas">
-          {/* EMPTY / NEW CHAT WELCOME STATE (PRD Section 4 & 5) */}
-          {isNewChatState ? (
-            <div className="asst-welcome-wrapper">
+          {/* DESKTOP WELCOME STATE (Quick Action Cards — Desktop only when isNewChatState) */}
+          {isNewChatState && (
+            <div className="asst-welcome-wrapper asst-desktop-welcome">
               <div className="asst-welcome-content">
                 {/* Sparkle Icon Badge */}
                 <div className="asst-sparkle-badge">
@@ -688,19 +700,25 @@ export default function Assistant() {
                 </div>
               </div>
             </div>
-          ) : (
-            /* ACTIVE CHAT CONVERSATION THREAD (PRD Section 8 & 9) */
-            <div className="asst-chat-thread-container">
-              {/* Active Conversation Header (Fixed Top) */}
-              <div className="asst-chat-header">
-                <button className="asst-chat-back-btn" onClick={handleNewChat} title="Start New Chat">
-                  ← New Chat
-                </button>
-                <span className="asst-chat-header-title">Active Conversation</span>
-                <button className="asst-chat-more-btn" title="Options">
-                  •••
-                </button>
-              </div>
+          )}
+
+          {/* ACTIVE CHAT CONVERSATION THREAD (Mobile always renders this; Desktop renders when !isNewChatState) */}
+          <div className={`asst-chat-thread-container ${isNewChatState ? "asst-chat-thread--desktop-hidden" : ""}`}>
+            {/* Active Conversation Header (Fixed Top) */}
+            <div className="asst-chat-header">
+              <button className="asst-chat-back-btn" onClick={handleNewChat} title="Start New Chat">
+                + New Chat
+              </button>
+              <span className="asst-chat-header-title">Active Conversation</span>
+              <button
+                className="asst-chat-more-btn"
+                onClick={() => setIsRecentChatsOpen(true)}
+                title="Recent Chats"
+                aria-label="Recent Chats"
+              >
+                •••
+              </button>
+            </div>
 
               {/* Scrollable Messages Viewport */}
               <div className="asst-messages-viewport" ref={chatViewportRef} onScroll={handleScroll}>
@@ -772,7 +790,7 @@ export default function Assistant() {
                                 </button>
 
                                 <button
-                                  className="asst-msg-action-btn"
+                                  className="asst-msg-action-btn asst-msg-action-share"
                                   onClick={() => handleShare(msg.text)}
                                   title="Share response"
                                 >
@@ -830,7 +848,6 @@ export default function Assistant() {
                 </div>
               </div>
             </div>
-          )}
 
           {/* ── CHAT COMPOSER & TOPICS AREA (PRD Section 6 & 7) ── */}
           <div className="asst-composer-wrapper">
@@ -918,6 +935,149 @@ export default function Assistant() {
           </div>
         </main>
       </div>
+
+      {/* Mobile Compact Recent Chats Panel (ChatGPT-style) */}
+      {isRecentChatsOpen && (
+        <>
+          <div
+            className="asst-mobile-recent-backdrop"
+            onClick={() => setIsRecentChatsOpen(false)}
+          />
+          <div className="asst-mobile-recent-panel animate-fade-in" role="dialog" aria-label="Recent Chats">
+            <div className="asst-recent-panel-header">
+              <div className="asst-recent-panel-title-wrap">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="asst-recent-panel-clock-icon">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <h3>Recent Chats</h3>
+              </div>
+              <div className="asst-recent-panel-actions">
+                <button
+                  className="asst-recent-panel-home-btn"
+                  onClick={() => navigate("/")}
+                  title="Home"
+                  aria-label="Home"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                  </svg>
+                </button>
+                <button
+                  className="asst-recent-panel-close-btn"
+                  onClick={() => setIsRecentChatsOpen(false)}
+                  title="Close"
+                  aria-label="Close"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button
+              className="asst-recent-panel-new-chat"
+              onClick={() => {
+                handleNewChat();
+                setIsRecentChatsOpen(false);
+              }}
+            >
+              + New Chat
+            </button>
+
+            <div className="asst-recent-panel-search">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="asst-recent-panel-list">
+              {filteredRecentChats.length === 0 ? (
+                <div className="asst-recent-empty">No conversations found</div>
+              ) : (
+                filteredRecentChats.map((chat) => (
+                  <div key={chat.id} className="asst-recent-panel-item">
+                    <div
+                      className="asst-recent-panel-item-click"
+                      onClick={() => {
+                        handleRecentChatClick(chat);
+                        setIsRecentChatsOpen(false);
+                      }}
+                    >
+                      <div className="asst-recent-panel-icon-wrap">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                      </div>
+                      <div className="asst-recent-panel-item-info">
+                        <span className="asst-recent-panel-item-title">{chat.title}</span>
+                        <span className="asst-recent-panel-item-sub">{chat.prompt || "Conversation"}</span>
+                      </div>
+                      <span className="asst-recent-panel-item-date">{formatRelativeTime(chat.ts)}</span>
+                    </div>
+                    <button
+                      className="asst-recent-menu-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuChatId(activeMenuChatId === chat.id ? null : chat.id);
+                      }}
+                      title="Options"
+                      aria-label="Options"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.5" />
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="19" r="1.5" />
+                      </svg>
+                    </button>
+                    {activeMenuChatId === chat.id && (
+                      <div className="asst-recent-dropdown" ref={menuRef}>
+                        <button
+                          className="asst-recent-dropdown-item asst-recent-dropdown-item--danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteChatConfirm(chat);
+                          }}
+                        >
+                          Delete Chat
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {recentChats.length > 0 && (
+              <button
+                className="asst-recent-panel-clear-btn"
+                onClick={() => {
+                  setRecentChats([]);
+                  localStorage.removeItem("ph_recent_chats");
+                  setToastMsg("Chat history cleared");
+                  setTimeout(() => setToastMsg(""), 2000);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Clear All Chats</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Delete Chat Confirmation Modal */}
       {deleteConfirmChat && (
