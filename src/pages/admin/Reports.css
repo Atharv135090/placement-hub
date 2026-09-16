@@ -1044,11 +1044,11 @@
 }
 
 /* ─── RESPONSIVE ────────────────────────────────────────── */
-@media (max-width: 1100px) {
+@media (max-width: 1100px) and (min-width: 769px) {
   .ar-stats-row { display: none; }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (min-width: 769px) {
   .ar-table-header,
   .ar-row {
     grid-template-columns: 1.2fr 1.2fr 1fr 0.8fr;
@@ -1069,36 +1069,212 @@
   }
 }
 
-@media (max-width: 600px) {
-  .ar-table-header,
-  .ar-row {
-    grid-template-columns: 1.5fr 1fr;
+/* ═══════════════════════════════════════════════════════════
+   ADMIN REPORTS — MOBILE RESPONSIVE FIX
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .ar {
+    padding-bottom: 90px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
-  .ar-th--reason,
-  .ar-cell--reason,
-  .ar-th--status,
-  .ar-cell--status {
-    display: none;
+  .ar-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ar-title {
+    font-size: 1.4rem;
+  }
+
+  .ar-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .ar-stats-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ar-mini-stat {
+    min-width: 0;
+    padding: 8px 4px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .ar-mini-val {
+    font-size: 1rem;
+  }
+
+  .ar-mini-label {
+    font-size: 0.6rem;
   }
 
   .ar-toolbar {
     flex-direction: column;
-  }
-
-  .ar-search-wrap {
+    gap: 10px;
+    padding: 12px 10px;
     width: 100%;
+    box-sizing: border-box;
   }
 
+  .ar-search-wrap,
   .ar-filter-group {
     width: 100%;
+    box-sizing: border-box;
   }
 
   .ar-select {
     width: 100%;
   }
 
+  .ar-table-wrap {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    overflow-x: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ar-table-header {
+    display: none !important;
+  }
+
+  /* Card Layout */
   .ar-row {
-    padding: 12px 14px;
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px 12px !important;
+    background: var(--glass-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  .ar-cell--user {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ar-avatar {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+
+  .ar-user-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ar-user-name {
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ar-user-id {
+    font-size: 0.68rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ar-cell--reported::before {
+    content: "Reported: ";
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .ar-cell--reporter::before {
+    content: "By Reporter: ";
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .ar-cell--reason,
+  .ar-cell--status,
+  .ar-cell--date {
+    display: flex !important;
+    align-items: center;
+  }
+
+  .ar-cell--date {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+  }
+
+  .ar-cell--actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .ar-action-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .ar-detail-users {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 400px) {
+  .ar-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px;
+  }
+
+  .ar-mini-stat {
+    padding: 6px 4px;
+  }
+
+  .ar-user-name {
+    font-size: 0.82rem;
+  }
+
+  .ar-user-id {
+    font-size: 0.65rem;
   }
 }

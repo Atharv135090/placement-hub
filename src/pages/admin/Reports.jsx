@@ -413,7 +413,7 @@ export default function AdminReports() {
 
           {filtered.map((r, idx) => (
             <div key={r.id} className="ar-row" style={{ animationDelay: `${idx * 0.04}s` }}>
-              <span className="ar-cell ar-cell--user">
+              <span className="ar-cell ar-cell--user ar-cell--reported">
                 <div className="ar-avatar">
                   <UserAvatar user={{ uid: r.reportedId }} profile={{}} className="ar-avatar-img" />
                 </div>
@@ -423,7 +423,7 @@ export default function AdminReports() {
                 </div>
               </span>
 
-              <span className="ar-cell ar-cell--user">
+              <span className="ar-cell ar-cell--user ar-cell--reporter">
                 <div className="ar-avatar">
                   <UserAvatar user={{ uid: r.reporterId }} profile={{}} className="ar-avatar-img" />
                 </div>

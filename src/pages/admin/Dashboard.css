@@ -947,6 +947,7 @@
     box-sizing: border-box;
     overflow-x: hidden;
     gap: 14px;
+    padding-bottom: 90px;
   }
   .adm-hero-card {
     min-height: auto;
@@ -1043,5 +1044,17 @@
     gap: 8px;
     width: 100%;
     box-sizing: border-box;
+  }
+}
+
+@media (max-width: 360px) {
+  .adm-hero-title {
+    font-size: 1.2rem;
+  }
+  .adm-hero-sub {
+    font-size: 0.74rem;
+  }
+  .adm-kpi-value {
+    font-size: 1.5rem;
   }
 }
