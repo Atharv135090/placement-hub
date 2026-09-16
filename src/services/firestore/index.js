@@ -93,6 +93,7 @@ export {
   deleteAllAnnouncements,
   adminLogoutUser,
   adminDeleteUser,
+  adminBlockUser,
 } from "./admin";
 
 // Support

@@ -3,18 +3,16 @@ import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
 
-// NOTE: Automatic message cleanup (age/count-based deletion) has been intentionally
-// REMOVED from user-to-user Chat. Messages must remain readable indefinitely
-// until the user explicitly clears them via Clear Chat.
-// The cleanupConversationMessages function is no longer called.
+// PRD §20: Messages are retained up to 50 per conversation.
+// Beyond 50 messages, oldest messages are deleted to stay within the limit.
+// Users can also explicitly clear all messages via Clear Chat.
 
 function getConversationId(uid1, uid2) {
   return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
 }
 
-// cleanupConversationMessages intentionally removed.
-// User-to-user messages must never be automatically deleted by age or count.
-// Deletion happens ONLY when the user explicitly uses Clear Chat.
+// PRD §20: Max 50 messages per conversation. Beyond that, oldest are trimmed.
+// Users can also explicitly clear all messages via Clear Chat.
 
 export async function getOrCreateConversation(uid1, uid2) {
   try {
@@ -135,12 +133,39 @@ export async function sendMessage(conversationId, senderId, text, participants) 
     console.warn("Failed to create message notification:", notifErr);
   }
 
-  // NOTE: No automatic cleanup — messages persist indefinitely.
+  // Apply retention limits after sending
+  await enforceRetention(conversationId);
   return { data: { id: msgRef.id }, error: null };
 }
 
+// PRD §20: Enforce message retention limits (max 50 messages, 4-day inactive cleanup)
+const MAX_MESSAGES = 50;
+
+async function enforceRetention(conversationId) {
+  try {
+    const q = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("createdAt", "asc")
+    );
+    const snap = await getDocs(q);
+    const docs = snap.docs;
+
+    if (docs.length <= MAX_MESSAGES) return;
+
+    // Delete oldest messages beyond the limit, keeping the newest half
+    const toDelete = docs.length - MAX_MESSAGES;
+    const batchOps = writeBatch(db);
+    for (let i = 0; i < toDelete; i++) {
+      batchOps.delete(docs[i].ref);
+    }
+    await batchOps.commit();
+  } catch (err) {
+    console.warn("Message retention enforcement failed (non-fatal):", err);
+  }
+}
+
 export function subscribeToMessages(conversationId, callback) {
-  // No automatic cleanup — messages persist indefinitely for user-to-user Chat.
   const q = query(
     collection(db, "messages"),
     where("conversationId", "==", conversationId),
@@ -351,6 +376,30 @@ export async function deleteExpiredMessages(conversationId, disappearingDuration
     }
 
     return { error: null, deletedCount: totalDeleted };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+// PRD §20: Trim oldest half of messages in conversations inactive for 4+ days
+export async function trimInactiveConversation(conversationId) {
+  try {
+    const q = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("createdAt", "asc")
+    );
+    const snap = await getDocs(q);
+    const docs = snap.docs;
+    if (docs.length <= 2) return { error: null, deletedCount: 0 };
+
+    const toDelete = Math.floor(docs.length / 2);
+    const batch = writeBatch(db);
+    for (let i = 0; i < toDelete; i++) {
+      batch.delete(docs[i].ref);
+    }
+    await batch.commit();
+    return { error: null, deletedCount: toDelete };
   } catch (error) {
     return handleSocialError(error);
   }

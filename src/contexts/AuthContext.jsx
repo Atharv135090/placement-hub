@@ -133,6 +133,11 @@ export function AuthProvider({ children }) {
       } else {
         setProfile(null);
         clearSharedSecretCache();
+        // Clear user-specific cache on logout
+        try {
+          localStorage.removeItem("ph_recent_chats");
+          localStorage.removeItem("ph_profile_quote_idx");
+        } catch {}
       }
       setLoading(false);
     });

@@ -274,7 +274,9 @@ export default function Settings() {
           usernameHistory: arrayUnion({
             previousName,
             newName: trimmedName,
-            changedAt: new Date().toISOString(),
+            changedAt: serverTimestamp(),
+            actor: user.uid,
+            userId: user.uid,
           }),
           updatedAt: serverTimestamp(),
         };

@@ -78,15 +78,46 @@ export default function AdminDashboard() {
     const offersToday = offers.filter((o) => isToday(o.createdAt || o.updatedAt)).length;
     const usersToday = users.filter((u) => isToday(u.createdAt)).length;
 
+    // Compute last month counts for delta
+    const lastMonth = new Date(today);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const lastMonthEnd = new Date(today);
+    lastMonthEnd.setDate(0);
+    lastMonthEnd.setHours(23, 59, 59, 999);
+    const twoMonthsAgoEnd = new Date(lastMonth);
+    twoMonthsAgoEnd.setDate(0);
+    twoMonthsAgoEnd.setHours(23, 59, 59, 999);
+
+    function isInMonth(dateField, start, end) {
+      if (!dateField) return false;
+      const d = dateField.toDate ? dateField.toDate() : new Date(dateField);
+      return d >= start && d <= end;
+    }
+
+    const usersLastMonth = users.filter((u) => isInMonth(u.createdAt, twoMonthsAgoEnd, lastMonthEnd)).length;
+    const companiesLastMonth = companies.filter((c) => isInMonth(c.createdAt, twoMonthsAgoEnd, lastMonthEnd)).length;
+    const appsLastMonth = applications.filter((a) => isInMonth(a.createdAt, twoMonthsAgoEnd, lastMonthEnd)).length;
+    const offersLastMonth = offers.filter((o) => isInMonth(o.createdAt || o.updatedAt, twoMonthsAgoEnd, lastMonthEnd)).length;
+
+    function deltaPercent(current, previous) {
+      if (previous === 0) return current > 0 ? "+100%" : "0%";
+      const pct = Math.round(((current - previous) / previous) * 100);
+      return pct >= 0 ? `+${pct}%` : `${pct}%`;
+    }
+
     return {
-      usersCount: users.length > 0 ? users.length : 24,
-      usersToday: usersToday > 0 ? usersToday : 12,
-      companiesCount: companies.length > 0 ? companies.length : 1,
-      companiesToday: companiesToday,
-      applicationsCount: applications.length > 0 ? applications.length : 4,
-      appsToday: appsToday > 0 ? appsToday : 33,
+      usersCount: users.length,
+      usersToday,
+      usersDelta: deltaPercent(users.length, usersLastMonth),
+      companiesCount: companies.length,
+      companiesToday,
+      companiesDelta: deltaPercent(companies.length, companiesLastMonth),
+      applicationsCount: applications.length,
+      appsToday,
+      appsDelta: deltaPercent(applications.length, appsLastMonth),
       offersCount: offers.length,
-      offersToday: offersToday,
+      offersToday,
+      offersDelta: deltaPercent(offers.length, offersLastMonth),
     };
   }, [companies, drives, applications, users]);
 
@@ -115,6 +146,20 @@ export default function AdminDashboard() {
     return m;
   }, [users]);
 
+  // Top Branches from real user data
+  const branchData = useMemo(() => {
+    const counts = {};
+    users.forEach((u) => {
+      const branch = u.branch || u.institution || "";
+      if (branch) counts[branch] = (counts[branch] || 0) + 1;
+    });
+    const total = users.length || 1;
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }));
+  }, [users]);
+
   // Admin first name
   const adminFirstName = useMemo(() => {
     const full = profile?.displayName || user?.displayName || "Atharv";
@@ -126,10 +171,18 @@ export default function AdminDashboard() {
     return ["Mar", "Apr", "May", "Jun", "Jul", "Aug"];
   }, []);
 
-  // Applications grouped by month
+  // Applications grouped by month (real data)
   const chartData = useMemo(() => {
-    const counts = [1, 2, 1, 3, 2, applications.length > 0 ? applications.length : 4];
-    return counts;
+    const monthCounts = new Array(6).fill(0);
+    const now = new Date();
+    applications.forEach((app) => {
+      const d = app.createdAt?.toDate ? app.createdAt.toDate() : (app.createdAt ? new Date(app.createdAt) : null);
+      if (!d) return;
+      const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+      const idx = 5 - diffMonths;
+      if (idx >= 0 && idx < 6) monthCounts[idx]++;
+    });
+    return monthCounts;
   }, [applications]);
 
   // SVG Chart points calculation
@@ -185,9 +238,7 @@ export default function AdminDashboard() {
     });
     if (list.length === 0) {
       list.push(
-        { id: "1", text: "Raj Narale joined as a student", time: "10m ago", type: "user" },
-        { id: "2", text: "Application submitted for Dell Software Engineer", time: "1h ago", type: "app" },
-        { id: "3", text: "New company Tata Consultancy Services registered", time: "2h ago", type: "company" }
+        { id: "empty", text: "No recent activity yet", time: "", type: "empty" }
       );
     }
     return list;
@@ -268,7 +319,7 @@ export default function AdminDashboard() {
               <div className="adm-kpi-value">{stats.usersCount}</div>
               <div className="adm-kpi-delta-row">
                 <span className="adm-delta-pill delta-positive">
-                  <span className="adm-delta-arrow">↑</span> +{stats.usersToday}% vs last month
+                  <span className="adm-delta-arrow">↑</span> {stats.usersDelta} vs last month
                 </span>
               </div>
             </div>
@@ -289,7 +340,7 @@ export default function AdminDashboard() {
               <div className="adm-kpi-value">{stats.companiesCount}</div>
               <div className="adm-kpi-delta-row">
                 <span className="adm-delta-pill delta-neutral">
-                  <span className="adm-delta-arrow">→</span> +0% vs last month
+                  <span className="adm-delta-arrow">→</span> {stats.companiesDelta} vs last month
                 </span>
               </div>
             </div>
@@ -310,7 +361,7 @@ export default function AdminDashboard() {
               <div className="adm-kpi-value">{stats.applicationsCount}</div>
               <div className="adm-kpi-delta-row">
                 <span className="adm-delta-pill delta-positive">
-                  <span className="adm-delta-arrow">↑</span> +33% vs last month
+                  <span className="adm-delta-arrow">↑</span> {stats.appsDelta} vs last month
                 </span>
               </div>
             </div>
@@ -331,7 +382,7 @@ export default function AdminDashboard() {
               <div className="adm-kpi-value">{stats.offersCount}</div>
               <div className="adm-kpi-delta-row">
                 <span className="adm-delta-pill delta-neutral">
-                  <span className="adm-delta-arrow">→</span> 0% vs last month
+                  <span className="adm-delta-arrow">→</span> {stats.offersDelta} vs last month
                 </span>
               </div>
             </div>
@@ -563,12 +614,8 @@ export default function AdminDashboard() {
 
           <div className="adm-feed-body">
             {companies.length === 0 ? (
-              <div className="adm-company-row-item">
-                <div className="adm-company-logo-circle">D</div>
-                <div className="adm-company-details">
-                  <span className="adm-company-name">Dell Technologies</span>
-                  <span className="adm-company-sub">1 Open Role · 4 Applications</span>
-                </div>
+              <div className="adm-empty-state">
+                <span className="adm-empty-text">No companies registered yet</span>
               </div>
             ) : (
               companies.slice(0, 3).map((c) => (
@@ -603,35 +650,28 @@ export default function AdminDashboard() {
           </div>
 
           <div className="adm-branch-list">
-            <div className="adm-branch-row">
-              <div className="adm-branch-label-row">
-                <span>Computer Science & Eng.</span>
-                <span className="adm-branch-pct">78%</span>
+            {branchData.length === 0 ? (
+              <div className="adm-branch-row">
+                <div className="adm-branch-label-row">
+                  <span className="adm-empty-text">No branch data yet</span>
+                </div>
               </div>
-              <div className="adm-branch-bar-bg">
-                <div className="adm-branch-bar-fill fill-cs" style={{ width: "78%" }} />
-              </div>
-            </div>
-
-            <div className="adm-branch-row">
-              <div className="adm-branch-label-row">
-                <span>Information Technology</span>
-                <span className="adm-branch-pct">65%</span>
-              </div>
-              <div className="adm-branch-bar-bg">
-                <div className="adm-branch-bar-fill fill-it" style={{ width: "65%" }} />
-              </div>
-            </div>
-
-            <div className="adm-branch-row">
-              <div className="adm-branch-label-row">
-                <span>Electronics & Telecom</span>
-                <span className="adm-branch-pct">42%</span>
-              </div>
-              <div className="adm-branch-bar-bg">
-                <div className="adm-branch-bar-fill fill-entc" style={{ width: "42%" }} />
-              </div>
-            </div>
+            ) : (
+              branchData.map((b, i) => (
+                <div key={b.name} className="adm-branch-row">
+                  <div className="adm-branch-label-row">
+                    <span>{b.name}</span>
+                    <span className="adm-branch-pct">{b.pct}%</span>
+                  </div>
+                  <div className="adm-branch-bar-bg">
+                    <div
+                      className={`adm-branch-bar-fill fill-${i === 0 ? "cs" : i === 1 ? "it" : i === 2 ? "entc" : "cs"}`}
+                      style={{ width: `${b.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { doc, getDoc, updateDoc, writeBatch, collection, query, where, orderBy, getDocs, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, updateDoc, writeBatch, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "./AuthContext";
 import {
@@ -17,6 +17,7 @@ import {
   markAdminConversationRead,
   clearAllConversationMessages,
   deleteExpiredMessages,
+  trimInactiveConversation,
 } from "../services/social";
 
 const ChatContext = createContext(null);
@@ -239,6 +240,15 @@ export function ChatProvider({ children }) {
           const dm = convData.disappearingMessages;
           if (dm?.enabled && dm.duration) {
             await deleteExpiredMessages(convDoc.id, dm.duration);
+          }
+          // PRD §20: 4-day inactive cleanup — delete oldest half of messages
+          const lastMsg = convData.lastMessageAt || convData.updatedAt;
+          if (lastMsg) {
+            const lastDate = lastMsg?.toDate ? lastMsg.toDate() : new Date(lastMsg);
+            const daysInactive = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (daysInactive >= 4) {
+              await trimInactiveConversation(convDoc.id);
+            }
           }
         }
       } catch (err) {

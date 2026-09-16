@@ -65,6 +65,7 @@ export {
   readMessageText,
   clearAllConversationMessages,
   deleteExpiredMessages,
+  trimInactiveConversation,
 } from "./messaging";
 
 // Admin Messaging

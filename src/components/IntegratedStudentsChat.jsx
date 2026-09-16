@@ -189,6 +189,8 @@ export default function IntegratedStudentsChat({
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const chatMenuRef = useRef(null);
+  const [disappearingDuration, setDisappearingDuration] = useState(null);
+  const [showDisappearingPopup, setShowDisappearingPopup] = useState(false);
 
   const [followersList, setFollowersList] = useState([]);
   const [followingList, setFollowingList] = useState([]);
@@ -265,6 +267,45 @@ export default function IntegratedStudentsChat({
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
+
+  // Load disappearing messages setting
+  useEffect(() => {
+    if (!activeConversation?.id) {
+      setDisappearingDuration(null);
+      return;
+    }
+    async function loadSetting() {
+      try {
+        const { getDoc, doc: docRef } = await import("firebase/firestore");
+        const { db } = await import("../config/firebase");
+        const snap = await getDoc(docRef(db, "conversations", activeConversation.id));
+        if (snap.exists()) {
+          const data = snap.data();
+          const dm = data.disappearingMessages;
+          setDisappearingDuration(dm?.enabled ? (dm.duration || null) : null);
+        }
+      } catch {}
+    }
+    loadSetting();
+  }, [activeConversation?.id]);
+
+  async function handleSetDisappearing(duration) {
+    if (!activeConversation?.id) return;
+    try {
+      const { updateDoc, doc: docRef } = await import("firebase/firestore");
+      const { db } = await import("../config/firebase");
+      await updateDoc(docRef(db, "conversations", activeConversation.id), {
+        disappearingMessages: {
+          enabled: duration !== null,
+          duration: duration,
+        },
+      });
+      setDisappearingDuration(duration);
+      setShowDisappearingPopup(false);
+    } catch (err) {
+      console.error("Failed to update disappearing messages:", err);
+    }
+  }
 
   // Determine selected student from students list or active conversation
   const selectedStudent = useMemo(() => {
@@ -762,6 +803,7 @@ export default function IntegratedStudentsChat({
                         className="isc-dropdown-item"
                         onClick={() => {
                           setChatMenuOpen(false);
+                          setShowDisappearingPopup(true);
                         }}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1035,6 +1077,30 @@ export default function IntegratedStudentsChat({
           </div>
         )}
       </Modal>
+
+      {/* Disappearing Messages Popup */}
+      {showDisappearingPopup && (
+        <div className="isc-disappearing-popup" style={{ position: "fixed", bottom: 80, right: 20, zIndex: 1000, background: "var(--card-bg, #fff)", borderRadius: 12, padding: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", minWidth: 180 }}>
+          <div style={{ fontSize: "0.78rem", fontWeight: 700, marginBottom: 8, color: "var(--text-primary, #1e293b)" }}>Disappearing Messages</div>
+          {[
+            { label: "Off", value: null },
+            { label: "24 hours", value: 86400000 },
+            { label: "7 days", value: 604800000 },
+            { label: "30 days", value: 2592000000 },
+          ].map((opt) => (
+            <label key={opt.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", cursor: "pointer", fontSize: "0.85rem", borderRadius: 6, background: disappearingDuration === opt.value ? "var(--accent-bg, rgba(225,29,72,0.08))" : "transparent" }}>
+              <input
+                type="radio"
+                name="isc-dm"
+                checked={disappearingDuration === opt.value}
+                onChange={() => handleSetDisappearing(opt.value)}
+                style={{ accentColor: "var(--accent, #e11d48)" }}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

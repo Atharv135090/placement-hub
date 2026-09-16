@@ -337,7 +337,7 @@ export default function AtsChecker() {
               <div className="ats-metric-item">
                 <span className="ats-metric-icon"><UsersIcon /></span>
                 <div>
-                  <strong className="ats-metric-value">10K+</strong>
+                  <strong className="ats-metric-value">—</strong>
                   <span className="ats-metric-label">Students</span>
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function AtsChecker() {
               <div className="ats-metric-item">
                 <span className="ats-metric-icon"><BuildingIcon /></span>
                 <div>
-                  <strong className="ats-metric-value">50+</strong>
+                  <strong className="ats-metric-value">—</strong>
                   <span className="ats-metric-label">Companies</span>
                 </div>
               </div>
@@ -353,7 +353,7 @@ export default function AtsChecker() {
               <div className="ats-metric-item">
                 <span className="ats-metric-icon"><RocketIcon /></span>
                 <div>
-                  <strong className="ats-metric-value">3x</strong>
+                  <strong className="ats-metric-value">—</strong>
                   <span className="ats-metric-label">Better Shortlists</span>
                 </div>
               </div>
