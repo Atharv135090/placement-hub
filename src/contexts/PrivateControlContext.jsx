@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useMemo } from "react";
 
 const PrivateControlContext = createContext(null);
 
@@ -35,20 +35,20 @@ export function PrivateControlProvider({ children }) {
     setShowControlPanel((prev) => !prev);
   }, [isPrivateMode]);
 
+  const value = useMemo(() => ({
+    isPrivateMode,
+    showLoginModal,
+    showControlPanel,
+    privateUser,
+    enterPrivateMode,
+    exitPrivateMode,
+    openLoginModal,
+    closeLoginModal,
+    toggleControlPanel,
+  }), [isPrivateMode, showLoginModal, showControlPanel, privateUser, enterPrivateMode, exitPrivateMode, openLoginModal, closeLoginModal, toggleControlPanel]);
+
   return (
-    <PrivateControlContext.Provider
-      value={{
-        isPrivateMode,
-        showLoginModal,
-        showControlPanel,
-        privateUser,
-        enterPrivateMode,
-        exitPrivateMode,
-        openLoginModal,
-        closeLoginModal,
-        toggleControlPanel,
-      }}
-    >
+    <PrivateControlContext.Provider value={value}>
       {children}
     </PrivateControlContext.Provider>
   );

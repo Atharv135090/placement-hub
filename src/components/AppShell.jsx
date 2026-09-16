@@ -121,10 +121,7 @@ export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [adminVerifyOpen, setAdminVerifyOpen] = useState(false);
-  const [adminPin, setAdminPin] = useState("");
   const [adminError, setAdminError] = useState("");
-
-  const ADMIN_PIN = "5090";
 
   const handleAdminLongPress = useCallback(() => {
     setAdminVerifyOpen(true);
@@ -152,19 +149,11 @@ export default function AppShell() {
   function handleAdminVerify() {
     if (!isAdmin) {
       setAdminError("Access denied: You do not have administrator permissions.");
-      setAdminPin("");
       return;
     }
-    if (adminPin.trim() === ADMIN_PIN) {
-      sessionStorage.setItem("admin_authenticated", "true");
-      setAdminVerifyOpen(false);
-      setAdminPin("");
-      setAdminError("");
-      navigate("/admin");
-    } else {
-      setAdminError("Incorrect password");
-      setAdminPin("");
-    }
+    setAdminVerifyOpen(false);
+    setAdminError("");
+    navigate("/admin");
   }
 
   async function handleLogout() {
@@ -417,27 +406,14 @@ export default function AppShell() {
       {/* ── ADMIN ACCESS MODAL ── */}
       <Modal
         open={adminVerifyOpen}
-        onClose={() => { setAdminVerifyOpen(false); setAdminPin(""); setAdminError(""); }}
-        title="Enter Admin Password"
+        onClose={() => { setAdminVerifyOpen(false); setAdminError(""); }}
+        title="Open Admin Panel"
       >
         <p className="modal-confirm-text" style={{ fontSize: "0.86rem", color: "var(--text-secondary)", marginBottom: 14 }}>
-          Please enter the admin password to access the Control Center.
+          {isAdmin
+            ? "You have admin access. Click below to open the Admin Control Center."
+            : "You do not have administrator permissions."}
         </p>
-        <div className="modal-field">
-          <input
-            type="password"
-            className="input-field"
-            placeholder="Enter password"
-            value={adminPin}
-            onChange={(e) => {
-              setAdminPin(e.target.value);
-              if (adminError) setAdminError("");
-            }}
-            autoFocus
-            onKeyDown={(e) => { if (e.key === "Enter") handleAdminVerify(); }}
-            style={{ textAlign: "center", letterSpacing: "4px", fontSize: "1.1rem" }}
-          />
-        </div>
         {adminError && (
           <p style={{ color: "var(--accent)", fontSize: "0.84rem", marginTop: 8, fontWeight: 600, textAlign: "center" }}>
             {adminError}
@@ -446,13 +422,15 @@ export default function AppShell() {
         <div className="modal-actions" style={{ marginTop: 20 }}>
           <button
             className="modal-btn modal-btn--secondary"
-            onClick={() => { setAdminVerifyOpen(false); setAdminPin(""); setAdminError(""); }}
+            onClick={() => { setAdminVerifyOpen(false); setAdminError(""); }}
           >
             Cancel
           </button>
-          <button className="modal-btn modal-btn--primary" onClick={handleAdminVerify}>
-            Open Admin Panel
-          </button>
+          {isAdmin && (
+            <button className="modal-btn modal-btn--primary" onClick={handleAdminVerify}>
+              Open Admin Panel
+            </button>
+          )}
         </div>
       </Modal>
     </div>

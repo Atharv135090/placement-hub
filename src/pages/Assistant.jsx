@@ -160,18 +160,27 @@ const TOPIC_CHIPS = [
   },
 ];
 
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderMarkdown(text) {
   if (!text) return text;
   return text
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/^### (.+)$/gm, "<h4>$1</h4>")
-    .replace(/^## (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^# (.+)$/gm, "<h2>$1</h2>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/^(\d+)\. (.+)$/gm, "<li>$2</li>")
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_m, _lang, code) => `<pre class="code-block"><code>${escapeHtml(code)}</code></pre>`)
+    .replace(/`([^`]+)`/g, (_m, code) => `<code class="inline-code">${escapeHtml(code)}</code>`)
+    .replace(/\*\*(.+?)\*\*/g, (_m, t) => `<strong>${escapeHtml(t)}</strong>`)
+    .replace(/\*(.+?)\*/g, (_m, t) => `<em>${escapeHtml(t)}</em>`)
+    .replace(/^### (.+)$/gm, (_m, t) => `<h4>${escapeHtml(t)}</h4>`)
+    .replace(/^## (.+)$/gm, (_m, t) => `<h3>${escapeHtml(t)}</h3>`)
+    .replace(/^# (.+)$/gm, (_m, t) => `<h2>${escapeHtml(t)}</h2>`)
+    .replace(/^- (.+)$/gm, (_m, t) => `<li>${escapeHtml(t)}</li>`)
+    .replace(/^(\d+)\. (.+)$/gm, (_m, _n, t) => `<li>${escapeHtml(t)}</li>`)
     .replace(/\n/g, "<br/>");
 }
 

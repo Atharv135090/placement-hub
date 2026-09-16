@@ -28,7 +28,15 @@ export function subscribeToStudentProfile(userId, callback) {
 export async function getAllStudents() {
   try {
     const snapshot = await getDocs(collection(db, "users"));
-    return { data: mapDocs(snapshot), error: null };
+    const seen = new Set();
+    const unique = [];
+    snapshot.docs.forEach((d) => {
+      if (!seen.has(d.id)) {
+        seen.add(d.id);
+        unique.push({ id: d.id, ...d.data() });
+      }
+    });
+    return { data: unique, error: null };
   } catch (error) {
     return handleSocialError(error);
   }
@@ -36,7 +44,15 @@ export async function getAllStudents() {
 
 export function subscribeToStudents(callback, onError) {
   return onSnapshot(collection(db, "users"), (snapshot) => {
-    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const seen = new Set();
+    const unique = [];
+    snapshot.docs.forEach((d) => {
+      if (!seen.has(d.id)) {
+        seen.add(d.id);
+        unique.push({ id: d.id, ...d.data() });
+      }
+    });
+    callback(unique);
   }, (error) => {
     console.error("subscribeToStudents error:", error);
     if (onError) onError(error);

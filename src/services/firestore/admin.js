@@ -6,17 +6,30 @@ import {
   updateDoc,
   query,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { COMPANIES, JOBS, APPLICATIONS, ANNOUNCEMENTS, handleFirestoreError } from "./helpers";
 
+async function batchDelete(collectionName) {
+  const snapshot = await getDocs(collection(db, collectionName));
+  const docs = snapshot.docs;
+  const count = docs.length;
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    for (const d of chunk) {
+      batch.delete(doc(db, collectionName, d.id));
+    }
+    await batch.commit();
+  }
+  return count;
+}
+
 export async function deleteAllCompanies() {
   try {
-    const snapshot = await getDocs(collection(db, COMPANIES));
-    const count = snapshot.size;
-    for (const d of snapshot.docs) {
-      await deleteDoc(doc(db, COMPANIES, d.id));
-    }
+    const count = await batchDelete(COMPANIES);
     return { data: { deleted: count }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
@@ -25,11 +38,7 @@ export async function deleteAllCompanies() {
 
 export async function deleteAllJobs() {
   try {
-    const snapshot = await getDocs(collection(db, JOBS));
-    const count = snapshot.size;
-    for (const d of snapshot.docs) {
-      await deleteDoc(doc(db, JOBS, d.id));
-    }
+    const count = await batchDelete(JOBS);
     return { data: { deleted: count }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
@@ -38,11 +47,7 @@ export async function deleteAllJobs() {
 
 export async function deleteAllApplications() {
   try {
-    const snapshot = await getDocs(collection(db, APPLICATIONS));
-    const count = snapshot.size;
-    for (const d of snapshot.docs) {
-      await deleteDoc(doc(db, APPLICATIONS, d.id));
-    }
+    const count = await batchDelete(APPLICATIONS);
     return { data: { deleted: count }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
@@ -51,11 +56,7 @@ export async function deleteAllApplications() {
 
 export async function deleteAllAnnouncements() {
   try {
-    const snapshot = await getDocs(collection(db, ANNOUNCEMENTS));
-    const count = snapshot.size;
-    for (const d of snapshot.docs) {
-      await deleteDoc(doc(db, ANNOUNCEMENTS, d.id));
-    }
+    const count = await batchDelete(ANNOUNCEMENTS);
     return { data: { deleted: count }, error: null };
   } catch (error) {
     return handleFirestoreError(error);

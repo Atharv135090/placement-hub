@@ -11,6 +11,20 @@ import {
 import UserAvatar from "../../components/UserAvatar";
 import "./AdminChat.css";
 
+function formatConvPreview(lastMessage) {
+  if (!lastMessage) return "No messages yet";
+  try {
+    const parsed = JSON.parse(lastMessage);
+    if (parsed && parsed.type === "attachment") {
+      const ct = parsed.contentType || "";
+      if (ct.startsWith("image/")) return "\uD83D\uDCF7 Image";
+      if (ct.startsWith("video/")) return "\uD83C\uDFA5 Video";
+      return "\uD83D\uDCCE File";
+    }
+  } catch {}
+  return lastMessage;
+}
+
 export default function AdminChat() {
   const { studentId } = useParams();
   const { user } = require("../../contexts/AuthContext").useAuth();
@@ -178,7 +192,7 @@ export default function AdminChat() {
                       </span>
                     </div>
                     <span className="ac-conv-preview">
-                      {conv.lastMessage || "No messages yet"}
+                      {formatConvPreview(conv.lastMessage)}
                     </span>
                   </div>
                 </div>

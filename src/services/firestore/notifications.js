@@ -35,14 +35,11 @@ export async function createNotification({ title, message, type, link, targetUse
 
 export async function getUnreadNotifications(userId) {
   try {
-    const snapshot = await getDocs(collection(db, NOTIFICATIONS));
+    const snapshot = await getDocs(
+      query(collection(db, NOTIFICATIONS), where("targetUserId", "==", userId), orderBy("createdAt", "desc"))
+    );
     const notifications = mapDocs(snapshot)
-      .filter((n) => !n.readBy?.includes(userId) && (!n.targetUserId || n.targetUserId === userId))
-      .sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      })
+      .filter((n) => !n.readBy?.includes(userId))
       .slice(0, 50);
     return { data: notifications, error: null };
   } catch (error) {

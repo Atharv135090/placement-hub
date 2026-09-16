@@ -34,8 +34,7 @@ service cloud.firestore {
     function hasAdminRole() {
       return isAuth()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner');
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'owner'];
     }
 
     // ─── USERS / STUDENT PROFILES ─────────────────────────────
@@ -45,9 +44,7 @@ service cloud.firestore {
 
       allow create: if isOwnerDoc(userId);
 
-      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole()
-        // Allow any authenticated user to update follower/following counts
-        || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["followersCount", "followingCount"]));
+      allow update: if isOwnerDoc(userId) || isOwnerOrAdmin() || hasOwnerRole() || hasAdminRole();
 
       // Users can delete their own account (self-deletion)
       // Admin/owner can delete any non-owner account
@@ -105,8 +102,9 @@ service cloud.firestore {
       // Only the recipient can read their notifications
       allow read: if isAuth() && request.auth.uid == resource.data.targetUserId;
 
-      // Authenticated users can create notifications (for follow requests etc.)
-      allow create: if isAuth();
+      // Authenticated users can create notifications; sender must be the authenticated user
+      allow create: if isAuth()
+        && request.resource.data.senderId == request.auth.uid;
 
       // Only the recipient can update (mark as read)
       allow update: if isAuth() && request.auth.uid == resource.data.targetUserId;
@@ -144,9 +142,10 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       allow read: if isAuth() && request.auth.uid in resource.data.participants;
       allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
-      // Allow any auth user to update conversation metadata (lastMessage, participants, unread counts).
-      // Actual message-level security is enforced by the messages collection rules.
-      allow update: if isAuth();
+      // Only participants can update conversation metadata; admin/owner can update for cleanup
+      allow update: if isAuth()
+        && (request.auth.uid in resource.data.participants
+          || isOwnerOrAdmin() || hasAdminRole());
       // Admin/owner can delete conversations during user account cleanup
       allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
     }

@@ -802,9 +802,12 @@
   }
 
   .admin-notif-panel {
+    position: fixed;
+    top: 62px;
     right: 8px;
-    width: min(340px, calc(100vw - 16px));
-    max-width: calc(100vw - 16px);
+    width: min(360px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
   }
 
   .admin-profile-dropdown {

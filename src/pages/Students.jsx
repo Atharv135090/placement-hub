@@ -46,7 +46,11 @@ export default function Students() {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -55,9 +59,18 @@ export default function Students() {
 
     // subscribeToStudents returns realtime user documents that already include
     // the `online` boolean and `lastSeenAt` timestamp written by setUserOnline/setUserOffline.
-    // No separate per-card presence listeners needed.
+    // Enforce strict 1 UID = 1 user entry.
     unsubStudents = subscribeToStudents((allUsers) => {
-      setStudents(allUsers || []);
+      const seenUids = new Set();
+      const uniqueUsers = [];
+      (allUsers || []).forEach((u) => {
+        const uid = u.id || u.uid;
+        if (uid && !seenUids.has(uid)) {
+          seenUids.add(uid);
+          uniqueUsers.push(u);
+        }
+      });
+      setStudents(uniqueUsers);
       setLoading(false);
     });
 
@@ -96,7 +109,7 @@ export default function Students() {
     return owner ? owner.id : null;
   }, [students]);
 
-  // Filter and sort students — owner always pinned first
+  // Filter and sort students — owner always pinned first, strictly 1 UID = 1 entry
   const filteredStudents = useMemo(() => {
     let list = students.filter((s) => {
       const q = search.trim().toLowerCase();
@@ -112,9 +125,20 @@ export default function Students() {
       return matchSearch && matchBranch && matchYear;
     });
 
+    // Deduplicate by UID
+    const seenUids = new Set();
+    const dedupedList = [];
+    for (const s of list) {
+      const uid = s.id || s.uid;
+      if (uid && !seenUids.has(uid)) {
+        seenUids.add(uid);
+        dedupedList.push(s);
+      }
+    }
+
     // Separate owner from the rest
-    const owner = ownerUid ? list.find((s) => s.id === ownerUid) : null;
-    const others = ownerUid ? list.filter((s) => s.id !== ownerUid) : list;
+    const owner = ownerUid ? dedupedList.find((s) => (s.id || s.uid) === ownerUid) : null;
+    const others = ownerUid ? dedupedList.filter((s) => (s.id || s.uid) !== ownerUid) : dedupedList;
 
     // Sort remaining students
     others.sort((a, b) => {
@@ -135,8 +159,18 @@ export default function Students() {
       return tB - tA;
     });
 
-    // Owner always first, then the rest
-    return owner ? [owner, ...others] : others;
+    // Owner always first, then the rest — final check to guarantee unique UID
+    const combined = owner ? [owner, ...others] : others;
+    const finalSeen = new Set();
+    const finalResult = [];
+    for (const s of combined) {
+      const uid = s.id || s.uid;
+      if (uid && !finalSeen.has(uid)) {
+        finalSeen.add(uid);
+        finalResult.push(s);
+      }
+    }
+    return finalResult;
   }, [students, search, branchFilter, yearFilter, sortBy, ownerUid]);
 
   // Reset page to 1 whenever filters change

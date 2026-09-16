@@ -94,8 +94,18 @@ export default function AdminUsers() {
     return result;
   }, [users, search, roleFilter]);
 
+  const appsByUser = useMemo(() => {
+    const map = new Map();
+    for (const app of allApps) {
+      const list = map.get(app.userId) || [];
+      list.push(app);
+      map.set(app.userId, list);
+    }
+    return map;
+  }, [allApps]);
+
   function getUserApps(userId) {
-    return allApps.filter(a => a.userId === userId);
+    return appsByUser.get(userId) || [];
   }
 
   function openRoleModal(user) {

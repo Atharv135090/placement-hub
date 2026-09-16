@@ -11,6 +11,21 @@ import EmojiPicker from "../components/EmojiPicker";
 import Modal from "../components/Modal";
 import "./Chat.css";
 
+// ─── CONVERSATION PREVIEW HELPER ────────────────────────────
+function formatConvPreview(lastMessage) {
+  if (!lastMessage) return "Start a conversation";
+  try {
+    const parsed = JSON.parse(lastMessage);
+    if (parsed && parsed.type === "attachment") {
+      const ct = parsed.contentType || "";
+      if (ct.startsWith("image/")) return "\uD83D\uDCF7 Image";
+      if (ct.startsWith("video/")) return "\uD83C\uDFA5 Video";
+      return "\uD83D\uDCCE File";
+    }
+  } catch {}
+  return lastMessage;
+}
+
 // ─── SVG ICONS ──────────────────────────────────────────────
 const ChatHeaderIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -420,7 +435,16 @@ export default function Chat() {
   // Subscribe to all users for Discover mode
   useEffect(() => {
     const unsub = subscribeToStudents((users) => {
-      setAllUsers((users || []).filter((u) => u.id !== user?.uid));
+      const seen = new Set();
+      const unique = [];
+      (users || []).forEach((u) => {
+        const uid = u.id || u.uid;
+        if (uid && uid !== user?.uid && !seen.has(uid)) {
+          seen.add(uid);
+          unique.push(u);
+        }
+      });
+      setAllUsers(unique);
     });
     return () => unsub?.();
   }, [user?.uid]);
@@ -476,10 +500,15 @@ export default function Chat() {
       try {
         const res = await getAllStudents();
         const myUid = user?.uid;
-        const myEmail = user?.email?.toLowerCase();
-        const usersList = (res.data || []).filter(
-          (u) => u.id !== myUid && (!myEmail || (u.email || "").toLowerCase() !== myEmail)
-        );
+        const seen = new Set();
+        const usersList = [];
+        (res.data || []).forEach((u) => {
+          const uid = u.id || u.uid;
+          if (uid && uid !== myUid && !seen.has(uid)) {
+            seen.add(uid);
+            usersList.push(u);
+          }
+        });
         setAvailableUsers(usersList);
       } catch (e) {
         console.error("Failed to load contacts:", e);
@@ -487,7 +516,7 @@ export default function Chat() {
       setLoadingContacts(false);
     }
     loadContacts();
-  }, [newMsgModalOpen, user?.uid, user?.email]);
+  }, [newMsgModalOpen, user?.uid]);
 
   // Resolve partner profile for active conversation
   const [partnerProfile, setPartnerProfile] = useState(null);
@@ -983,7 +1012,7 @@ export default function Chat() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 
-  // Filter conversations based on search and tab
+  // Filter conversations based on search and tab — strict 1 partner UID = 1 entry
   const filteredConversations = useMemo(() => {
     let result = [...conversations];
 
@@ -1004,18 +1033,54 @@ export default function Chat() {
       result = result.filter((c) => c.isCompany || c.otherUser?.role === "company");
     }
 
-    return result;
-  }, [conversations, convSearch, filterTab]);
+    // Deduplicate strictly by partner UID
+    const seenPartnerUids = new Set();
+    const unique = [];
+    for (const c of result) {
+      const partnerId = c.otherUser?.id || c.participants?.find((p) => p !== user?.uid);
+      if (partnerId) {
+        if (!seenPartnerUids.has(partnerId)) {
+          seenPartnerUids.add(partnerId);
+          unique.push(c);
+        }
+      } else {
+        unique.push(c);
+      }
+    }
+
+    return unique;
+  }, [conversations, convSearch, filterTab, user?.uid]);
 
   // Merged list: conversations first, then remaining users not in conversations
   const mergedUserList = useMemo(() => {
-    const convUserIds = new Set(conversations.map((c) => c.otherUser?.id).filter(Boolean));
+    const convUserIds = new Set();
+    if (user?.uid) convUserIds.add(user.uid);
 
-    let remaining = allUsers.filter((u) => !convUserIds.has(u.id));
+    conversations.forEach((c) => {
+      const partnerId = c.otherUser?.id || c.participants?.find((p) => p !== user?.uid);
+      if (partnerId) convUserIds.add(partnerId);
+    });
 
+    filteredConversations.forEach((c) => {
+      const partnerId = c.otherUser?.id || c.participants?.find((p) => p !== user?.uid);
+      if (partnerId) convUserIds.add(partnerId);
+    });
+
+    const seenRemaining = new Set();
+    const remaining = [];
+    for (const u of allUsers) {
+      const uid = u.id || u.uid;
+      if (!uid || convUserIds.has(uid)) continue;
+      if (!seenRemaining.has(uid)) {
+        seenRemaining.add(uid);
+        remaining.push(u);
+      }
+    }
+
+    let filtered = remaining;
     if (convSearch.trim()) {
       const q = convSearch.toLowerCase().trim();
-      remaining = remaining.filter((u) => {
+      filtered = filtered.filter((u) => {
         const name = (u.displayName || u.name || "").toLowerCase();
         const role = (u.role || "").toLowerCase();
         const branch = (u.branch || "").toLowerCase();
@@ -1024,15 +1089,15 @@ export default function Chat() {
     }
 
     if (filterTab === "students") {
-      remaining = remaining.filter((u) => !u.role || u.role === "student" || u.role === "owner");
+      filtered = filtered.filter((u) => !u.role || u.role === "student" || u.role === "owner");
     } else if (filterTab === "recruiters") {
-      remaining = remaining.filter((u) => u.role === "recruiter" || u.role === "admin");
+      filtered = filtered.filter((u) => u.role === "recruiter" || u.role === "admin");
     } else if (filterTab === "companies") {
-      remaining = remaining.filter((u) => u.role === "company");
+      filtered = filtered.filter((u) => u.role === "company");
     }
 
-    return remaining;
-  }, [allUsers, conversations, convSearch, filterTab]);
+    return filtered;
+  }, [allUsers, conversations, filteredConversations, convSearch, filterTab, user?.uid]);
 
   // Start new conversation from modal
   async function handleSelectContact(contact) {
@@ -1248,7 +1313,7 @@ export default function Chat() {
               const other = c.otherUser || {};
               const name = other.displayName || "Student";
               const role = other.role === "owner" ? "owner" : other.role === "admin" ? "admin" : (other.role || "student");
-              const lastMsg = c.lastMessageText || (c.lastMessage ? "Encrypted message" : "Start a conversation");
+              const lastMsg = formatConvPreview(c.lastMessage);
               const timeStr = formatConvTime(c.lastMessageAt || c.updatedAt || c.createdAt);
               const unread = c.unreadCount || 0;
               const status = followStatuses[other.id];

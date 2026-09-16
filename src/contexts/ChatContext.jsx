@@ -43,18 +43,35 @@ export function ChatProvider({ children }) {
       return;
     }
 
-    // Subscribe to BOTH regular and admin conversations, merge into one list
+    function mergeAndDeduplicateConvs(convList, currentUid) {
+      const sorted = [...convList].sort((a, b) => {
+        const aTime = a.lastMessageAt?.toMillis?.() || (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
+        const bTime = b.lastMessageAt?.toMillis?.() || (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0);
+        return bTime - aTime;
+      });
+
+      const seenPartnerUids = new Set();
+      const deduplicated = [];
+      for (const c of sorted) {
+        const partnerId = c.otherUser?.id || c.participants?.find((p) => p !== currentUid);
+        if (partnerId) {
+          if (!seenPartnerUids.has(partnerId)) {
+            seenPartnerUids.add(partnerId);
+            deduplicated.push(c);
+          }
+        } else {
+          deduplicated.push(c);
+        }
+      }
+      return deduplicated;
+    }
+
+    // Subscribe to BOTH regular and admin conversations, merge and deduplicate by partner UID
     const unsubRegular = subscribeToConversations(uid, (regularConvs) => {
       const tagged = (regularConvs || []).map((c) => ({ ...c, isAdmin: false }));
       setConversations((prev) => {
         const adminConvs = prev.filter((c) => c.isAdmin);
-        const merged = [...tagged, ...adminConvs];
-        merged.sort((a, b) => {
-          const aTime = a.lastMessageAt?.toMillis?.() || (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
-          const bTime = b.lastMessageAt?.toMillis?.() || (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0);
-          return bTime - aTime;
-        });
-        return merged;
+        return mergeAndDeduplicateConvs([...tagged, ...adminConvs], uid);
       });
     });
 
@@ -62,13 +79,7 @@ export function ChatProvider({ children }) {
       const tagged = (adminConvs || []).map((c) => ({ ...c, isAdmin: true }));
       setConversations((prev) => {
         const regularConvs = prev.filter((c) => !c.isAdmin);
-        const merged = [...regularConvs, ...tagged];
-        merged.sort((a, b) => {
-          const aTime = a.lastMessageAt?.toMillis?.() || (a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0);
-          const bTime = b.lastMessageAt?.toMillis?.() || (b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0);
-          return bTime - aTime;
-        });
-        return merged;
+        return mergeAndDeduplicateConvs([...regularConvs, ...tagged], uid);
       });
     });
 

@@ -131,7 +131,6 @@ export default function AdminLayout() {
 
   async function handleLogout() {
     setUserDropdownOpen(false);
-    sessionStorage.removeItem("admin_authenticated");
     await logOut();
     navigate("/login");
   }

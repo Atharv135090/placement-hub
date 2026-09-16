@@ -8,6 +8,7 @@ import { doc, onSnapshot, deleteDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { auth } from "../config/firebase";
 import { setUserOnline, setUserOffline, rebuildFollowerCounts } from "../services/social";
+import { clearSharedSecretCache } from "../utils/crypto";
 
 const AuthContext = createContext(null);
 
@@ -131,6 +132,7 @@ export function AuthProvider({ children }) {
         }
       } else {
         setProfile(null);
+        clearSharedSecretCache();
       }
       setLoading(false);
     });
