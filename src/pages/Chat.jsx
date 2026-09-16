@@ -1841,7 +1841,7 @@ export default function Chat() {
               Clear this chat?
             </h3>
             <p className="msg-confirm-desc">
-              This will hide all messages in this conversation from your view. The other person will still see them. This cannot be undone.
+              This will permanently delete all messages in this conversation from Firebase. Both you and the other person will see an empty chat. This cannot be undone.
             </p>
             <div className="msg-confirm-actions">
               <button className="msg-confirm-cancel" onClick={() => setConfirmAction(null)}>

@@ -64,6 +64,8 @@ export {
   subscribeToConversations,
   markConversationRead,
   readMessageText,
+  clearAllConversationMessages,
+  deleteExpiredMessages,
 } from "./social/messaging";
 
 // Admin Messaging

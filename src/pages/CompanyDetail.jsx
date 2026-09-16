@@ -177,16 +177,6 @@ export default function CompanyDetail() {
       .map((a) => a.jobId)
   );
 
-  // Compute company stats from context applications
-  const companyApps = applications.filter(
-    (a) => a.companyId === companyId || a.companyName === company?.name
-  );
-  const stats = {
-    applications: companyApps.length,
-    interviews: companyApps.filter((a) => a.status === "interview").length,
-    offers: companyApps.filter((a) => a.status === "offer" || a.status === "selected").length,
-  };
-
   // Find the first active drive for this company
   const activeDrive = drives.find((d) => d.isActive !== false) || drives[0];
   const hasAppliedToDrive = activeDrive
@@ -350,6 +340,40 @@ export default function CompanyDetail() {
   const compOrgSize = formatOrgSize(company);
   const compWebsite = formatWebsite(company);
   const compDescription = formatDescription(company);
+
+  const renderActionButtons = (isMobile = false) => (
+    <div className={isMobile ? "cd-mobile-actions-row" : "cd-action-buttons-card"}>
+      {hasAppliedToDrive ? (
+        <button className="cd-btn-apply-primary cd-btn-applied" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Applied
+        </button>
+      ) : (
+        <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+          {applying ? "Applying..." : "Apply Now"}
+        </button>
+      )}
+      {applySuccess && (
+        <div className="cd-apply-feedback">
+          ✓ Application submitted successfully!
+        </div>
+      )}
+      <a href={compWebsite} target="_blank" rel="noopener noreferrer" className="cd-btn-view-website">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+        View Company Website ↗
+      </a>
+    </div>
+  );
 
   return (
     <div className="cd-page animate-fade-in">
@@ -581,7 +605,7 @@ export default function CompanyDetail() {
             className={`cd-tab-item ${activeTab === "jobs" ? "cd-tab-item--active" : ""}`}
             onClick={() => scrollToSection("sec-jobs", "jobs")}
           >
-            <span className="cd-tab-icon">💼</span> Jobs
+            <span className="cd-tab-icon">💼</span> Jobs ({attachments.length})
           </button>
           <button
             className={`cd-tab-item ${activeTab === "about" ? "cd-tab-item--active" : ""}`}
@@ -607,6 +631,9 @@ export default function CompanyDetail() {
         </div>
       </div>
 
+      {/* ── MOBILE ACTION BUTTONS (DIRECTLY BELOW TABS ON MOBILE) ── */}
+      {renderActionButtons(true)}
+
       {/* ── 4 QUICK METRIC INFO CARDS ── */}
       <div className="cd-metric-cards-grid">
         <div className="cd-metric-card">
@@ -616,7 +643,7 @@ export default function CompanyDetail() {
             </svg>
           </div>
           <div className="cd-metric-content">
-            <span className="cd-metric-label">Organisation Size</span>
+            <span className="cd-metric-label">Opportunity Size</span>
             <span className="cd-metric-value">{compOrgSize}</span>
           </div>
         </div>
@@ -681,39 +708,7 @@ export default function CompanyDetail() {
             <p className="cd-about-text">{compDescription}</p>
           </div>
 
-          {/* 2. Company Stats */}
-          <div className="cd-card cd-stats-card">
-            <div className="cd-card-header">
-              <div className="cd-header-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10" />
-                  <line x1="12" y1="20" x2="12" y2="4" />
-                  <line x1="6" y1="20" x2="6" y2="14" />
-                </svg>
-              </div>
-              <h2 className="cd-card-title">Company Stats</h2>
-            </div>
-            <div className="cd-stats-row">
-              <div className="cd-stat-box">
-                <span className="cd-stat-number">{attachments.length}</span>
-                <span className="cd-stat-label">Job Descriptions</span>
-              </div>
-              <div className="cd-stat-box">
-                <span className="cd-stat-number">{stats.applications}</span>
-                <span className="cd-stat-label">Applications</span>
-              </div>
-              <div className="cd-stat-box">
-                <span className="cd-stat-number">{stats.interviews}</span>
-                <span className="cd-stat-label">Interviews</span>
-              </div>
-              <div className="cd-stat-box">
-                <span className="cd-stat-number">{stats.offers}</span>
-                <span className="cd-stat-label">Offers</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Job Descriptions */}
+          {/* 2. Job Descriptions */}
           <div id="sec-jobs" className="cd-card cd-jobs-card">
             <div className="cd-card-header cd-header-with-action">
               <div className="cd-header-left">
@@ -878,38 +873,8 @@ export default function CompanyDetail() {
 
         {/* RIGHT COLUMN / SIDEBAR (~32%) */}
         <div className="cd-side-column">
-          {/* Apply & Website Action Buttons */}
-          <div className="cd-action-buttons-card">
-            {hasAppliedToDrive ? (
-              <button className="cd-btn-apply-primary cd-btn-applied" disabled>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Applied
-              </button>
-            ) : (
-              <button className="cd-btn-apply-primary" onClick={handleApply} disabled={applying}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-                {applying ? "Applying..." : "Apply Now"}
-              </button>
-            )}
-            {applySuccess && (
-              <div className="cd-apply-feedback">
-                ✓ Application submitted successfully!
-              </div>
-            )}
-            <a href={compWebsite} target="_blank" rel="noopener noreferrer" className="cd-btn-view-website">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              View Company Website ↗
-            </a>
-          </div>
+          {/* Apply & Website Action Buttons (DESKTOP) */}
+          {renderActionButtons(false)}
 
           {/* Registration Schedule — PRD §9: from drive data only */}
           <div className="cd-card cd-side-card">

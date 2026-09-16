@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { doc, getDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, updateDoc, writeBatch, collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "./AuthContext";
 import {
@@ -15,6 +15,8 @@ import {
   subscribeToAdminConversations,
   subscribeToAdminMessages,
   markAdminConversationRead,
+  clearAllConversationMessages,
+  deleteExpiredMessages,
 } from "../services/social";
 
 const ChatContext = createContext(null);
@@ -197,6 +199,40 @@ export function ChatProvider({ children }) {
     return () => { unsubMsgRef.current?.(); };
   }, [activeConversation?.id, activeConversation?.isAdmin, uid]);
 
+  // ─── BACKGROUND DISAPPEARING MESSAGES EXPIRY ─────────────────
+  // Periodically checks all conversations for expired messages and deletes them
+  // from Firebase so both participants see them disappear in realtime.
+  useEffect(() => {
+    if (!uid) return;
+
+    let disposed = false;
+    const intervalId = setInterval(async () => {
+      if (disposed) return;
+      try {
+        const convQ = query(
+          collection(db, "conversations"),
+          where("participants", "array-contains", uid)
+        );
+        const convSnap = await getDocs(convQ);
+        for (const convDoc of convSnap.docs) {
+          if (disposed) return;
+          const convData = convDoc.data();
+          const dm = convData.disappearingMessages;
+          if (dm?.enabled && dm.duration) {
+            await deleteExpiredMessages(convDoc.id, dm.duration);
+          }
+        }
+      } catch (err) {
+        console.warn("Background disappearing messages check failed:", err);
+      }
+    }, 60 * 1000); // Every 60 seconds
+
+    return () => {
+      disposed = true;
+      clearInterval(intervalId);
+    };
+  }, [uid]);
+
   const startConversation = useCallback(async (otherUserId, isAdminTarget = false) => {
     if (!uid) return null;
 
@@ -301,22 +337,26 @@ export function ChatProvider({ children }) {
   }, [uid, activeConversation?.isAdmin, activeConversation?.participants]);
 
   /**
-   * Clear Chat — sets a per-user clearedAt timestamp in Firestore so that
-   * messages before this point are hidden for THIS user only.
-   * The conversation relationship and messages remain intact for the other user.
-   * Messages are NOT deleted from Firestore.
+   * Clear Chat — permanently deletes ALL message documents belonging to the
+   * conversation from Firebase. The conversation itself is preserved.
+   * Both sender and recipient see the cleared state via realtime listener.
    */
   const clearChat = useCallback(async (conversationId) => {
     if (!uid || !conversationId) return;
     const now = Date.now();
     try {
+      // 1. Permanently delete all messages from Firebase
+      const result = await clearAllConversationMessages(conversationId);
+      if (result.error) throw new Error(result.error);
+
+      // 2. Set clearedAt timestamp so recipient's view also clears immediately
+      //    (in case they have messages older than what we just deleted)
       await updateDoc(doc(db, "conversations", conversationId), {
         [`clearedAt.${uid}`]: now,
       });
-      // Update the global ref so the current message subscription immediately
-      // applies the filter without waiting for Firestore round-trip
+
+      // 3. Update local state
       clearedAtRefGlobal.current = now;
-      // Immediately clear messages in React state for this user
       setMessages([]);
     } catch (err) {
       console.error("clearChat error:", err);

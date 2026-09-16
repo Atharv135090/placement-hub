@@ -63,6 +63,8 @@ export {
   subscribeToConversations,
   markConversationRead,
   readMessageText,
+  clearAllConversationMessages,
+  deleteExpiredMessages,
 } from "./messaging";
 
 // Admin Messaging

@@ -342,40 +342,7 @@
   margin: 0;
 }
 
-/* ─── 2. COMPANY STATS CARD ──────────────────────────── */
-.cd-stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-}
-
-.cd-stat-box {
-  background: #f8fafc;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  border-radius: 12px;
-  padding: 18px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  text-align: center;
-}
-
-.cd-stat-number {
-  font-size: 1.7rem;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1;
-}
-
-.cd-stat-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-/* ─── 3. JOB DESCRIPTIONS CARD ───────────────────────── */
+/* ─── 2. JOB DESCRIPTIONS CARD ───────────────────────── */
 .cd-btn-add-jd {
   background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
   color: #ffffff;
@@ -606,6 +573,11 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+}
+
+/* ─── MOBILE ACTIONS ROW (HIDDEN ON DESKTOP) ────────── */
+.cd-mobile-actions-row {
+  display: none !important;
 }
 
 /* ─── SIDEBAR: ACTION BUTTONS ────────────────────────── */
@@ -1103,73 +1075,108 @@
 }
 
 /* ─── RESPONSIVE BREAKPOINTS ─────────────────────────── */
-@media (max-width: 1100px) {
-  .cd-metric-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (max-width: 1023px) {
+  .cd-page {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   .cd-content-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cd-main-column,
+  .cd-side-column {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Show mobile action buttons directly below tabs */
+  .cd-mobile-actions-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: -2px;
+    margin-bottom: 2px;
+  }
+
+  .cd-mobile-actions-row .cd-btn-apply-primary,
+  .cd-mobile-actions-row .cd-btn-view-website {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: clamp(0.76rem, 2.5vw, 0.9rem);
+    padding: 12px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cd-mobile-actions-row .cd-apply-feedback {
+    grid-column: 1 / -1;
+  }
+
+  /* Hide duplicate action buttons card from sidebar on mobile */
+  .cd-side-column .cd-action-buttons-card {
+    display: none !important;
   }
 }
 
 @media (max-width: 768px) {
   .cd-hero-banner {
     height: auto;
-    min-height: 180px;
+    min-height: 130px;
     border-radius: 14px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .cd-hero-overlay {
     flex-direction: column;
     align-items: flex-start;
-    padding: 20px;
-    gap: 16px;
+    padding: 16px 18px;
+    gap: 10px;
   }
 
   .cd-hero-right {
     display: none;
   }
 
+  .cd-hero-left {
+    gap: 14px;
+    width: 100%;
+  }
+
   .cd-banner-logo-box {
-    width: 56px;
-    height: 56px;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
   }
 
   .cd-banner-title {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
+    line-height: 1.2;
   }
 
   .cd-banner-subtitle {
-    font-size: 0.84rem;
-  }
-
-  .cd-metric-cards-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .cd-metric-card {
-    padding: 14px 16px;
-  }
-
-  .cd-stats-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .cd-content-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .cd-card {
-    padding: 18px 20px;
+    font-size: 0.82rem;
   }
 
   .cd-nav-tabs-bar {
-    padding: 8px 12px;
+    padding: 8px 10px;
+    border-radius: 12px;
     overflow-x: auto;
     scrollbar-width: none;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .cd-nav-tabs-bar::-webkit-scrollbar {
@@ -1179,14 +1186,131 @@
   .cd-tabs-list {
     flex-wrap: nowrap;
     min-width: max-content;
+    gap: 6px;
+  }
+
+  .cd-tab-item {
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    border-radius: 10px;
+  }
+
+  .cd-metric-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cd-metric-card {
+    padding: 14px 16px;
+    border-radius: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cd-card {
+    padding: 16px 18px;
+    border-radius: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cd-attachment-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cd-doc-preview-card {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .cd-modal {
     margin: 12px;
     padding: 20px;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
   }
 
   .cd-form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .cd-page {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+  }
+
+  .cd-mobile-actions-row {
+    gap: 8px;
+  }
+
+  .cd-mobile-actions-row .cd-btn-apply-primary,
+  .cd-mobile-actions-row .cd-btn-view-website {
+    padding: 11px 8px;
+    font-size: 0.8rem;
+    border-radius: 10px;
+    gap: 6px;
+  }
+
+  .cd-mobile-actions-row svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .cd-banner-title {
+    font-size: 1.22rem;
+  }
+
+  .cd-banner-logo-box {
+    width: 48px;
+    height: 48px;
+  }
+
+  .cd-tab-item {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+  }
+
+  .cd-card {
+    padding: 14px 16px;
+  }
+
+  .cd-card-title {
+    font-size: 0.95rem;
+  }
+
+  .cd-detail-row {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .cd-mobile-actions-row .cd-btn-apply-primary,
+  .cd-mobile-actions-row .cd-btn-view-website {
+    font-size: 0.72rem;
+    padding: 10px 4px;
+    gap: 4px;
+  }
+
+  .cd-tab-item {
+    padding: 5px 10px;
+    font-size: 0.74rem;
+  }
+
+  .cd-metric-card {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .cd-metric-value {
+    font-size: 0.88rem;
   }
 }

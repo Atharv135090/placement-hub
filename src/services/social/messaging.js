@@ -1,4 +1,4 @@
-import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
+import { collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, increment, writeBatch } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
@@ -267,4 +267,91 @@ export async function readMessageText(msg, uid1, uid2) {
   // V2 ECDH messages and V1 fallback failures — cannot decrypt without private keys.
   // Return a friendly fallback, not a technical error.
   return "Legacy message (encrypted with an older version)";
+}
+
+// ─── CLEAR CHAT: PERMANENT MESSAGE DELETION ──────────────────
+
+const BATCH_LIMIT = 450;
+
+export async function clearAllConversationMessages(conversationId) {
+  try {
+    let totalDeleted = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const q = query(
+        collection(db, "messages"),
+        where("conversationId", "==", conversationId),
+        orderBy("createdAt", "asc")
+      );
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs;
+
+      if (docs.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const batch = writeBatch(db);
+      const batchDocs = docs.slice(0, BATCH_LIMIT);
+      batchDocs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+
+      totalDeleted += batchDocs.length;
+      hasMore = docs.length > BATCH_LIMIT;
+    }
+
+    return { error: null, deletedCount: totalDeleted };
+  } catch (error) {
+    return handleSocialError(error);
+  }
+}
+
+// ─── DISAPPEARING MESSAGES: DELETE EXPIRED ───────────────────
+
+const DISAPPEARING_DURATIONS_MS = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+};
+
+export async function deleteExpiredMessages(conversationId, disappearingDuration) {
+  if (!disappearingDuration || !DISAPPEARING_DURATIONS_MS[disappearingDuration]) {
+    return { error: null, deletedCount: 0 };
+  }
+
+  try {
+    const durationMs = DISAPPEARING_DURATIONS_MS[disappearingDuration];
+    const cutoffTime = Date.now() - durationMs;
+
+    const q = query(
+      collection(db, "messages"),
+      where("conversationId", "==", conversationId),
+      orderBy("createdAt", "asc")
+    );
+    const snapshot = await getDocs(q);
+
+    const expiredDocs = snapshot.docs.filter((d) => {
+      const data = d.data();
+      const created = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : new Date(data.createdAt).getTime();
+      return created < cutoffTime;
+    });
+
+    if (expiredDocs.length === 0) {
+      return { error: null, deletedCount: 0 };
+    }
+
+    let totalDeleted = 0;
+    for (let i = 0; i < expiredDocs.length; i += BATCH_LIMIT) {
+      const batch = writeBatch(db);
+      const chunk = expiredDocs.slice(i, i + BATCH_LIMIT);
+      chunk.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      totalDeleted += chunk.length;
+    }
+
+    return { error: null, deletedCount: totalDeleted };
+  } catch (error) {
+    return handleSocialError(error);
+  }
 }

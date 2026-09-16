@@ -379,33 +379,50 @@ export default function AtsChecker() {
                 </div>
               ))}
             </div>
+
+            {/* Bottom-Left Cursive Quote */}
+            <div className="ats-quote-script">
+              "Same Resume, More Opportunities."
+            </div>
           </div>
 
-          {/* ── RIGHT COLUMN: SHOWCASE WITH GLOWING BORDER ── */}
+          {/* ── RIGHT COLUMN: CINEMATIC AUTOMOTIVE SHOWCASE ── */}
           <div className="ats-right-col">
             <div
-              className="ats-showcase-frame"
+              className="ats-showroom-stage"
               style={{ transform: `translate3d(${parallax.x * 6}px, ${parallax.y * 4}px, 0)` }}
             >
-              {/* Handwritten Script Title Overlay */}
-              <div className="ats-handwritten-title">
-                Drive Your Career Forward
+              {/* Architectural Studio Pillar with Illuminated Halo & Crest */}
+              <div className="ats-studio-backdrop">
+                <div className="ats-backdrop-halo" />
+                <div className="ats-backdrop-cylinder">
+                  <div className="ats-pillar-crest">
+                    <LamborghiniShield />
+                  </div>
+                  <div className="ats-pillar-brand">LAMBORGHINI</div>
+                  <div className="ats-pillar-sub">DRIVEN BY A BETTER YOU.</div>
+                </div>
               </div>
 
-              {/* SVJ Badge */}
-              <div className="ats-svj-badge">SVJ</div>
-
-              {/* Left HUD Resume Card */}
+              {/* Left Floating HUD: YOUR RESUME / PDF • ATS READY */}
               <div
                 className="ats-hud-card ats-hud-card--resume"
-                style={{ transform: `translate3d(${parallax.x * -14}px, ${parallax.y * -10}px, 0)` }}
+                style={{ transform: `translate3d(${parallax.x * -12}px, ${parallax.y * -8}px, 0)` }}
               >
                 <div className="ats-hud-card-header">
                   <span className="ats-hud-card-title">YOUR RESUME</span>
                   <span className="ats-hud-card-sub">PDF • ATS READY</span>
                 </div>
                 <div className="ats-hud-card-body">
-                  <div className="ats-hud-doc-icon">📄</div>
+                  <div className="ats-hud-doc-icon">
+                    <svg width="22" height="26" viewBox="0 0 24 28" fill="none" stroke="#38bdf8" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="8" y1="13" x2="16" y2="13" />
+                      <line x1="8" y1="17" x2="16" y2="17" />
+                      <line x1="8" y1="21" x2="12" y2="21" />
+                    </svg>
+                  </div>
                   <div className="ats-hud-lines">
                     <div className="ats-hud-line ats-hud-line--w80" />
                     <div className="ats-hud-line ats-hud-line--w50" />
@@ -416,78 +433,109 @@ export default function AtsChecker() {
                 <div className="ats-scan-laser" />
               </div>
 
-              {/* Central AI Analyzing Cube Node */}
+              {/* Center Supercar on Illuminated Turntable Stage */}
               <div
-                className="ats-ai-node"
-                style={{ transform: `translate3d(${parallax.x * 8}px, ${parallax.y * 6}px, 0)` }}
+                className="ats-car-platform-wrap"
+                style={{ transform: `translate3d(${parallax.x * 8}px, ${parallax.y * 5}px, 0)` }}
               >
-                <div className="ats-ai-cube">
-                  <span className="ats-ai-cube-text">AI</span>
+                {/* Rotating Illuminated Concentric Rings */}
+                <div className="ats-stage-platform">
+                  <div className="ats-stage-ring-outer" />
+                  <div className="ats-stage-ring-mid" />
+                  <div className="ats-stage-ring-glow" />
+                  <div className="ats-stage-sweep-beam" />
                 </div>
-                <span className="ats-ai-label">Analyzing...</span>
-                <div className="ats-laser-line-left" />
-                <div className="ats-laser-line-right" />
+
+                {/* Car Showcase with Ambient Studio Lighting */}
+                <div className="ats-car-display">
+                  <img
+                    src="/assets/ats/ats_svj_dark.jpg"
+                    alt="Aventador SVJ Showcase"
+                    className="ats-car-img"
+                  />
+                  <div className="ats-car-floor-reflection" />
+                  <div className="ats-car-underglow" />
+                </div>
+
+                {/* 3D Glowing Red "COMING SOON" Neon Plinth Sign */}
+                <div className="ats-neon-plinth">
+                  <div className="ats-neon-plinth-inner">
+                    <div className="ats-neon-plinth-title">
+                      <span>COMING SOON</span>
+                      <span className="ats-neon-plinth-arrow">&gt;&gt;</span>
+                    </div>
+                    <div className="ats-neon-plinth-sub">
+                      SMART TOOLS. BRIGHTER FUTURES.
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Right HUD Score Card */}
+              {/* Right Floating HUD: 98 ATS SCORE */}
               <div
                 className="ats-hud-card ats-hud-card--score"
-                style={{ transform: `translate3d(${parallax.x * 16}px, ${parallax.y * 12}px, 0)` }}
+                style={{ transform: `translate3d(${parallax.x * 14}px, ${parallax.y * 10}px, 0)` }}
               >
                 <div className="ats-score-radial">
-                  <svg viewBox="0 0 80 80" className="ats-score-svg">
-                    <circle cx="40" cy="40" r="34" className="ats-radial-bg" />
-                    <circle cx="40" cy="40" r="34" className="ats-radial-fill" />
+                  <svg viewBox="0 0 84 84" className="ats-score-svg">
+                    <circle cx="42" cy="42" r="36" className="ats-radial-bg" />
+                    <circle cx="42" cy="42" r="36" className="ats-radial-fill" />
                   </svg>
                   <span className="ats-score-val">98</span>
                 </div>
                 <span className="ats-score-title">ATS SCORE</span>
-                <div className="ats-score-checks">
-                  <div className="ats-check-row"><CheckIcon /> <span>ATS Friendly</span></div>
-                  <div className="ats-check-row"><CheckIcon /> <span>Keyword Match</span></div>
-                  <div className="ats-check-row"><CheckIcon /> <span>Actionable Insights</span></div>
-                </div>
               </div>
 
-              {/* Center Car Stage & Pedestal */}
+              {/* Far Right HUD Panel: Turn Your Skills into Opportunities */}
               <div
-                className="ats-car-stage"
-                style={{ transform: `translate3d(${parallax.x * 10}px, ${parallax.y * 6}px, 0)` }}
+                className="ats-hud-panel--skills"
+                style={{ transform: `translate3d(${parallax.x * 16}px, ${parallax.y * 12}px, 0)` }}
               >
-                <div className="ats-pedestal-ring" />
-                <img
-                  src="/assets/ats/ats_svj_dark.jpg"
-                  alt="Aventador SVJ"
-                  className="ats-car-img ats-car-img--dark"
-                />
-                <img
-                  src="/assets/ats/ats_svj_light.jpg"
-                  alt="Aventador SVJ"
-                  className="ats-car-img ats-car-img--light"
-                />
+                <div className="ats-skills-panel-head">
+                  <span>TURN</span>
+                  <span>YOUR SKILLS</span>
+                  <span>INTO</span>
+                  <span className="ats-skills-panel-accent">OPPORTUNITIES</span>
+                </div>
+                <div className="ats-skills-panel-list">
+                  <div className="ats-skills-panel-item">
+                    <span className="ats-skill-dot-icon"><BrainIcon /></span>
+                    <span>AI Analysis</span>
+                  </div>
+                  <div className="ats-skills-panel-item">
+                    <span className="ats-skill-dot-icon"><TargetIcon /></span>
+                    <span>Keyword Match</span>
+                  </div>
+                  <div className="ats-skills-panel-item">
+                    <span className="ats-skill-dot-icon"><TrendChartIcon /></span>
+                    <span>Better Suggestions</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Showcase Integrated Footer Bar */}
-              <div className="ats-showcase-footer-bar">
-                <div className="ats-showcase-footer-item">
-                  <ShieldIcon /> <span>PREMIUM TECHNOLOGY</span>
-                </div>
-                <div className="ats-showcase-footer-item">
-                  <ZapIcon /> <span>FASTER OPPORTUNITIES</span>
-                </div>
-                <div className="ats-showcase-footer-item">
-                  <StarIcon /> <span>BRIGHTER TOMORROW</span>
-                </div>
+              {/* Bottom-Right Cursive Script: Accelerate Your Career */}
+              <div className="ats-accelerate-script">
+                Accelerate Your Career
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer Slogan */}
-        <div className="ats-footer-slogan">
-          <span>PLACEMENT HUB</span>
-          <span className="ats-slogan-dot">•</span>
-          <span>SMART TOOLS. BRIGHTER OPPORTUNITIES.</span>
+        {/* Floating Bottom Pill Bar */}
+        <div className="ats-bottom-bar">
+          <div className="ats-footer-pill">
+            <div className="ats-footer-pill-item">
+              <ShieldIcon /> <span>PREMIUM TECHNOLOGY</span>
+            </div>
+            <span className="ats-footer-pill-divider">|</span>
+            <div className="ats-footer-pill-item">
+              <ZapIcon /> <span>FASTER OPPORTUNITIES</span>
+            </div>
+            <span className="ats-footer-pill-divider">|</span>
+            <div className="ats-footer-pill-item">
+              <StarIcon /> <span>BRIGHTER TOMORROW</span>
+            </div>
+          </div>
         </div>
       </div>
 

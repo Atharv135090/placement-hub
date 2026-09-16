@@ -168,8 +168,16 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
         && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants;
 
-      // Admin/owner can delete messages during user account cleanup
-      allow delete: if isAuth() && (isOwnerOrAdmin() || hasAdminRole());
+      // Participants can delete their own messages (Clear Chat / Disappearing Messages)
+      allow delete: if isAuth() && (
+        isOwnerOrAdmin()
+        || hasAdminRole()
+        || (
+          resource.data.conversationId != null
+          && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId))
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.participants
+        )
+      );
     }
 
     // ─── USER KEYS (E2EE PUBLIC KEY DIRECTORY) ─────────────────
