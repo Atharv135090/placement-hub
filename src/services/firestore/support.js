@@ -35,7 +35,7 @@ export function generateTicketId() {
 /**
  * Create a new support ticket with initial message
  */
-export async function createSupportTicket({ userId, userName, userEmail, subject, message, attachment = null }) {
+export async function createSupportTicket({ userId, userName, userEmail, subject, message, category, priority, attachment = null }) {
   try {
     if (!subject || !subject.trim()) {
       return { data: null, error: "Subject is required" };
@@ -51,9 +51,9 @@ export async function createSupportTicket({ userId, userName, userEmail, subject
       userName: userName || "Student",
       userEmail: userEmail || "",
       subject: subject.trim(),
-      category: "Account / Login",
-      priority: "Medium",
-      status: "submitted", // submitted | under_review | in_progress | resolved
+      category: category || "Account / Login",
+      priority: priority || "Medium",
+      status: "submitted",
       statusHistory: {
         submitted: serverTimestamp(),
       },
@@ -81,28 +81,42 @@ export async function createSupportTicket({ userId, userName, userEmail, subject
       createdAt: serverTimestamp(),
     });
 
-    // 3. Notify all admin/owner users
-    try {
-      const adminIds = await getAdminUserIds();
-      await Promise.all(
-        adminIds.map((adminId) =>
-          createNotification({
-            title: "New Support Request",
-            message: `${userName || "A user"} sent a Support Request: "${subject.trim()}"`,
-            type: "support_request",
-            link: `/admin/support?ticket=${docId}`,
-            targetUserId: adminId,
-            senderId: userId,
-          })
-        )
-      );
-    } catch (e) {
-      console.warn("Failed to notify admins of new support request:", e);
-    }
+    // 3. Notify admins — fire-and-forget so notification failures never block the request
+    notifyAdminsOfNewTicket(docId, userId, userName, subject.trim()).catch(() => {});
 
     return { data: { id: docId, ticketId: ticketIdCode }, error: null };
   } catch (error) {
     return handleFirestoreError(error);
+  }
+}
+
+/**
+ * Notify admin/owner users of a new support ticket (fire-and-forget).
+ * Student users cannot read the users collection, so we query via admin token
+ * and silently skip if the query fails.
+ */
+async function notifyAdminsOfNewTicket(ticketDocId, senderUserId, senderUserName, subject) {
+  try {
+    const snap = await getDocs(
+      query(collection(db, "users"), where("role", "in", ["admin", "owner"]))
+    );
+    const adminIds = snap.docs.map((d) => d.id);
+    if (adminIds.length === 0) return;
+
+    await Promise.all(
+      adminIds.map((adminId) =>
+        createNotification({
+          title: "New Support Request",
+          message: `${senderUserName || "A user"} sent a Support Request: "${subject}"`,
+          type: "support_request",
+          link: `/admin/support?ticket=${ticketDocId}`,
+          targetUserId: adminId,
+          senderId: senderUserId,
+        })
+      )
+    );
+  } catch (e) {
+    console.warn("Failed to notify admins of new support request:", e);
   }
 }
 
@@ -484,22 +498,29 @@ export async function deleteSupportTicket(ticketDocId) {
 }
 
 /**
- * Upload support ticket attachment
+ * Upload support ticket attachment.
+ * Returns metadata with a Storage URL or a data-URL fallback.
+ * Never throws — always returns { data, error }.
  */
 export async function uploadSupportAttachment(file) {
   try {
     if (!file) return { data: null, error: "No file provided" };
-    
-    // Check file size (max 5MB)
+
     if (file.size > 5 * 1024 * 1024) {
       return { data: null, error: "File size must be under 5MB" };
     }
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    
+
+    // Attempt Storage upload with a 15-second timeout so we never hang
     try {
       const storageRef = ref(storage, `support-attachments/${Date.now()}_${safeName}`);
-      await uploadBytes(storageRef, file);
+      const uploadPromise = uploadBytes(storageRef, file);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Storage upload timed out")), 15000)
+      );
+      await Promise.race([uploadPromise, timeoutPromise]);
+
       const url = await getDownloadURL(storageRef);
       return {
         data: {
@@ -512,23 +533,25 @@ export async function uploadSupportAttachment(file) {
       };
     } catch (storageErr) {
       console.warn("Storage upload failed, using Data URL fallback:", storageErr);
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            data: {
-              name: file.name,
-              fileUrl: reader.result,
-              fileType: file.type || "application/octet-stream",
-              fileSize: file.size,
-            },
-            error: null,
-          });
-        };
-        reader.onerror = () => resolve({ data: null, error: "Failed to read file" });
-        reader.readAsDataURL(file);
-      });
     }
+
+    // Fallback: read as data URL so the request is never blocked by Storage
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          data: {
+            name: file.name,
+            fileUrl: reader.result,
+            fileType: file.type || "application/octet-stream",
+            fileSize: file.size,
+          },
+          error: null,
+        });
+      };
+      reader.onerror = () => resolve({ data: null, error: "Failed to read file" });
+      reader.readAsDataURL(file);
+    });
   } catch (error) {
     return handleFirestoreError(error);
   }

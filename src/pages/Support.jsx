@@ -226,6 +226,8 @@ export default function Support() {
         userEmail: profile?.email || user.email || "",
         subject: newSubject.trim(),
         message: newMessage.trim(),
+        category: newCategory,
+        priority: newPriority,
         attachment: attachmentObj,
       });
 
