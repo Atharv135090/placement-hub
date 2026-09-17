@@ -8,6 +8,7 @@ import TopHeader from "./TopHeader";
 import UserAvatar from "./UserAvatar";
 import PlacementLogo from "./PlacementLogo";
 import Modal from "./Modal";
+import ReturnWelcomeJourney from "./ReturnWelcomeJourney";
 import "./AppShell.css";
 
 const NAV_ITEMS = [
@@ -433,6 +434,9 @@ export default function AppShell() {
           )}
         </div>
       </Modal>
+
+      {/* ── RETURN WELCOME JOURNEY POPUP ── */}
+      <ReturnWelcomeJourney />
     </div>
   );
 }

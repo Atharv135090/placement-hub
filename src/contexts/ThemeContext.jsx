@@ -4,11 +4,23 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [themeMode, setThemeModeState] = useState(() => {
-    return localStorage.getItem("placement_hub_theme") || "dark";
+    // Clear stale localStorage theme so fresh documents always initialize to Light Mode
+    try {
+      localStorage.removeItem("placement_hub_theme");
+    } catch {
+      // ignore storage errors
+    }
+    // Per PRD §7, §9, §37: A fresh website document/tab always opens in Light Mode by default.
+    // Within an active tab, user manual choice is preserved in sessionStorage.
+    return sessionStorage.getItem("placement_hub_theme") || "light";
   });
 
   useEffect(() => {
-    localStorage.setItem("placement_hub_theme", themeMode);
+    try {
+      sessionStorage.setItem("placement_hub_theme", themeMode);
+    } catch {
+      // ignore
+    }
 
     function applyTheme() {
       let resolvedTheme = themeMode;

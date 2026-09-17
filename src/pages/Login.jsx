@@ -25,6 +25,7 @@ export default function Login() {
     if (err) {
       setError(err);
     } else if (googleUser) {
+      sessionStorage.setItem("ph_just_logged_in", "true");
       navigate("/", { replace: true });
     }
   }
@@ -36,8 +37,12 @@ export default function Login() {
     const fn = mode === "signin" ? signInWithEmail : signUpWithEmail;
     const { error: err } = await fn(email, password);
     setBusy(false);
-    if (err) setError(err);
-    else navigate("/", { replace: true });
+    if (err) {
+      setError(err);
+    } else {
+      sessionStorage.setItem("ph_just_logged_in", "true");
+      navigate("/", { replace: true });
+    }
   }
 
   return (
