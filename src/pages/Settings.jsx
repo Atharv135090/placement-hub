@@ -269,12 +269,14 @@ export default function Settings() {
       const previousName = (profile?.displayName || user?.displayName || "").trim();
       if (trimmedName !== previousName && previousName) {
         // Record username history entry
+        // NOTE: Use a plain Date for changedAt inside arrayUnion — serverTimestamp()
+        // inside arrayUnion can fail on some SDK versions / plan tiers.
         const historyUpdate = {
           ...updates,
           usernameHistory: arrayUnion({
             previousName,
             newName: trimmedName,
-            changedAt: serverTimestamp(),
+            changedAt: new Date().toISOString(),
             actor: user.uid,
             userId: user.uid,
           }),
@@ -319,7 +321,7 @@ export default function Settings() {
       setSavedToast("Profile updated successfully");
       setTimeout(() => setSavedToast(""), 3000);
     } catch (err) {
-      console.error("Save profile error:", err);
+      console.error("Save profile error:", err?.code || err?.message || err);
       setSavedToast("Unable to save profile changes. Please try again.");
       setTimeout(() => setSavedToast(""), 4000);
       // Stay in edit mode on failure — do NOT set setIsEditing(false)
