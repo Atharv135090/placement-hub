@@ -133,7 +133,10 @@ export default function ReturnWelcomeJourney() {
     if (!open) {
       setActiveStep(0);
       setIsLooping(false);
-      clearAllTimers();
+      // Do NOT call clearAllTimers() here — on mount, open is false and
+      // the trigger effect's pending open timer lives in the same timeoutsRef.
+      // Clearing here kills the popup before it can open.
+      // handleClose() already clears all timers when the user dismisses.
       return;
     }
 

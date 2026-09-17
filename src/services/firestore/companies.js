@@ -8,6 +8,7 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
   limit,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
@@ -33,10 +34,12 @@ export async function addCompany(companyData) {
 
 export async function getCompanies() {
   try {
-    const snapshot = await getDocs(collection(db, COMPANIES));
+    const snapshot = await getDocs(
+      query(collection(db, COMPANIES), orderBy("createdAt", "desc"))
+    );
     return { data: mapDocs(snapshot), error: null };
   } catch (error) {
-    return handleFirestoreError(error);
+    return { data: mapDocs(await getDocs(collection(db, COMPANIES))), error: null };
   }
 }
 

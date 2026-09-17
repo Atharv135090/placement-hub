@@ -413,90 +413,94 @@ export default function AdminCompanies() {
   async function handleSave(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
-    if (!driveForm.title.trim()) return;
     setSaving(true);
     setFeedback("");
 
     try {
+      let companyId;
+      let existingCompany = null;
+
       if (editing) {
         const { error: err } = await updateCompany(editing.id, form);
         if (err) {
           setFeedback("Failed to update company.");
           return;
         }
-        setFeedback("Company updated successfully!");
+        companyId = editing.id;
         setCompanies((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...form } : c)));
-        setTimeout(() => {
-          setModalOpen(false);
-          setFeedback("");
-        }, 800);
-        return;
-      }
-
-      // Check for duplicate company
-      const { data: existing } = await findCompanyByName(form.name.trim());
-      let companyId;
-      if (existing) {
-        companyId = existing.id;
       } else {
-        const { data: compData, error: compErr } = await addCompany(form);
-        if (compErr) {
-          setFeedback("Failed to add company.");
-          return;
+        const { data: existing } = await findCompanyByName(form.name.trim());
+        if (existing) {
+          companyId = existing.id;
+          existingCompany = existing;
+        } else {
+          const { data: compData, error: compErr } = await addCompany(form);
+          if (compErr) {
+            setFeedback("Failed to add company.");
+            return;
+          }
+          companyId = compData.id;
+          setCompanies((prev) => [{ id: companyId, ...form, createdAt: new Date() }, ...prev]);
         }
-        companyId = compData.id;
-        setCompanies((prev) => [{ id: companyId, ...form, createdAt: new Date() }, ...prev]);
       }
 
-      // Helper: return value or "NA" for empty optional fields; normalize "NA" variations
       const val = (v) => {
         const trimmed = (v && String(v).trim()) || "";
         if (trimmed.toLowerCase() === "na") return "NA";
         return trimmed || "NA";
       };
 
-      // Always create drive
-      const { data: jobData, error: driveErr } = await addJob({
-        companyId,
-        companyName: form.name.trim(),
-        title: driveForm.title.trim(),
-        jobTitle: driveForm.title.trim(),
-        type: driveForm.employmentType || "Full-time",
-        employmentType: driveForm.employmentType || "Full-time",
-        location: val(driveForm.location),
-        workMode: val(driveForm.workMode),
-        package: driveForm.package || "",
-        ctc: val(driveForm.ctc),
-        stipend: val(driveForm.stipend),
-        description: val(driveForm.description),
-        otherBenefits: val(driveForm.otherBenefits),
-        registrationOpensAt: driveForm.registrationOpensAt || null,
-        registrationClosesAt: driveForm.registrationClosesAt || null,
-        deadline: driveForm.deadline || "",
-        eligibleCourses: driveForm.eligibleCourses
-          ? driveForm.eligibleCourses.split(",").map((s) => s.trim()).filter(Boolean)
-          : [],
-        eligibility: val(driveForm.eligibility),
-        eligibilityCriteria: val(driveForm.eligibilityCriteria),
-        applicationLink: val(driveForm.applicationLink),
-        source: "manual",
-        isActive: true,
-      });
+      const hasDrive = driveForm.title.trim();
+      let jobData = null;
 
-      if (driveErr) {
-        setFeedback(existing ? "Company exists, but drive creation failed." : "Company added, but drive creation failed.");
-        setTimeout(() => { setModalOpen(false); setFeedback(""); }, 1200);
-        return;
+      if (hasDrive) {
+        const { data: createdJob, error: driveErr } = await addJob({
+          companyId,
+          companyName: form.name.trim(),
+          title: driveForm.title.trim(),
+          jobTitle: driveForm.title.trim(),
+          type: driveForm.employmentType || "Full-time",
+          employmentType: driveForm.employmentType || "Full-time",
+          location: val(driveForm.location),
+          workMode: val(driveForm.workMode),
+          package: driveForm.package || "",
+          ctc: val(driveForm.ctc),
+          stipend: val(driveForm.stipend),
+          description: val(driveForm.description),
+          otherBenefits: val(driveForm.otherBenefits),
+          registrationOpensAt: driveForm.registrationOpensAt || null,
+          registrationClosesAt: driveForm.registrationClosesAt || null,
+          deadline: driveForm.deadline || "",
+          eligibleCourses: driveForm.eligibleCourses
+            ? driveForm.eligibleCourses.split(",").map((s) => s.trim()).filter(Boolean)
+            : [],
+          eligibility: val(driveForm.eligibility),
+          eligibilityCriteria: val(driveForm.eligibilityCriteria),
+          applicationLink: val(driveForm.applicationLink),
+          source: "manual",
+          isActive: true,
+        });
+
+        if (driveErr) {
+          setFeedback(editing ? "Company updated, but drive creation failed." : "Company added, but drive creation failed.");
+          setTimeout(() => { setModalOpen(false); setFeedback(""); }, 1200);
+          return;
+        }
+        jobData = createdJob;
       }
 
-      // Upload attachment if provided — non-blocking, must not prevent company/drive save
       if (driveAttachment && jobData?.id) {
         await uploadJobAttachment(jobData.id, companyId, driveAttachment);
       }
 
-      const msg = existing
-        ? `Company already exists. New drive added to ${existing.name}.`
-        : "Company and drive added successfully!";
+      let msg;
+      if (editing) {
+        msg = hasDrive ? "Company updated and drive added!" : "Company updated successfully!";
+      } else if (existingCompany) {
+        msg = hasDrive ? `Company already exists. New drive added to ${existingCompany.name}.` : `Company already exists: ${existingCompany.name}.`;
+      } else {
+        msg = hasDrive ? "Company and drive added successfully!" : "Company added successfully!";
+      }
       setFeedback(msg);
       setTimeout(() => { setModalOpen(false); setFeedback(""); }, 1200);
     } catch (error) {
@@ -1013,13 +1017,12 @@ export default function AdminCompanies() {
 
           <div className="ac-modal-grid">
             <div className="modal-field">
-              <label>Drive Title *</label>
+              <label>Drive Title</label>
               <input
                 type="text"
                 value={driveForm.title}
                 onChange={(e) => setDriveForm({ ...driveForm, title: e.target.value })}
-                placeholder="e.g. Software Engineer Fresher"
-                required
+                placeholder="e.g. Software Engineer Fresher (optional)"
               />
             </div>
 
@@ -1176,7 +1179,7 @@ export default function AdminCompanies() {
             <button type="button" className="modal-btn modal-btn--secondary" onClick={() => setModalOpen(false)}>
               Cancel
             </button>
-            <button type="submit" className="modal-btn modal-btn--primary" disabled={saving || !form.name.trim() || !driveForm.title.trim()}>
+            <button type="submit" className="modal-btn modal-btn--primary" disabled={saving || !form.name.trim()}>
               {saving ? "Saving..." : editing ? "Save Changes" : "Add Company"}
             </button>
           </div>

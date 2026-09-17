@@ -228,7 +228,7 @@
 .comps-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 16px;
   width: 100%;
 }
 
@@ -241,6 +241,41 @@
 @media (max-width: 680px) {
   .comps-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .comp-ref-card {
+    padding: 14px;
+    gap: 8px;
+    border-radius: 14px;
+  }
+  .crc-logo-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+  }
+  .crc-brand-col {
+    gap: 10px;
+  }
+  .crc-comp-name {
+    font-size: 0.95rem;
+  }
+  .crc-details-list {
+    gap: 3px;
+    font-size: 0.78rem;
+  }
+  .crc-snippet {
+    font-size: 0.76rem;
+    -webkit-line-clamp: 2;
+  }
+  .crc-bottom-row {
+    padding-top: 8px;
+  }
+  .crc-status-pill {
+    font-size: 0.72rem;
+    padding: 3px 12px;
+  }
+  .crc-view-btn {
+    font-size: 0.78rem;
   }
   .comps-search-wrap {
     min-width: 0;
@@ -285,11 +320,11 @@
 
 /* Reference Company Card */
 .comp-ref-card {
-  border-radius: 18px;
-  padding: 22px;
+  border-radius: 16px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
   outline: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -326,15 +361,15 @@
 .crc-brand-col {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
 .crc-logo-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   overflow: hidden;
   flex-shrink: 0;
   display: flex;
@@ -471,10 +506,10 @@
 .crc-details-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin: 4px 0 2px 0;
+  margin: 2px 0 0 0;
 }
 
 .crc-detail-row {
@@ -515,15 +550,14 @@
 
 /* Description Snippet */
 .crc-snippet {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  line-height: 1.45;
-  margin: 2px 0 0 0;
+  line-height: 1.4;
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 36px;
 }
 
 /* Card Bottom: Status Pill & View Details */
@@ -532,7 +566,7 @@
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
 }
 
@@ -744,8 +778,8 @@
 }
 
 .comps-card-skeleton {
-  height: 240px;
-  border-radius: 18px;
+  height: 200px;
+  border-radius: 16px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   animation: ccPulse 1.5s ease-in-out infinite;

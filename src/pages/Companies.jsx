@@ -19,7 +19,7 @@ export default function Companies() {
   const [industryFilter, setIndustryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortOption, setSortOption] = useState("name_asc");
+  const [sortOption, setSortOption] = useState("newest_first");
   const [activeMenuCompanyId, setActiveMenuCompanyId] = useState(null);
 
   useEffect(() => {
@@ -68,6 +68,7 @@ export default function Companies() {
         isActive: fc.isActive !== false,
         status: derivedStatus === "active" ? "Not Applied" : derivedStatus,
         organisationSize: fc.organisationSize || "",
+        createdAt: fc.createdAt || null,
       };
     });
   }, [firestoreCompanies, applications]);
@@ -97,6 +98,16 @@ export default function Companies() {
       if (statusFilter !== "all" && c.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
       return true;
     }).sort((a, b) => {
+      if (sortOption === "newest_first") {
+        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return bTime - aTime;
+      }
+      if (sortOption === "oldest_first") {
+        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return aTime - bTime;
+      }
       if (sortOption === "name_asc") return a.name.localeCompare(b.name);
       if (sortOption === "name_desc") return b.name.localeCompare(a.name);
       return 0;
@@ -214,6 +225,8 @@ export default function Companies() {
               onChange={(e) => setSortOption(e.target.value)}
               aria-label="Sort companies"
             >
+              <option value="newest_first">Newest First</option>
+              <option value="oldest_first">Oldest First</option>
               <option value="name_asc">Name (A to Z)</option>
               <option value="name_desc">Name (Z to A)</option>
             </select>
@@ -360,7 +373,7 @@ export default function Companies() {
                   <div className="crc-top-row">
                     <div className="crc-brand-col">
                       <div className="crc-logo-box">
-                        <CompanyLogo name={compName} logoUrl={c.logoUrl} size={44} />
+                        <CompanyLogo name={compName} logoUrl={c.logoUrl} size={40} />
                       </div>
                       <div className="crc-name-meta">
                         <div className="crc-name-badge-line">
@@ -443,23 +456,6 @@ export default function Companies() {
                     <div className="crc-detail-row">
                       <span className="crc-detail-icon">👥</span>
                       <span className="crc-detail-text">{compSize}</span>
-                    </div>
-                    <div className="crc-detail-row">
-                      <span className="crc-detail-icon">🔗</span>
-                      {compWebsite ? (
-                        <a
-                          href={compWebsite.startsWith("http") ? compWebsite : `https://${compWebsite}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="crc-detail-link"
-                          onClick={(e) => e.stopPropagation()}
-                          title={compWebsite}
-                        >
-                          {compWebsite}
-                        </a>
-                      ) : (
-                        <span className="crc-detail-text">Website pending</span>
-                      )}
                     </div>
                   </div>
 

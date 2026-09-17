@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { db } from "../config/firebase";
 import {
   addApplication,
@@ -60,7 +60,7 @@ export function PlacementDataProvider({ children }) {
   useEffect(() => {
     if (!uid) return;
     setLoading(true);
-    const q = query(collection(db, "companies"));
+    const q = query(collection(db, "companies"), orderBy("createdAt", "desc"));
     companiesUnsub.current = onSnapshot(q, (snap) => {
       setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);

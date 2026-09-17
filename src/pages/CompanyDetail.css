@@ -1074,6 +1074,187 @@
   color: #fb7185;
 }
 
+/* ─── DARK MODE: DRIVE BLOCK (root cause of invisible text) ── */
+[data-theme="dark"] .cd-drive-block {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .cd-drive-title {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .cd-drive-badge {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+[data-theme="dark"] .cd-drive-detail-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-drive-detail-value {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-drive-description {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .cd-drive-description p {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .cd-drive-other {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .cd-drive-other strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-drive-courses {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .cd-drive-courses strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-drive-courses li {
+  color: #cbd5e1;
+}
+
+/* ─── DARK MODE: METRIC CARDS ─────────────────────────── */
+[data-theme="dark"] .cd-metric-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-metric-icon-box {
+  background: rgba(225, 29, 72, 0.15);
+}
+
+[data-theme="dark"] .cd-metric-link {
+  color: #60a5fa;
+}
+
+/* ─── DARK MODE: EMPTY STATES ─────────────────────────── */
+
+[data-theme="dark"] .cd-empty-title {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-empty-subtitle {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-empty-icon-wrapper {
+  background: #1e2433;
+}
+
+/* ─── DARK MODE: SIDEBAR DETAIL LABELS ────────────────── */
+[data-theme="dark"] .cd-detail-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-schedule-label {
+  color: #94a3b8;
+}
+
+/* ─── DARK MODE: ATTACHMENTS / DOC CARDS ──────────────── */
+[data-theme="dark"] .cd-doc-size {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-doc-menu-btn {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-doc-thumbnail {
+  background: #1a1f2e;
+}
+
+[data-theme="dark"] .cd-doc-preview-canvas {
+  background: #232a3b;
+}
+
+[data-theme="dark"] .cd-doc-line {
+  background: #3b4458;
+}
+
+/* ─── DARK MODE: APPLY FEEDBACK ───────────────────────── */
+[data-theme="dark"] .cd-apply-feedback {
+  background: rgba(22, 163, 74, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+/* ─── DARK MODE: UPLOAD / MODAL FORMS ─────────────────── */
+[data-theme="dark"] .cd-upload-box {
+  background: #181d2a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-upload-file-name {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-upload-file-size {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-form-group label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .cd-form-group input,
+[data-theme="dark"] .cd-form-group textarea,
+[data-theme="dark"] .cd-form-group select {
+  background: #1a1f2e;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .cd-form-group input::placeholder,
+[data-theme="dark"] .cd-form-group textarea::placeholder {
+  color: #64748b;
+}
+
+/* ─── DARK MODE: STATUS BADGE ─────────────────────────── */
+[data-theme="dark"] .cd-status-badge--active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ─── DARK MODE: HEADER ICON BOX ──────────────────────── */
+[data-theme="dark"] .cd-header-icon-box {
+  background: rgba(225, 29, 72, 0.15);
+}
+
+/* ─── DARK MODE: QUICK ACTION BUTTONS ─────────────────── */
+[data-theme="dark"] .cd-btn-quick-edit {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .cd-btn-quick-edit:hover {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+[data-theme="dark"] .cd-btn-quick-delete {
+  background: rgba(225, 29, 72, 0.12);
+  border-color: rgba(225, 29, 72, 0.3);
+  color: #fb7185;
+}
+
+[data-theme="dark"] .cd-btn-quick-delete:hover {
+  background: rgba(225, 29, 72, 0.2);
+  border-color: rgba(225, 29, 72, 0.5);
+}
+
 /* ─── RESPONSIVE BREAKPOINTS ─────────────────────────── */
 @media (max-width: 1023px) {
   .cd-page {
