@@ -909,3 +909,245 @@
     padding: 10px 14px;
   }
 }
+
+@media (max-width: 480px) {
+  .home-dashboard {
+    gap: 16px;
+  }
+
+  .sec-header-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .section-title {
+    font-size: 0.95rem;
+  }
+
+  .view-all-link {
+    font-size: 0.76rem;
+  }
+
+  .dash-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .dash-stat-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .stat-label {
+    font-size: 0.74rem;
+  }
+
+  .stat-trend-pill {
+    font-size: 0.68rem;
+  }
+
+  .recent-activity-section {
+    padding: 16px;
+  }
+
+  .activity-ref-item {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .act-title {
+    font-size: 0.78rem;
+  }
+
+  .act-meta {
+    font-size: 0.68rem;
+  }
+
+  .big-dreams-banner {
+    min-height: 160px;
+  }
+
+  .big-dreams-left {
+    padding: 18px 20px;
+  }
+
+  .big-dreams-title {
+    font-size: 1.15rem;
+  }
+
+  .big-dreams-sub {
+    font-size: 0.76rem;
+    max-width: 220px;
+  }
+
+  .btn-dreams-action {
+    padding: 6px 18px;
+    font-size: 0.76rem;
+  }
+
+  .big-dreams-right {
+    height: 110px;
+    min-height: 110px;
+  }
+
+  .progress-gauge-card {
+    padding: 16px;
+  }
+
+  .gauge-split {
+    gap: 16px;
+  }
+
+  .gauge-radial-wrap {
+    width: 100px;
+    height: 100px;
+  }
+
+  .radial-svg {
+    width: 100px;
+    height: 100px;
+  }
+
+  .rc-num {
+    font-size: 1.4rem;
+  }
+
+  .registered-companies-section {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-dashboard {
+    gap: 12px;
+  }
+
+  .dash-hero-banner {
+    border-radius: 16px;
+  }
+
+  .hero-left-col {
+    padding: 16px 14px;
+  }
+
+  .hero-heading {
+    font-size: 1.15rem;
+  }
+
+  .hero-tagline {
+    font-size: 0.76rem;
+  }
+
+  .dash-stats-grid {
+    gap: 8px;
+  }
+
+  .dash-stat-card {
+    padding: 10px;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .icon-rose-pill {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .icon-rose-pill svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .big-dreams-left {
+    padding: 14px 16px;
+  }
+
+  .big-dreams-title {
+    font-size: 1rem;
+  }
+
+  .big-dreams-sub {
+    font-size: 0.72rem;
+    margin-bottom: 12px;
+  }
+
+  .big-dreams-right {
+    height: 90px;
+    min-height: 90px;
+  }
+
+  .activity-ref-item {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .act-logo-wrap {
+    width: 28px;
+    height: 28px;
+  }
+
+  .act-title {
+    font-size: 0.74rem;
+  }
+
+  .empty-activity-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .empty-act-title {
+    font-size: 0.82rem;
+  }
+
+  .empty-act-sub {
+    font-size: 0.7rem;
+  }
+
+  .progress-gauge-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .gauge-split {
+    gap: 12px;
+  }
+
+  .gauge-radial-wrap {
+    width: 90px;
+    height: 90px;
+  }
+
+  .radial-svg {
+    width: 90px;
+    height: 90px;
+  }
+
+  .rc-num {
+    font-size: 1.25rem;
+  }
+
+  .g-row {
+    font-size: 0.76rem;
+  }
+
+  .registered-companies-section {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .recent-activity-section {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .crc-desc {
+    min-height: auto;
+  }
+}
