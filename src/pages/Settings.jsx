@@ -6,6 +6,7 @@ import { usePlacementData } from "../contexts/PlacementDataContext";
 import { logOut } from "../services/auth";
 import { updateUserProfile, uploadProfilePicture, uploadResume, getResumeDataUrl, deleteResume } from "../services/firestore";
 import { auth, db } from "../config/firebase";
+import { clearSharedSecretCache } from "../utils/crypto";
 import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { doc, deleteDoc, getDocs, query, where, collection, updateDoc, arrayUnion } from "firebase/firestore";
 import UserAvatar from "../components/UserAvatar";
@@ -509,6 +510,7 @@ export default function Settings() {
   async function handleSelfDelete() {
     if (!user || deletingAccount || deleteConfirmText !== "DELETE") return;
     setDeletingAccount(true);
+    let authDeleteFailed = false;
     try {
       const uid = user.uid;
 
@@ -558,30 +560,49 @@ export default function Settings() {
         await deleteDoc(doc(db, "supportTickets", ticket.id)).catch(() => {});
       }
 
-      // UserKeys
+      // Reports (where user is reporter — preserve moderation records, strip personal references)
+      const reportSnap = await getDocs(query(collection(db, "reports"), where("reporterId", "==", uid)));
+      await Promise.all(reportSnap.docs.map((d) => deleteDoc(doc(db, "reports", d.id)).catch(() => {})));
+
+      // UserKeys (E2EE public key)
       await deleteDoc(doc(db, "userKeys", uid)).catch(() => {});
 
-      // Resume chunks
+      // Resume chunks subcollection
       const chunkSnap = await getDocs(collection(db, "users", uid, "resumeChunks")).catch(() => ({ docs: [] }));
       await Promise.all(chunkSnap.docs.map((d) => deleteDoc(doc(db, "users", uid, "resumeChunks", d.id)).catch(() => {})));
 
-      // User document (last)
+      // Public profile (synced by Cloud Function, client write blocked by rules — delete directly)
+      await deleteDoc(doc(db, "users_public", uid)).catch(() => {});
+
+      // User document (last — triggers syncPublicProfile Cloud Function cleanup)
       await deleteDoc(doc(db, "users", uid));
 
       // Firebase Auth account deletion
       try {
         await reauthenticateWithPopup(user, new GoogleAuthProvider());
       } catch {
-        // Reauthentication optional
+        // Reauthentication best-effort
       }
       try {
         await deleteUser(user);
-      } catch {
-        // Spark plan fallback
+      } catch (authErr) {
+        console.error("Firebase Auth deletion failed:", authErr);
+        authDeleteFailed = true;
       }
+
+      // Local cleanup
+      clearSharedSecretCache();
+      try {
+        localStorage.removeItem("ph_recent_chats");
+        localStorage.removeItem("ph_profile_quote_idx");
+      } catch {}
 
       await logOut();
       navigate("/login");
+
+      if (authDeleteFailed) {
+        alert("Your data was deleted but the login account could not be removed. Please contact support to complete account removal.");
+      }
     } catch (err) {
       console.error("Self-delete error:", err);
       setDeletingAccount(false);

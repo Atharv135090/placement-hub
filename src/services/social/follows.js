@@ -1,4 +1,3 @@
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "../../config/firebase";
 import { handleSocialError, mapDocs } from "./helpers";
 import { isBlocked } from "./blocks";
@@ -310,7 +309,7 @@ export async function rebuildFollowerCounts() {
         updateDoc(doc(db, "users", uid), {
           followingCount: followingCounts[uid] || 0,
           followersCount: followersCounts[uid] || 0,
-        }).catch(() => {})
+        }).catch(() => { })
       );
     }
     await Promise.all(batch);
@@ -321,7 +320,7 @@ export async function rebuildFollowerCounts() {
 }
 
 export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
-  if (!fromUserId || !toUserId) return () => {};
+  if (!fromUserId || !toUserId) return () => { };
 
   const docIdOut = `${fromUserId}_${toUserId}`;
   const docIdIn = `${toUserId}_${fromUserId}`;
@@ -375,7 +374,7 @@ export function subscribeToFollowStatus(fromUserId, toUserId, callback) {
 }
 
 export function subscribeToAllFollowStatuses(userId, callback) {
-  if (!userId) return () => {};
+  if (!userId) return () => { };
 
   const qOutgoing = query(
     collection(db, "follows"),
@@ -465,7 +464,7 @@ export function getRelationship(outgoingStatus, incomingStatus) {
 }
 
 export function subscribeToRelationship(currentUserId, otherUserId, callback) {
-  if (!currentUserId || !otherUserId) return () => {};
+  if (!currentUserId || !otherUserId) return () => { };
 
   const docIdOut = `${currentUserId}_${otherUserId}`;
   const docIdIn = `${otherUserId}_${currentUserId}`;
