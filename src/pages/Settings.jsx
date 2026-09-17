@@ -7,7 +7,7 @@ import { logOut } from "../services/auth";
 import { updateUserProfile, uploadProfilePicture, uploadResume, getResumeDataUrl, deleteResume } from "../services/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, deleteDoc, getDocs, query, where, collection, updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { doc, deleteDoc, getDocs, query, where, collection, updateDoc, arrayUnion } from "firebase/firestore";
 import UserAvatar from "../components/UserAvatar";
 import "../components/Modal.css";
 import "./Settings.css";
@@ -248,56 +248,46 @@ export default function Settings() {
     try {
       const updates = {
         displayName: trimmedName,
-        phoneNumber: phone,
-        phone: phone,
-        dateOfBirth: dob,
-        dob: dob,
-        branch,
-        location,
-        institution: college,
-        college: college,
-        about,
-        graduationYear,
-        placementStatus,
-        skills,
-        profileVisibility,
+        phoneNumber: phone || "",
+        phone: phone || "",
+        dateOfBirth: dob || "",
+        dob: dob || "",
+        branch: branch || "",
+        location: location || "",
+        institution: college || "",
+        college: college || "",
+        about: about || "",
+        graduationYear: graduationYear || "",
+        placementStatus: placementStatus || "Not set",
+        profileVisibility: profileVisibility || "public",
       };
 
-      const userDocRef = doc(db, "users", user.uid);
+      // Use the proven updateUserProfile service (same one used by AuthContext)
+      const { error: saveErr } = await updateUserProfile(user.uid, updates);
+      if (saveErr) throw new Error(saveErr);
 
-      // Name change detection: only record history if name actually changed
+      // Name change detection: record history if name actually changed
       const previousName = (profile?.displayName || user?.displayName || "").trim();
       if (trimmedName !== previousName && previousName) {
-        // Record username history entry
-        // NOTE: Use a plain Date for changedAt inside arrayUnion — serverTimestamp()
-        // inside arrayUnion can fail on some SDK versions / plan tiers.
-        const historyUpdate = {
-          ...updates,
-          usernameHistory: arrayUnion({
-            previousName,
-            newName: trimmedName,
-            changedAt: new Date().toISOString(),
-            actor: user.uid,
-            userId: user.uid,
-          }),
-          updatedAt: serverTimestamp(),
+        const userDocRef = doc(db, "users", user.uid);
+        const historyEntry = {
+          previousName,
+          newName: trimmedName,
+          changedAt: new Date().toISOString(),
+          actor: user.uid,
+          userId: user.uid,
         };
-        // Set originalName if not already set (first-time protection)
-        if (!profile?.originalName) {
-          historyUpdate.originalName = previousName;
-        }
-        await updateDoc(userDocRef, historyUpdate);
-      } else {
-        // No name change — normal update
         await updateDoc(userDocRef, {
-          ...updates,
-          updatedAt: serverTimestamp(),
+          usernameHistory: arrayUnion(historyEntry),
+        }).catch((histErr) => {
+          console.warn("Username history update failed (non-critical):", histErr?.code || histErr?.message);
         });
+      }
 
-        // Set originalName if not already set (first-time protection)
-        if (!profile?.originalName && previousName) {
-          await updateDoc(userDocRef, { originalName: previousName });
-        }
+      // Set originalName if not already set (first-time protection)
+      if (!profile?.originalName && previousName) {
+        const userDocRef = doc(db, "users", user.uid);
+        await updateDoc(userDocRef, { originalName: previousName }).catch(() => {});
       }
 
       // Update local profile context so the rest of the app reflects changes
