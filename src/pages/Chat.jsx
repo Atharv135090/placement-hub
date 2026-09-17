@@ -439,7 +439,9 @@ export default function Chat() {
       const unique = [];
       (users || []).forEach((u) => {
         const uid = u.id || u.uid;
-        if (uid && uid !== user?.uid && !seen.has(uid)) {
+        const name = (u.displayName || u.name || "").trim();
+        const hasProfile = u.graduationYear || u.branch || (Array.isArray(u.skills) && u.skills.length > 0) || u.onboarded;
+        if (uid && uid !== user?.uid && !seen.has(uid) && (name || hasProfile)) {
           seen.add(uid);
           unique.push(u);
         }
@@ -504,7 +506,9 @@ export default function Chat() {
         const usersList = [];
         (res.data || []).forEach((u) => {
           const uid = u.id || u.uid;
-          if (uid && uid !== myUid && !seen.has(uid)) {
+          const name = (u.displayName || u.name || "").trim();
+          const hasProfile = u.graduationYear || u.branch || (Array.isArray(u.skills) && u.skills.length > 0) || u.onboarded;
+          if (uid && uid !== myUid && !seen.has(uid) && (name || hasProfile)) {
             seen.add(uid);
             usersList.push(u);
           }
@@ -1017,6 +1021,14 @@ export default function Chat() {
   const filteredConversations = useMemo(() => {
     let result = [...conversations];
 
+    // Remove conversations with placeholder users (no name and no profile data)
+    result = result.filter((c) => {
+      const other = c.otherUser || {};
+      const name = (other.displayName || other.name || "").trim();
+      const hasProfile = other.graduationYear || other.branch || (Array.isArray(other.skills) && other.skills.length > 0) || other.onboarded;
+      return name || hasProfile;
+    });
+
     if (convSearch.trim()) {
       const q = convSearch.toLowerCase().trim();
       result = result.filter((c) => {
@@ -1313,7 +1325,6 @@ export default function Chat() {
               const isSelected = activeConversation?.id === c.id;
               const other = c.otherUser || {};
               const name = other.displayName || "Student";
-              const role = other.role === "owner" ? "owner" : other.role === "admin" ? "admin" : (other.role || "student");
               const lastMsg = formatConvPreview(c.lastMessage);
               const timeStr = formatConvTime(c.lastMessageAt || c.updatedAt || c.createdAt);
               const unread = c.unreadCount || 0;
@@ -1358,7 +1369,6 @@ export default function Chat() {
                         <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
                       )}
                     </div>
-                    <span className="msg-conv-role">{role}</span>
                     <div className="msg-conv-bottom-row">
                       <p className="msg-conv-preview">{lastMsg}</p>
                       {unread > 0 && <span className="msg-unread-badge">{unread}</span>}
@@ -1377,7 +1387,6 @@ export default function Chat() {
             {mergedUserList.map((u) => {
               const isSelected = selectedDiscoverUser?.id === u.id && !activeConversation;
               const name = u.displayName || u.name || "Student";
-              const role = u.role === "owner" ? "owner" : u.role === "admin" ? "admin" : (u.role || "student");
               const status = followStatuses[u.id];
 
               return (
@@ -1412,7 +1421,6 @@ export default function Chat() {
                         <span className="msg-discover-badge msg-discover-badge--pending">Pending</span>
                       )}
                     </div>
-                    <span className="msg-conv-role">{role}</span>
                     <div className="msg-conv-bottom-row">
                       <p className="msg-conv-preview">
                         {u.branch || u.course || "Tap to connect"}

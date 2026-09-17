@@ -65,7 +65,9 @@ export default function Students() {
       const uniqueUsers = [];
       (allUsers || []).forEach((u) => {
         const uid = u.id || u.uid;
-        if (uid && !seenUids.has(uid)) {
+        const name = (u.displayName || u.name || "").trim();
+        const hasProfile = u.graduationYear || u.branch || (Array.isArray(u.skills) && u.skills.length > 0) || u.onboarded;
+        if (uid && !seenUids.has(uid) && (name || hasProfile)) {
           seenUids.add(uid);
           uniqueUsers.push(u);
         }
@@ -353,65 +355,7 @@ export default function Students() {
         </div>
       )}
 
-      {/* 1. Header / Hero Section */}
-      <div className="students-hero-card glass">
-        <div className="students-hero-left">
-          <div className="students-hero-icon-wrap">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-
-          <div className="students-hero-text">
-            <h1 className="students-hero-title">Students</h1>
-            <div className="students-hero-tagline">Connect • Collaborate • Grow Together</div>
-            <p className="students-hero-desc">
-              Connect with talented peers, explore profiles, and grow together.
-            </p>
-          </div>
-        </div>
-
-        <div className="students-hero-right">
-          {/* Floating avatar badges matching reference graphic style */}
-          <div className="students-floating-group">
-            <div className="students-float-circle bubble-1" title="Community">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-            </div>
-            <div className="students-float-circle bubble-2" title="Peers">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
-              </svg>
-            </div>
-            <div className="students-float-circle bubble-3" title="Connections">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="students-hero-divider"></div>
-
-          {/* Motto badge matching reference screenshot */}
-          <div className="students-hero-motto">
-            <span>BETTER</span>
-            <span>PEOPLE</span>
-            <span>BRIGHTER</span>
-            <span className="motto-accent">FUTURES</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Search + Filters Bar */}
+      {/* 1. Search + Filters Bar */}
       <div className="students-controls-card glass">
         <div className="students-search-field">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="students-search-ico">
@@ -919,16 +863,7 @@ export default function Students() {
         </div>
       )}
 
-      {/* 5. Brand Slogan Footer */}
-      <div className="students-footer-slogan">
-        <div className="slogan-rule-left">
-          <span className="slogan-crimson-dash"></span>
-          <span className="slogan-motto-text">LEARN CONNECT GROW</span>
-        </div>
-        <div className="slogan-rule-right">
-          PLACEMENT HUB <span className="slogan-cross">×</span> STUDENTS
-        </div>
-      </div>
+
     </div>
   );
 }
