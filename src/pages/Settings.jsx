@@ -365,9 +365,15 @@ export default function Settings() {
 
   function handleRemoveSkill(s) {
     const updated = skills.filter((item) => item !== s);
+    const previousSkills = [...skills];
     setSkills(updated);
     if (user?.uid) {
-      updateUserProfile(user.uid, { skills: updated }).catch(console.error);
+      updateUserProfile(user.uid, { skills: updated }).catch((err) => {
+        console.error("Failed to remove skill:", err);
+        setSkills(previousSkills);
+        setSavedToast("Failed to remove skill. Please try again.");
+        setTimeout(() => setSavedToast(""), 3000);
+      });
     }
   }
 
@@ -750,7 +756,7 @@ export default function Settings() {
                 </p>
 
                 <div className="ph-hero-skills-row">
-                  {(skills.length > 0 ? skills.slice(0, 3) : ["Computer Science", "Web Development", "Problem Solving"]).map((sk) => (
+                  {skills.slice(0, 3).map((sk) => (
                     <span key={sk} className="ph-hero-skill-chip">{sk}</span>
                   ))}
                   <button
@@ -1126,24 +1132,23 @@ export default function Settings() {
 
                 <div className="ph-card-body">
                   <div className="ph-skills-chips-wrapper">
-                    {(skills.length > 0
-                      ? skills
-                      : ["C++", "Python", "JavaScript", "React", "Node.js", "Data Structures", "Algorithms", "HTML", "CSS"]
-                    ).map((skill) => (
+                    {skills.map((skill) => (
                       <span key={skill} className="ph-skill-chip">
                         <span>{skill}</span>
-                        {skills.includes(skill) && (
-                          <button
-                            type="button"
-                            className="ph-skill-remove-btn"
-                            onClick={() => handleRemoveSkill(skill)}
-                            title="Remove skill"
-                          >
-                            ✕
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="ph-skill-remove-btn"
+                          onClick={() => handleRemoveSkill(skill)}
+                          title="Remove skill"
+                        >
+                          ✕
+                        </button>
                       </span>
                     ))}
+
+                    {skills.length === 0 && !showAddSkill && (
+                      <p className="ph-skills-empty">No skills added yet.</p>
+                    )}
 
                     {showAddSkill ? (
                       <div className="ph-inline-add-skill-box">

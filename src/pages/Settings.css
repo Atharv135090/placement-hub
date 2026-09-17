@@ -2555,6 +2555,16 @@ select.glass-text-input.readonly:disabled {
   color: #ef4444;
 }
 
+.ph-skills-empty {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+[data-theme="dark"] .ph-skills-empty {
+  color: #64748b;
+}
+
 .ph-inline-add-skill-box {
   display: inline-flex;
   align-items: center;
