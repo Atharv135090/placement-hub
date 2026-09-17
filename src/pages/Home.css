@@ -603,136 +603,7 @@
   border-radius: 9999px;
 }
 
-/* ── 4. Lower Row: Recent Activity & Big Dreams Action Card ───────────── */
-.dash-lower-row {
-  display: grid;
-  grid-template-columns: 1fr 1.28fr;
-  gap: 20px;
-  align-items: stretch;
-  margin-top: 4px;
-}
-
-/* Recent Activity Section */
-.recent-activity-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 22px 24px;
-  box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: column;
-}
-
-[data-theme="light"] .recent-activity-section {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-}
-
-.recent-activity-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-}
-
-.activity-ref-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-[data-theme="light"] .activity-ref-item {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-}
-
-.activity-ref-item:hover {
-  background: var(--bg-hover);
-  border-color: rgba(225, 29, 72, 0.3);
-  transform: translateX(2px);
-}
-
-.act-logo-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.act-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.act-title {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.act-meta {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.act-chevron {
-  font-size: 1.25rem;
-  color: var(--text-muted);
-  font-weight: 300;
-  transition: transform 0.2s, color 0.2s;
-}
-
-.activity-ref-item:hover .act-chevron {
-  transform: translateX(3px);
-  color: var(--accent);
-}
-
-/* Empty Activity Card */
-.empty-activity-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px;
-  border-radius: 14px;
-  border: 1.5px dashed var(--border);
-  background: var(--bg-surface);
-  color: var(--text-muted);
-}
-
-.empty-act-icon {
-  font-size: 1.6rem;
-  opacity: 0.7;
-}
-
-.empty-act-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  display: block;
-}
-
-.empty-act-sub {
-  font-size: 0.76rem;
-  margin: 2px 0 0;
-  color: var(--text-muted);
-}
-
+/* ── 4. Big Dreams Action Card ──────────────────────────────────────── */
 /* Big Dreams Banner */
 .big-dreams-banner {
   background: var(--bg-card);
@@ -832,9 +703,6 @@
 /* ── Responsive Adaptations ───────────────────────────────────────────── */
 @media (max-width: 1200px) {
   .dash-middle-row {
-    grid-template-columns: 1fr;
-  }
-  .dash-lower-row {
     grid-template-columns: 1fr;
   }
   .companies-cards-grid {
@@ -947,23 +815,6 @@
   }
 
   .stat-trend-pill {
-    font-size: 0.68rem;
-  }
-
-  .recent-activity-section {
-    padding: 16px;
-  }
-
-  .activity-ref-item {
-    padding: 10px;
-    gap: 10px;
-  }
-
-  .act-title {
-    font-size: 0.78rem;
-  }
-
-  .act-meta {
     font-size: 0.68rem;
   }
 
@@ -1083,33 +934,6 @@
     min-height: 90px;
   }
 
-  .activity-ref-item {
-    padding: 8px 10px;
-    gap: 8px;
-  }
-
-  .act-logo-wrap {
-    width: 28px;
-    height: 28px;
-  }
-
-  .act-title {
-    font-size: 0.74rem;
-  }
-
-  .empty-activity-card {
-    padding: 14px;
-    gap: 10px;
-  }
-
-  .empty-act-title {
-    font-size: 0.82rem;
-  }
-
-  .empty-act-sub {
-    font-size: 0.7rem;
-  }
-
   .progress-gauge-card {
     padding: 14px;
     border-radius: 16px;
@@ -1138,11 +962,6 @@
   }
 
   .registered-companies-section {
-    padding: 14px;
-    border-radius: 16px;
-  }
-
-  .recent-activity-section {
     padding: 14px;
     border-radius: 16px;
   }

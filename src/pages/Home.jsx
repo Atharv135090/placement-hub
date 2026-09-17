@@ -29,16 +29,6 @@ export default function Home() {
     [applications]
   );
 
-  const recentApplications = useMemo(() => {
-    return [...activeApplications]
-      .sort((a, b) => {
-        const aTime = a.appliedAt ? new Date(a.appliedAt).getTime() : 0;
-        const bTime = b.appliedAt ? new Date(b.appliedAt).getTime() : 0;
-        return bTime - aTime;
-      })
-      .slice(0, 4);
-  }, [activeApplications]);
-
   const totalAppsCount = activeApplications.length;
   const companiesCount = companies.length;
   const interviewsCount = stats.interview;
@@ -56,33 +46,6 @@ export default function Home() {
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
   const strokeOffset = circumference - (circumference * gaugePercent) / 100;
-
-  function getStatusLabel(status) {
-    switch (status) {
-      case "offer":
-      case "selected": return "Offer Received";
-      case "interview": return "Interview Scheduled";
-      case "shortlisted": return "Shortlisted";
-      case "applied": return "Application Sent";
-      case "rejected": return "Not Selected";
-      default: return "Applied";
-    }
-  }
-
-  function getTimeAgo(dateStr) {
-    if (!dateStr) return "";
-    const now = new Date();
-    const then = new Date(dateStr);
-    const diffMs = now - then;
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return then.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-  }
 
   function formatCompanyName(raw) {
     if (!raw) return "Company";
@@ -119,10 +82,6 @@ export default function Home() {
   function truncate(str, max = 60) {
     if (!str) return "";
     return str.length > max ? str.slice(0, max).trim() + "..." : str;
-  }
-
-  function getField(val, fallback = "Not available") {
-    return val && String(val).trim() ? String(val).trim() : fallback;
   }
 
   return (
@@ -407,84 +366,40 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── 4. LOWER ROW: RECENT ACTIVITY & BIG DREAMS CARD (SCROLL REVEAL) ─ */}
-      <div className="dash-lower-row">
-        {/* Left: Recent Activity */}
-        <div className="recent-activity-section glass">
-          <div className="sec-header-row">
-            <h3 className="section-title">Recent Activity</h3>
-            <Link to="/applications" className="view-all-link">View All →</Link>
-          </div>
-
-          <div className="recent-activity-list">
-            {recentApplications.length === 0 ? (
-              <div className="empty-activity-card">
-                <span className="empty-act-icon">📋</span>
-                <div>
-                  <strong className="empty-act-title">No applications yet</strong>
-                  <p className="empty-act-sub">Browse registered companies and apply to get started</p>
-                </div>
-              </div>
-            ) : (
-              recentApplications.map((app) => (
-                <div
-                  key={app.id}
-                  className="activity-ref-item"
-                  onClick={() => navigate("/applications")}
-                >
-                  <div className="act-logo-wrap">
-                    <CompanyLogo name={app.companyName} logoUrl={app.logoUrl} size={32} />
-                  </div>
-                  <div className="act-info">
-                    <strong className="act-title">
-                      {app.role ? `Applied to ${app.role}` : `${getStatusLabel(app.status)}`}
-                    </strong>
-                    <span className="act-meta">
-                      {getField(app.companyName, "Company")} · {getTimeAgo(app.appliedAt || app.updatedAt) || "Recently"}
-                    </span>
-                  </div>
-                  <span className="act-chevron">›</span>
-                </div>
-              ))
-            )}
-          </div>
+      {/* ── 4. BIG DREAMS CARD ────────────────────────────────────── */}
+      <div className="big-dreams-banner glass">
+        <div className="big-dreams-left">
+          <h3 className="big-dreams-title">
+            Big Dreams<br />
+            Require<br />
+            Consistent Action.
+          </h3>
+          <p className="big-dreams-sub">
+            Practice mock interviews, analyze company aptitude tests, and polish your resume.
+          </p>
+          <button
+            className="btn-glossy-pill btn-dreams-action"
+            onClick={() => navigate("/assistant")}
+          >
+            Ask Assistant →
+          </button>
         </div>
 
-        {/* Right: Big Dreams Require Consistent Action */}
-        <div className="big-dreams-banner glass">
-          <div className="big-dreams-left">
-            <h3 className="big-dreams-title">
-              Big Dreams<br />
-              Require<br />
-              Consistent Action.
-            </h3>
-            <p className="big-dreams-sub">
-              Practice mock interviews, analyze company aptitude tests, and polish your resume.
-            </p>
-            <button
-              className="btn-glossy-pill btn-dreams-action"
-              onClick={() => navigate("/assistant")}
-            >
-              Ask Assistant →
-            </button>
-          </div>
-
-          <div className="big-dreams-right">
-            <img
-              src="/assets/car_banner.jpg"
-              alt="Dream Big"
-              className="big-dreams-img"
-              loading="lazy"
-              width="400"
-              height="300"
-            />
-            <div className="big-dreams-overlay" />
-            <div className="big-dreams-slogan">
-              <span>Better</span>
-              <span>Placements</span>
-              <em>Brighter</em>
-              <em>Future</em>
-            </div>
+        <div className="big-dreams-right">
+          <img
+            src="/assets/car_banner.jpg"
+            alt="Dream Big"
+            className="big-dreams-img"
+            loading="lazy"
+            width="400"
+            height="300"
+          />
+          <div className="big-dreams-overlay" />
+          <div className="big-dreams-slogan">
+            <span>Better</span>
+            <span>Placements</span>
+            <em>Brighter</em>
+            <em>Future</em>
           </div>
         </div>
       </div>
