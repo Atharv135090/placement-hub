@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
@@ -145,6 +146,7 @@ export default function CompanyDetail() {
   const [deletingCompany, setDeletingCompany] = useState(false);
 
   const [viewerPdf, setViewerPdf] = useState(null);
+  const [viewerError, setViewerError] = useState(false);
 
   // Edit Company Modal
   const [editModal, setEditModal] = useState(false);
@@ -224,6 +226,31 @@ export default function CompanyDetail() {
   useEffect(() => {
     loadCompany();
   }, [loadCompany]);
+
+  // Body scroll lock + Escape key when PDF viewer is open
+  useEffect(() => {
+    if (!viewerPdf) return;
+    setViewerError(false);
+    const scrollEl = document.querySelector(".main-viewport");
+    const prevOverflow = scrollEl ? scrollEl.style.overflow : document.body.style.overflow;
+    if (scrollEl) {
+      scrollEl.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "hidden";
+    }
+    function handleKeyDown(e) {
+      if (e.key === "Escape") setViewerPdf(null);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      if (scrollEl) {
+        scrollEl.style.overflow = prevOverflow || "";
+      } else {
+        document.body.style.overflow = prevOverflow || "";
+      }
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewerPdf]);
 
   // Compute which jobs the current user has applied to
   const appliedJobIds = new Set(
@@ -610,23 +637,44 @@ export default function CompanyDetail() {
         </div>
       )}
 
-      {viewerPdf && (
+      {viewerPdf && createPortal(
         <div className="cd-modal-overlay" onClick={() => setViewerPdf(null)}>
           <div className="cd-pdf-viewer-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cd-pdf-viewer-header">
               <span className="cd-pdf-viewer-title">{viewerPdf.name}</span>
               <div className="cd-pdf-viewer-actions">
+                <a href={viewerPdf.dataUrl || viewerPdf.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+                  Open
+                </a>
                 <a href={viewerPdf.dataUrl || viewerPdf.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" download={viewerPdf.name}>
                   Download
                 </a>
-                <button className="btn btn-secondary" onClick={() => setViewerPdf(null)}>
+                <button className="btn btn-secondary" onClick={() => setViewerPdf(null)} aria-label="Close attachment viewer">
                   Close
                 </button>
               </div>
             </div>
-            <iframe src={viewerPdf.dataUrl || viewerPdf.fileUrl} title={viewerPdf.name} className="cd-pdf-iframe" />
+            {viewerError ? (
+              <div className="cd-pdf-fallback">
+                <div className="cd-pdf-fallback-icon">📄</div>
+                <div className="cd-pdf-fallback-name">{viewerPdf.name}</div>
+                <div className="cd-pdf-fallback-msg">Unable to preview this attachment.</div>
+                <a href={viewerPdf.dataUrl || viewerPdf.fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary cd-btn-sm">
+                  Download
+                </a>
+              </div>
+            ) : (
+              <iframe
+                src={viewerPdf.dataUrl || viewerPdf.fileUrl}
+                title={viewerPdf.name}
+                className="cd-pdf-iframe"
+                onError={() => setViewerError(true)}
+                onLoad={() => setViewerError(false)}
+              />
+            )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {editModal && (
