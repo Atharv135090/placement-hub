@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { usePlacementData } from "../contexts/PlacementDataContext";
 import CompanyLogo from "../components/CompanyLogo";
+import { sortCompaniesByRegisteredDate, buildLatestDriveDateMap } from "../utils/companySort";
+import { getJobs } from "../services/firestore";
 import "./Companies.css";
 
 export default function Companies() {
@@ -21,6 +23,18 @@ export default function Companies() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOption, setSortOption] = useState("newest_first");
   const [activeMenuCompanyId, setActiveMenuCompanyId] = useState(null);
+  const [driveDateByCompany, setDriveDateByCompany] = useState({});
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: jobs } = await getJobs();
+      if (active) setDriveDateByCompany(buildLatestDriveDateMap(jobs));
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -68,10 +82,12 @@ export default function Companies() {
         isActive: fc.isActive !== false,
         status: derivedStatus === "active" ? "Not Applied" : derivedStatus,
         organisationSize: fc.organisationSize || "",
+        registeredDate: fc.registeredDate || null,
+        driveRegistrationDate: driveDateByCompany[fc.id] ?? null,
         createdAt: fc.createdAt || null,
       };
     });
-  }, [firestoreCompanies, applications]);
+  }, [firestoreCompanies, applications, driveDateByCompany]);
 
   const industriesList = useMemo(() => {
     const set = new Set(companies.map((c) => c.industry).filter(Boolean));
@@ -84,7 +100,7 @@ export default function Companies() {
   }, [companies]);
 
   const filtered = useMemo(() => {
-    return companies.filter((c) => {
+    const result = companies.filter((c) => {
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const matches =
@@ -97,21 +113,17 @@ export default function Companies() {
       if (locationFilter !== "all" && !c.location.toLowerCase().includes(locationFilter.toLowerCase())) return false;
       if (statusFilter !== "all" && c.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
       return true;
-    }).sort((a, b) => {
-      if (sortOption === "newest_first") {
-        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-        return bTime - aTime;
-      }
-      if (sortOption === "oldest_first") {
-        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-        return aTime - bTime;
-      }
-      if (sortOption === "name_asc") return a.name.localeCompare(b.name);
-      if (sortOption === "name_desc") return b.name.localeCompare(a.name);
-      return 0;
     });
+
+    // "Newest First" (default) and "Oldest First" sort by the manually
+    // configured Registered Date; companies without one use the latest
+    // placement-drive registration-open date, then the creation timestamp.
+    // Equal dates are tie-broken by creation timestamp.
+    if (sortOption === "newest_first") return sortCompaniesByRegisteredDate(result, "desc");
+    if (sortOption === "oldest_first") return sortCompaniesByRegisteredDate(result, "asc");
+    if (sortOption === "name_asc") return result.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortOption === "name_desc") return result.sort((a, b) => b.name.localeCompare(a.name));
+    return result;
   }, [companies, search, sortOption, industryFilter, locationFilter, statusFilter]);
 
   function formatCompanyName(raw) {

@@ -189,6 +189,7 @@ export function PlacementDataProvider({ children }) {
       organisationSize: data.organisationSize || "",
       description: data.description || "",
       logoUrl: data.logoUrl || "",
+      registeredDate: data.registeredDate || "",
       status: "active",
       isActive: true,
     };

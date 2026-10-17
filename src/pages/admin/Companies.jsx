@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { getCompanies, addCompany, updateCompany, deleteCompany, getAllApplications, addJob, findCompanyByName, uploadJobAttachment } from "../../services/firestore";
+import { getCompanies, getJobs, addCompany, updateCompany, deleteCompany, getAllApplications, addJob, findCompanyByName, uploadJobAttachment } from "../../services/firestore";
 import Modal from "../../components/Modal";
 import CompanyLogo from "../../components/CompanyLogo";
+import { sortCompaniesByRegisteredDate, toDateInputValue, buildLatestDriveDateMap } from "../../utils/companySort";
 import "./Companies.css";
 
 const EMPTY = {
@@ -14,6 +15,7 @@ const EMPTY = {
   description: "",
   location: "",
   contactEmail: "",
+  registeredDate: "",
   isActive: true,
 };
 
@@ -234,6 +236,7 @@ export default function AdminCompanies() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [companies, setCompanies] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [driveDateByCompany, setDriveDateByCompany] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [industryFilter, setIndustryFilter] = useState("all");
@@ -292,16 +295,18 @@ export default function AdminCompanies() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch real companies and applications from Firestore
+  // Fetch real companies, applications and drives from Firestore
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const [companiesRes, appsRes] = await Promise.all([
+      const [companiesRes, appsRes, jobsRes] = await Promise.all([
         getCompanies(),
         getAllApplications(),
+        getJobs(),
       ]);
       setCompanies(companiesRes.data || []);
       setApplications(appsRes.data || []);
+      setDriveDateByCompany(buildLatestDriveDateMap(jobsRes.data || []));
       setLoading(false);
     }
     fetchData();
@@ -357,24 +362,21 @@ export default function AdminCompanies() {
       result = result.filter((c) => c.isActive === false);
     }
 
+    result = result.map((c) => ({
+      ...c,
+      driveRegistrationDate: driveDateByCompany[c.id] ?? null,
+    }));
+
     if (sortBy === "newest") {
-      result.sort((a, b) => {
-        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-        return bTime - aTime;
-      });
+      result = sortCompaniesByRegisteredDate(result, "desc");
     } else if (sortBy === "oldest") {
-      result.sort((a, b) => {
-        const aTime = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
-        const bTime = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
-        return aTime - bTime;
-      });
+      result = sortCompaniesByRegisteredDate(result, "asc");
     } else if (sortBy === "name") {
       result.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     }
 
     return result;
-  }, [companies, search, industryFilter, statusFilter, sortBy]);
+  }, [companies, search, industryFilter, statusFilter, sortBy, driveDateByCompany]);
 
   // Paginated list
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -403,6 +405,7 @@ export default function AdminCompanies() {
       description: company.description || "",
       location: company.location || "",
       contactEmail: company.contactEmail || "",
+      registeredDate: toDateInputValue(company.registeredDate),
       isActive: company.isActive !== false,
     });
     setFeedback("");
@@ -420,27 +423,36 @@ export default function AdminCompanies() {
       let companyId;
       let existingCompany = null;
 
+      const companyPayload = {
+        ...form,
+        registeredDate: (form.registeredDate || "").trim(),
+      };
+      // Never write a new empty field onto companies that never had one.
+      if (!companyPayload.registeredDate && !editing?.registeredDate) {
+        delete companyPayload.registeredDate;
+      }
+
       if (editing) {
-        const { error: err } = await updateCompany(editing.id, form);
+        const { error: err } = await updateCompany(editing.id, companyPayload);
         if (err) {
           setFeedback("Failed to update company.");
           return;
         }
         companyId = editing.id;
-        setCompanies((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...form } : c)));
+        setCompanies((prev) => prev.map((c) => (c.id === editing.id ? { ...c, ...companyPayload } : c)));
       } else {
         const { data: existing } = await findCompanyByName(form.name.trim());
         if (existing) {
           companyId = existing.id;
           existingCompany = existing;
         } else {
-          const { data: compData, error: compErr } = await addCompany(form);
+          const { data: compData, error: compErr } = await addCompany(companyPayload);
           if (compErr) {
             setFeedback("Failed to add company.");
             return;
           }
           companyId = compData.id;
-          setCompanies((prev) => [{ id: companyId, ...form, createdAt: new Date() }, ...prev]);
+          setCompanies((prev) => [{ id: companyId, ...companyPayload, createdAt: new Date() }, ...prev]);
         }
       }
 
@@ -487,6 +499,16 @@ export default function AdminCompanies() {
           return;
         }
         jobData = createdJob;
+        setDriveDateByCompany((prev) => {
+          const next = { ...prev };
+          const added = buildLatestDriveDateMap([
+            { companyId, registrationOpensAt: driveForm.registrationOpensAt },
+          ]);
+          Object.entries(added).forEach(([cid, ms]) => {
+            if (!(cid in next) || ms > next[cid]) next[cid] = ms;
+          });
+          return next;
+        });
       }
 
       if (driveAttachment && jobData?.id) {
@@ -998,6 +1020,16 @@ export default function AdminCompanies() {
                 value={form.contactEmail}
                 onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
                 placeholder="careers@company.com or NA"
+              />
+            </div>
+
+            <div className="modal-field">
+              <label>Registered Date</label>
+              <input
+                type="date"
+                value={form.registeredDate}
+                onChange={(e) => setForm({ ...form, registeredDate: e.target.value })}
+                title="Manually configured company registered date. Companies are sorted by this date (newest first)."
               />
             </div>
           </div>

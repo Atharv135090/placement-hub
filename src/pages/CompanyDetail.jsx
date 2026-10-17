@@ -15,6 +15,7 @@ import {
   updateJob,
 } from "../services/firestore";
 import CompanyLogo from "../components/CompanyLogo";
+import { toDateInputValue } from "../utils/companySort";
 import "../components/Modal.css";
 import "./CompanyDetail.css";
 
@@ -37,6 +38,18 @@ function timeAgo(dateVal) {
   if (diff < 2592000) return Math.floor(diff / 86400) + "d ago";
   const months = Math.floor(diff / 2592000);
   return `${months} ${months === 1 ? "month" : "months"} ago`;
+}
+
+// Shows the manually configured registered date when present,
+// otherwise falls back to the original creation timestamp.
+function formatRegisteredOn(company) {
+  if (company?.registeredDate) {
+    const d = new Date(company.registeredDate);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    }
+  }
+  return timeAgo(company?.createdAt);
 }
 
 // PRD §25: Consistent NA/empty/null check
@@ -157,6 +170,7 @@ export default function CompanyDetail() {
     location: "",
     website: "",
     description: "",
+    registeredDate: "",
   });
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
@@ -352,6 +366,7 @@ export default function CompanyDetail() {
       location: formatLocation(company),
       website: formatWebsite(company),
       description: formatDescription(company),
+      registeredDate: toDateInputValue(company?.registeredDate),
     });
     setEditError("");
     setEditModal(true);
@@ -361,18 +376,23 @@ export default function CompanyDetail() {
     e.preventDefault();
     setEditBusy(true);
     setEditError("");
-    const { error: err } = await updateCompany(companyId, {
+    const updates = {
       name: editForm.name.trim(),
       industry: editForm.industry.trim(),
       organisationSize: editForm.organisationSize.trim(),
       location: editForm.location.trim(),
       website: editForm.website.trim(),
       description: editForm.description.trim(),
-    });
+      registeredDate: (editForm.registeredDate || "").trim(),
+    };
+    if (!updates.registeredDate && !company?.registeredDate) {
+      delete updates.registeredDate;
+    }
+    const { error: err } = await updateCompany(companyId, updates);
     if (!err) {
       setCompany((prev) => ({
         ...prev,
-        ...editForm,
+        ...updates,
       }));
       setEditModal(false);
     } else {
@@ -723,6 +743,15 @@ export default function CompanyDetail() {
                   type="url"
                   value={editForm.website}
                   onChange={(e) => setEditForm((p) => ({ ...p, website: e.target.value }))}
+                />
+              </div>
+              <div className="cd-form-group">
+                <label>Registered Date</label>
+                <input
+                  type="date"
+                  value={editForm.registeredDate}
+                  onChange={(e) => setEditForm((p) => ({ ...p, registeredDate: e.target.value }))}
+                  title="Manually configured company registered date. Companies are sorted by this date (newest first)."
                 />
               </div>
               <div className="cd-form-group">
@@ -1327,7 +1356,7 @@ export default function CompanyDetail() {
               </div>
               <div className="cd-detail-row">
                 <span className="cd-detail-label">Registered On</span>
-                <span className="cd-detail-val">{timeAgo(company?.createdAt)}</span>
+                <span className="cd-detail-val">{formatRegisteredOn(company)}</span>
               </div>
             </div>
           </div>

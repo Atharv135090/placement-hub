@@ -13,6 +13,7 @@ const INITIAL_STATE = {
   contactEmail: "",
   organisationSize: "",
   description: "",
+  registeredDate: "",
 };
 
 export default function AddCompany() {
@@ -82,6 +83,7 @@ export default function AddCompany() {
       contactEmail: form.contactEmail.trim(),
       organisationSize: form.organisationSize.trim(),
       description: form.description.trim(),
+      registeredDate: form.registeredDate.trim(),
       logoUrl,
       isActive: true,
     });
@@ -193,6 +195,19 @@ export default function AddCompany() {
                 placeholder="e.g. 1000+, 50-200"
                 value={form.organisationSize}
                 onChange={(e) => set("organisationSize", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="ac-row">
+            <div className="ac-field ac-field--grow">
+              <label className="ac-label">Registered Date</label>
+              <input
+                type="date"
+                className="input-field"
+                value={form.registeredDate}
+                onChange={(e) => set("registeredDate", e.target.value)}
+                title="Manually configured company registered date. Companies are sorted by this date (newest first)."
               />
             </div>
           </div>
